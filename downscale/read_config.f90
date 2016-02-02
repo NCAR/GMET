@@ -25,7 +25,7 @@ subroutine read_config(fname, n, names, values)
      values(i) = ""
   enddo
 
-  open (11,file=fname,status='old')
+  open (11,file=fname,status='old',form='formatted')
 
   do
      read(11, "(A)", iostat=stat) line

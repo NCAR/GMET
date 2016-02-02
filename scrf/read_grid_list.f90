@@ -103,7 +103,6 @@ subroutine read_grid_list(file_name, lats, lons, alts, slp_n, slp_e, nx, ny, err
            if(err /= 0) slp_n(i) = -999.99
 	   call value(peices(5), slp_e(i), err)
            if(err /= 0) slp_e(i) = -999.99
-           !print *, lats(i), lons(i), alts(i)
            i = i + 1
         endif
      endif
@@ -120,26 +119,3 @@ subroutine read_grid_list(file_name, lats, lons, alts, slp_n, slp_e, nx, ny, err
   endif
 
 end subroutine read_grid_list
-
-subroutine read_transform_exp(ntimes,file_name,texp)
-  use nrtype
-  implicit none
-
-  integer(I4B), intent(in)		:: ntimes
-  character (len = *), intent(in)	:: file_name
-  real(DP),allocatable,intent(out)	:: texp(:)
-
-  integer(I4B)				:: i
-
-  allocate(texp(ntimes))
-
-  print *,'Reading transform file: ',trim(file_name),' ',ntimes,' times'
-  open (55,file=file_name,status='old')
-
-  do i=1,ntimes
-    read(55,"(F3.1)"), texp(i)
-  enddo
-
-  close(55)
-
-end subroutine read_transform_exp

@@ -52,7 +52,6 @@ subroutine read_nc_grid(file_name,lat,lon,elev,grad_n_s,grad_w_e,mask,nx,ny,erro
   call check(nf90_inquire_dimension(ncid,dimIds(1),len = nlon),"x dim error",error)
   call check(nf90_inquire_dimension(ncid,dimIds(2),len = nlat),"y dim error",error)
 
-  print *,nlat,nlon
   ny = nlat
   nx = nlon
 

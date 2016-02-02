@@ -4,7 +4,6 @@ subroutine save_vars(pcp, tmean, trange, nx, ny, grdlat, grdlon, grdalt, Times, 
   implicit none
 
   real(SP), intent(in) :: pcp(:,:,:), tmean(:,:,:), trange(:,:,:)
-!  real(SP), intent(in) :: pcp(:,:), tmean(:,:), trange(:,:)
   integer(I4B), intent(in) :: nx, ny
   real(DP), intent(in) :: grdlat(:), grdlon(:), grdalt(:)
   real(DP), intent(in) :: Times(:)
@@ -178,13 +177,11 @@ subroutine save_vars(pcp, tmean, trange, nx, ny, grdlat, grdlon, grdalt, Times, 
      endif
 
   endif
-!print *,'save 1'
   count1(1) = n_times
   start1(1) = trec
   call check( nf90_put_var(ncid, time_varid, times, start = start1, count = count1), &
        "put times error", error)
   if(error /=0 ) return
-!print *,'save 2'
 
   count3 = (/ inx, iny, n_times /)
   start3 = (/ 1, 1, trec /)
@@ -192,18 +189,14 @@ subroutine save_vars(pcp, tmean, trange, nx, ny, grdlat, grdlon, grdalt, Times, 
        "put pcp error", error)
   if(error /=0 ) return
 
-!  print *,'save 3'
-
   call check( nf90_put_var(ncid, pop_varid, tmean, start = start3, count = count3), &
        "put tmean error", error)
   if(error /=0 ) return
-!  print *,'save 4'
   call check( nf90_put_var(ncid, pcp_error_varid, trange, start = start3, count = count3), &
        "put trange error", error)
   if(error /=0 ) return
   
   call check( nf90_close(ncid), "closing file error", error)
-!  print *,'save 5'
 
 contains
   subroutine check(status, info, error)

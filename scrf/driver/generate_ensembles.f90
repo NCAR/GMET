@@ -31,15 +31,6 @@ program generate_ensembles
       integer, intent(out) :: error
     end subroutine read_grid_list
 
-    subroutine read_transform_exp(ntimes,file_name,texp)
-       use nrtype
-
-       integer(I4B), intent(in)		:: ntimes
-       character (len = *), intent(in)	:: file_name
-       real(DP),allocatable,intent(out)	:: texp(:)
-
-     end subroutine read_transform_exp
-
     subroutine save_vars(pcp, tmean, trange, nx, ny, grdlat, grdlon, grdalt, times, file, error)
       use netcdf
       use nrtype
@@ -492,8 +483,6 @@ ALLOCATE(pcp_out(nx,ny,ntimes),tmean_out(nx,ny,ntimes),trange_out(nx,ny,ntimes),
   call spcorr_grd(nspl1, nspl2, grid)
 
   sp_pcp = spcorr
-  
-  print *,'check'
 
   call field_rand(nspl1, nspl2, pcp_random)
 
@@ -526,7 +515,6 @@ ALLOCATE(pcp_out(nx,ny,ntimes),tmean_out(nx,ny,ntimes),trange_out(nx,ny,ntimes),
 	ISP1 = IORDER(IGRD)
 	ISP2 = JORDER(IGRD)
 
-!print *,grid%elv(isp1,isp2)
         !only compute values for valid grid points
 	if(grid%elv(isp1,isp2) .gt. -300.0) then
  

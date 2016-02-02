@@ -86,7 +86,6 @@ subroutine estimate_coefficients(D, nvars, Lats, Lons, Times, stnid, stnlat, stn
   nlats = size(Lats)
   nlons = size(Lons)
   nstns = size(stnlat)
-  print *, ntimes, nlats, nlons, nstns
 
   allocate(X(ntimes, nvars+1))
   if(trim(stnvar) .EQ. "PRCP") then
@@ -96,7 +95,6 @@ subroutine estimate_coefficients(D, nvars, Lats, Lons, Times, stnid, stnlat, stn
   allocate(C(nstns, ntimes, nvars+1)) 
   C = 0.0d0
 
-!  do i = 5, 5, 1!nstns, 1
   do i = 1,nstns,1
 
      minlondis = 360.0
@@ -168,13 +166,12 @@ subroutine estimate_coefficients(D, nvars, Lats, Lons, Times, stnid, stnlat, stn
 
      call normalize_X(XS)
      call normalize_Y(transform_exp,YS)
-!     print *, "XS:", XS
- !    print *, "YS:", YS
+
      tt = 1
      do t = 1, ntimes, 1
 
         if(Y_miss(t) .EQV. .TRUE.) then
-!           print *, "tt = ", tt
+
            call calc_weights(TS, tt, XS, W)
            TWXS = matmul(transpose(XS), W)
            if(trim(stnvar) .EQ. "PRCP") then
@@ -189,7 +186,6 @@ subroutine estimate_coefficients(D, nvars, Lats, Lons, Times, stnid, stnlat, stn
            C(i,t,:) = B(:)
 
            deallocate(B)
-!           print *, "Coefficients: ", C(i,t,:)
 
            tt = tt +1
         else
@@ -223,14 +219,6 @@ subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
   implicit none
 
   interface
-     subroutine read_transform_exp(ntimes,file_name,texp)
-       use type
-
-       integer(I4B), intent(in)		:: ntimes
-       character (len = *), intent(in)	:: file_name
-       real(DP),allocatable,intent(out)	:: texp(:)
-
-     end subroutine read_transform_exp
 
      subroutine read_station(stnvar, stnid, site_var, site_var_t, site_list, Times, vals, tair_vals, vals_miss,&
                              vals_miss_t, error)
@@ -551,10 +539,8 @@ subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
   expand_dist_t = 0.0d0
   expand_flag_t = 0
 
-!  do i = 1, 151, 1
   do i = 1, nstns, 1
-!print *,'station read'
-!print *,stnvar,stnid(i),site_var,site_var_t,site_list,Times
+
      call read_station(stnvar, stnid(i), site_var, site_var_t, site_list, Times, stn_vals, stn_tair, stn_miss,&
                        stn_miss_t, error)
 
@@ -566,9 +552,6 @@ subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
      tair_data(1,i,:) = stn_tair(1,:)
      tair_data(2,i,:) = stn_tair(2,:)
 
-!print *, 'precip',stn_data(i,:),stn_miss
-! print *,tair_data(1,i,:),stn_miss_t
-
     !call subroutine that does various  correlation calculations
     !can do autocorrelations and correlation between temperature and precipitation
     !uses an n-day moving average (window) to remove "monthly" cycle from temp
@@ -577,8 +560,6 @@ subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     lag = 1
     window = 31
     call generic_corr(stn_data(i,:),tair_data(:,i,:),lag,window,auto_corr(i),t_p_corr(i))
-!print *,'here'
-!    print *,auto_corr(i)
 
     !compute mean autocorrelation for all stations and all times
     !check for values outside of -1 to 1
@@ -591,16 +572,11 @@ subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
       tp_corr_sum = tp_corr_sum + t_p_corr(i)
       tp_cnt = tp_cnt + 1
     endif
-!print *,'here',i
 
     deallocate(stn_miss_t)
-!print *,'here1b'
     deallocate(stn_miss)
-!print *,'here2'
     deallocate(stn_vals)
-!print *,'here3'
     deallocate(stn_tair)
-!print *,'here4'
   enddo   !end station read loop
 
 
@@ -712,8 +688,6 @@ subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
 call system_clock (t2, count_rate)
   print *,'Elapsed time for weight generation: ',real( t2 - t1 )/real(count_rate)
 
-
-!  do t = 4, 4, 4
   do t = 1, ntimes, 1
 
      call system_clock(tg1,count_rate)
@@ -891,12 +865,7 @@ call system_clock (t2, count_rate)
 	  endif
 	endif
 
-! print *,ndata
-
 	if(ndata >= 1) then
-
-	    !original call
-!	    TWX = matmul(TX, w_pcp)
 
             !tmp needs to be matmul(TX,X) where TX = TWX_red and X = X_red
 	    TWX_red = matmul(transpose(X_red),w_pcp_red)
@@ -951,9 +920,6 @@ call system_clock (t2, count_rate)
 	      deallocate(B)
 
 	    endif
-
-	    !print *, "POP: ", POP(g,t)
-
 
 	    deallocate(TWX_red)
 	    deallocate(TX_red)
@@ -1082,12 +1048,6 @@ call system_clock (t2, count_rate)
 
 	  !then do trange
 
-
-	  !  print *,'OLS FOR TRANGE'
-	  !  print *,'**********************'
-
-
-
 	  deallocate(TWX_red_t)
 	  deallocate(TX_red_t)
 	  allocate(TWX_red_t(6,sta_limit))
@@ -1100,7 +1060,6 @@ call system_clock (t2, count_rate)
 	  
 	  errsum = 0.0
 	  wgtsum = 0.0
-	  !do i = 1, nstns, 1
 	  do i = 1,(close_count_t(g)-1),1
 	      wgtsum = wgtsum + w_temp_red(i,i)
 
@@ -1109,9 +1068,7 @@ call system_clock (t2, count_rate)
 	  enddo
 	  trange_err(g,t) = real((errsum / wgtsum)**(1.0/2.0),kind(sp))
 
-!print *,'trange no slope'
-
-	  !regression without slope
+          !regression without slope
 	  deallocate(B)
 	  deallocate(TWX_red_t)
 	  deallocate(TX_red_t)
@@ -1125,7 +1082,6 @@ call system_clock (t2, count_rate)
 
 	  errsum = 0.0
 	  wgtsum = 0.0
-	  !do i = 1, nstns, 1
 	  do i = 1,(close_count_t(g)-1),1
 	      wgtsum = wgtsum + w_temp_red(i,i)
 
@@ -1166,8 +1122,14 @@ call system_clock (t2, count_rate)
 
       endif !end check for valid elevation
 
+      if(allocated(TWX_red))then; deallocate(TWX_red); endif
+      if(allocated(TX_red))then; deallocate(TX_red); endif
+      if(allocated(TWX_red_t))then; deallocate(TWX_red_t); endif
+      if(allocated(TX_red_t))then; deallocate(TX_red_t); endif
+
      enddo !end grid loop
-call system_clock(tg2,count_rate)
+
+  call system_clock(tg2,count_rate)
   print *,'Elapsed time for one time step: ',real( tg2 - tg1 )/real(count_rate)
   enddo  !end time loop
 
@@ -1368,14 +1330,12 @@ subroutine calc_weights(Times, tt, X, W)
      if(t /= tt) then
         sum = 0.0d0
         do v = 2, nvars+1, 1
-           !print *, "X(t,v) : ",  X(t,v)
            sum = sum + (X(t,v) - X(tt,v))**2
         enddo
         W(t,:) = 0.0d0
 
 	W(t,t) = 1/sqrt(sum / nvars)
      endif
-!     print *, "W : ",  t, W(t,t)
   enddo
 
 end subroutine calc_weights
@@ -1481,7 +1441,7 @@ subroutine least_squares(X, Y, TX, B)
   call ludcmp(A, indx, d )
   if (ANY(ABS(A) < 9.99999968E-15)) then
      B(:) = 0.0d0
-!     print *, "Warning, LUdcmp produced a zero."
+     print *, "Warning, LUdcmp produced a zero."
      return
   endif
 
@@ -1544,7 +1504,7 @@ subroutine logistic_regression(X, Y, TX, Yp, B)
 !     print *, "Iteration ", it
      P = 1.0d0 / (1.0d0 + exp(-matmul(X, B))) 
      if (ANY(P > 0.97)) then
-        !print *, "WARNING: logistic regression diverging"
+        print *, "WARNING: logistic regression diverging"
         f = 1
      else
 
@@ -1563,7 +1523,7 @@ subroutine logistic_regression(X, Y, TX, Yp, B)
            end if
         end do
         if(it > 8) then
-           !print *, "WARNING: logistic regression failed to converge"
+           print *, "WARNING: logistic regression failed to converge"
            f = 1
         endif
         
@@ -1574,8 +1534,6 @@ subroutine logistic_regression(X, Y, TX, Yp, B)
      endif
      it = it+1
   end do
-!  print *, "Iterations = ", it
-  !print *, "Final B = ", B
 
 end subroutine logistic_regression
 
@@ -1630,7 +1588,7 @@ subroutine logistic_regressionrf(X, Y, TX, B)
      P = 1.0d0 / (1.0d0 + exp(-matmul(X, B))) 
 !     print *, "Pie = ", P
      if (ANY(P > 0.97)) then
-        !print *, "WARNING: logistic regression diverging"
+        print *, "WARNING: logistic regression diverging"
         f = 1
      else
 
@@ -1650,7 +1608,7 @@ subroutine logistic_regressionrf(X, Y, TX, B)
            end if
         end do
         if(it > 8) then
-           !print *, "WARNING: logistic regression failed to converge"
+           print *, "WARNING: logistic regression failed to converge"
            f = 1
         endif
         
@@ -1868,9 +1826,6 @@ subroutine generic_corr(stn_data,tair_data,lag,window,auto_corr,t_p_corr)
   if(sqrt(lag_0_pvar)*sqrt(trange_var) .le. 0.00001) then
     t_p_corr = 0.0
   endif
-
-!print *,t_p_corr
-
 !in some situations, there are very limited data used for calculations
 !set those cases to missing value
   if(data_cnt .lt. real(ntimes)*0.25) then

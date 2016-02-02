@@ -188,7 +188,6 @@ DO IRES=NNST-1,0,-1
     ALLOCATE(WGHT(MAXP), STAT=IERR)
     IF (IERR.NE.0) &
       CALL EXIT_SCRF(1,' problem allocating space for weights ')
-    !print *, ires, isp1, isp2
     ! increment IPRC
     IPRC = IPRC + 1
     ! save the (i,j) position of iprc

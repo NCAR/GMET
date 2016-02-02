@@ -101,8 +101,6 @@ double precision function date_to_unix(date)
 
   date_to_unix = (days * 86400) + (hour * 3600) + (min * 60) + sec
 
-!  print *,days, hour,sec,u_day,i_day,day,month,year,date_to_unix
-
 end function date_to_unix
 
 
@@ -120,7 +118,7 @@ subroutine unix_to_date(itime, year, month, day, hour, min, sec)
   i_day = i_day + 1
 
   call calendar_date(u_day+i_day, day, month, year)
-!  print*, u_day+i_day,day,month,year
+
   i_day = mod(itime, 86400.0)
   if ( i_day < 0 ) then
      i_day = i_day + 86400
