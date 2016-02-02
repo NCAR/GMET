@@ -1,0 +1,32 @@
+#git ignore file for GMET code
+
+#no .a or .o files
+*.[oa]
+
+#no .mod files
+*.mod
+
+#no text editor temp files
+*~
+*swp
+
+#no image files
+*.tif
+*.gif
+*.tiff
+*.jpeg
+*.jpg
+*.png
+
+#not the bin directory
+bin/
+
+#no text files in driver directory
+scrf/driver/*.txt
+
+#no archives
+*.tar
+*.tgz
+*.gz
+*.zip
+*.Z
