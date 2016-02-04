@@ -74,7 +74,6 @@ prob_qpe= \
 		stringmod.f90 \
 		save_precip.f90 \
 		save_vars.f90 \
-		read_grid_qpe_nc_ens.f90 \
 		read_nc_grid.f90 \
 		read_grid_list.f90
 qpe = $(patsubst %, $(F_KORE_DIR)/%, $(prob_qpe))
@@ -85,8 +84,7 @@ SCRF_GEN = \
 		erfinv.f90 \
 		exit_scrf.f90 \
 		field_rand.f90 \
-		spcorr_grd.f90 \
-		normalize_x.f90 		 
+		spcorr_grd.f90
 GEN = $(patsubst %, $(F_KORE_DIR)/%, $(SCRF_GEN))
 
 
@@ -95,7 +93,7 @@ SCRF_ALL = $(NRUTIL) $(NRPROC) $(DATAMS) $(qpe) $(GEN)
 
 
 #========================================================================
-# PART 2: Define the libraries, driver programs, and executables
+# PART 2: Define the libraries, driver programs, flags, and executables
 #========================================================================
 
 # Define the Fortran Compiler
@@ -127,11 +125,6 @@ DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SCRF_DRIVER))
 # Define the executable
 DRIVER__EX = generate_ensemble.exe
 
-
-#========================================================================
-# PART 3: Compile the puppy
-#========================================================================
-
 # Define flags
 ifeq "$(FC)" "gfortran"
  FLAGS = -static -Wall -g -ffree-line-length-none
@@ -143,6 +136,27 @@ ifeq "$(FC)" "pgf90"
  FLAGS_PROF = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
  FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -rpath,/opt/netcdf4-pgi/lib
 endif
+
+#========================================================================
+# PART 3: Checks
+#======================================================================
+# make sure that the paths are defined. These are just some high level checks
+ifndef F_MASTER
+ $(error F_MASTER is undefined)
+endif
+ifndef FC
+ $(error FC is undefined: Specify your compiler)
+endif
+ifndef FLAGS
+ $(error Specify flags for your compiler: $(FC))
+endif
+ifndef NCDF_PATH
+ $(error NCDF_PATH is undefined)
+endif
+
+#========================================================================
+# PART 4: Compile the puppy
+#========================================================================
 
 #FLAGS = -O3 -W -v
 

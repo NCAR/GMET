@@ -21,8 +21,8 @@
 #not the bin directory
 bin/
 
-#no text files in driver directory
-scrf/driver/*.txt
+#no text files
+*.txt
 
 #no archives
 *.tar
@@ -33,3 +33,6 @@ scrf/driver/*.txt
 
 #no local makefiles
 *local
+
+#bash scripts
+*.bash

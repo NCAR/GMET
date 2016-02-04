@@ -1,18 +1,18 @@
-module precision
-
+MODULE precision
+ 
 ! Real kinds
-
-integer, parameter :: kr4 = selected_real_kind(6,37)       ! single precision real
-integer, parameter :: kr8 = selected_real_kind(15,307)     ! double precision real
-
+ 
+  INTEGER, PARAMETER :: kr4 = Selected_Real_Kind (6, 37)! single precision real
+  INTEGER, PARAMETER :: kr8 = Selected_Real_Kind (15, 307)! double precision real
+ 
 ! Integer kinds
-
-integer, parameter :: ki4 = selected_int_kind(9)           ! single precision integer
-integer, parameter :: ki8 = selected_int_kind(18)          ! double precision integer
-
+ 
+  INTEGER, PARAMETER :: ki4 = Selected_Int_Kind (9)! single precision integer
+  INTEGER, PARAMETER :: ki8 = Selected_Int_Kind (18)! double precision integer
+ 
 !Complex kinds
-
-integer, parameter :: kc4 = kr4                            ! single precision complex
-integer, parameter :: kc8 = kr8                            ! double precision complex
-
-end module precision
+ 
+  INTEGER, PARAMETER :: kc4 = kr4 ! single precision complex
+  INTEGER, PARAMETER :: kc8 = kr8 ! double precision complex
+ 
+END MODULE precision
