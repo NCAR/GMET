@@ -30,3 +30,6 @@ scrf/driver/*.txt
 *.gz
 *.zip
 *.Z
+
+#no local makefiles
+*local

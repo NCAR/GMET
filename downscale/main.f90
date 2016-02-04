@@ -243,9 +243,6 @@ program precip
      return
   endif
 
-
-!  print *,trim(site_var_t),' ',trim(site_var)
-
   if(mode == 1) then
      ! Model Variables
      perturbation = config_values(7)
@@ -279,7 +276,7 @@ program precip
         endif
         
      endif
-!  print *,'start date ',startdate
+
      do i = 1, n_vars, 1
         call read_refcst(startdate, enddate, file_var(i), perturbation, var_name(i), &
              forecast, Vals, Lats, Lons, Times, error)
@@ -297,14 +294,14 @@ program precip
      call estimate_coefficients(Y, n_vars, Lats, Lons, Times, stnid, stnlat, stnlon, &
           stnalt, station_var, site_var, site_list, coefs, prob_coefs, error)
      if(error /= 0) return
-!print *,'asjkdlf'
+
 
      if(trim(station_var) .EQ. "PRCP") then
         lenfile=len_trim(output_file)
         output_file2(:) = " "
         output_file2(1:5) = "prob_"
         output_file2(6:lenfile+6) = output_file(1:lenfile)
-print *,trim(output_file2)
+
         call save_coefficients(n_vars, var_name, prob_coefs, startdate, enddate, Times, &
              site_list, station_var, stnid, stnlat, stnlon, stnalt, forecast, output_file2, error)
         if(error /= 0) return
@@ -331,14 +328,7 @@ print *,trim(output_file2)
         call read_station_list(site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, stn_slp_e, nstations, error)
         if(error /= 0) return
 
-!        call read_grid_list(grid_list, grdlat, grdlon, grdalt, grd_slp_n, grd_slp_e, nx, ny, error)
-!        if(error /= 0) return
-
-
 	call read_nc_grid(grid_list,lat,lon,elev,grad_n,grad_e,mask,nx,ny,error)
-
-  print *,size(lat),size(elev),nx,ny,nx*ny
-
 
       !allocate 1-d grid variables
       allocate(grdlat(nx*ny))
@@ -348,7 +338,6 @@ print *,trim(output_file2)
       allocate(grd_slp_e(nx*ny))
       allocate(mask_1d(nx*ny))
 
-  print *,size(grdlat)
 
 	grdlat = reshape(lat,(/nx*ny/))
 	grdlon = reshape(lon,(/nx*ny/))
@@ -356,8 +345,6 @@ print *,trim(output_file2)
 	grd_slp_n = reshape(grad_n,(/nx*ny/))
 	grd_slp_e = reshape(grad_e,(/nx*ny/))
 	mask_1d = reshape(mask,(/nx*ny/))
-
-print *,size(lat),size(elev),nx,ny
 
         ngrid = nx*ny
         allocate(X(nstations,6))
@@ -376,7 +363,6 @@ print *,size(lat),size(elev),nx,ny
 	Z(:,5) = grd_slp_n(:)
 	Z(:,6) = grd_slp_e(:)
 
-print *,size(lat),size(elev),nx,ny
 
         call get_time_list(startdate, enddate, Times)
         
@@ -436,13 +422,10 @@ subroutine get_time_list(startdate, enddate, Times)
 
 
   utime= date_to_unix(startdate)
-print *,'times!',eday,sday,utime,date_to_unix(enddate),ntimes
   do t = 1, ntimes, 1
      if(utime > date_to_unix(enddate)) exit
      Times(t) = utime
      utime = utime+86400
   enddo
-
-print *,'time list:',Times
 
 end subroutine get_time_list
