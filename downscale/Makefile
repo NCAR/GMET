@@ -43,7 +43,6 @@ downscale_test.exe: 	type.o \
 	read_nc.o \
 	read_nc_grid.o \
 	write_nc.o \
-	heapsort.o \
 	coefficients.o \
 	main.o
 	$(FC) $(FCFLAGS) $(LDFLAGS) -o $@ $^ 

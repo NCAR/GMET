@@ -301,17 +301,6 @@ Subroutine estimate_precip (X, Z, nsta, ngrid, maxDistance, Times, stnid, stnvar
  
     End Subroutine calc_distance
  
- 
-    Subroutine heapsort (n, ra, rn)
-      Use type
-      Implicit None
- 
-      Integer (I4B), Intent (In) :: n
-      Integer (I4B), Dimension (:), Intent (Inout) :: rn
-      Real (DP), Dimension (:), Intent (Inout) :: ra
- 
-    End Subroutine heapsort
- 
   End Interface
  
   Real (DP), Intent (In) :: X (:, :), Z (:, :)!station and grid point description arrays
