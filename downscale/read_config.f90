@@ -1,47 +1,47 @@
  
-SUBROUTINE read_config (fname, n, names, values)
+Subroutine read_config (fname, n, names, values)
  
-  USE strings
-  IMPLICIT NONE
+  Use strings
+  Implicit None
  
-  CHARACTER (LEN=*) :: fname
-  INTEGER :: n
-  CHARACTER (LEN=500) :: names (n)
-  CHARACTER (LEN=500) :: values (n)
+  Character (Len=*) :: fname
+  Integer :: n
+  Character (Len=500) :: names (n)
+  Character (Len=500) :: values (n)
  
  
-  CHARACTER (LEN=500) :: peices (2)
-  CHARACTER (1000) line
-  INTEGER ipos, stat, npeices, i
-  LOGICAL fexist
+  Character (Len=500) :: peices (2)
+  Character (1000) line
+  Integer ipos, stat, npeices, i
+  Logical fexist
  
-  INQUIRE (FILE=fname, EXIST=fexist)
-  IF ( .NOT. fexist) THEN
-   PRINT *, "Cannot find config file: ", trim (fname)
-   RETURN
-  END IF
+  Inquire (File=fname, Exist=fexist)
+  If ( .Not. fexist) Then
+    Print *, "Cannot find config file: ", trim (fname)
+    Return
+  End If
  
-  DO i = 1, n, 1
-   values (i) = ""
-  END DO
+  Do i = 1, n, 1
+    values (i) = ""
+  End Do
  
-  OPEN (11, FILE=fname, STATUS='old', FORM='formatted')
+  Open (11, File=fname, Status='old', Form='formatted')
  
-  DO
-   READ (11, "(A)", IOSTAT=stat) line
-   IF (stat < 0) EXIT
-   line = adjustl (line)
-   IF (line(1:1) .NE. "!" .AND. len(trim(line)) /= 0) THEN
-    ipos = index (line, '=')
-    IF (ipos > 0) THEN
-     CALL parse (line, "=", peices, npeices)
-     DO i = 1, n, 1
-      IF (index(peices(1), names(i)) == 1) values (i) = peices (2)
-     END DO
-    END IF
+  Do
+    Read (11, "(A)", IoStat=stat) line
+    If (stat < 0) Exit
+    line = adjustl (line)
+    If (line(1:1) .Ne. "!" .And. len(trim(line)) /= 0) Then
+      ipos = index (line, '=')
+      If (ipos > 0) Then
+        Call parse (line, "=", peices, npeices)
+        Do i = 1, n, 1
+          If (index(peices(1), names(i)) == 1) values (i) = peices (2)
+        End Do
+      End If
  
-   END IF
+    End If
  
-  END DO
+  End Do
  
-END SUBROUTINE read_config
+End Subroutine read_config

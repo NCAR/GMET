@@ -1,4 +1,4 @@
-SUBROUTINE SPCORR_GRD (NSPL1, NSPL2, grid)
+Subroutine SPCORR_GRD (NSPL1, NSPL2, grid)
 ! ----------------------------------------------------------------------------------------
 ! Creator:
 !   Martyn Clark, 2006, 2008
@@ -45,59 +45,59 @@ SUBROUTINE SPCORR_GRD (NSPL1, NSPL2, grid)
 !   categories of gridpoints, and make computations for each of those categories.
 !
 ! ----------------------------------------------------------------------------------------
-  USE nrtype ! variable types (DP, I4B, etc.)
-  USE nr, ONLY: ludcmp, lubksb ! Num. Recipies
-  USE nrutil, ONLY: arth ! Num. Recipies utilities
-  USE trig_degrees, ONLY: SIND, COSD ! added for the gfortran compiler
-  USE linkstruct ! linkage structures
-  USE gridweight ! grid correlation structure
-  USE qpe_namelist, ONLY: clen ! correlation length
+  Use nrtype ! variable types (DP, I4B, etc.)
+  Use nr, Only: ludcmp, lubksb ! Num. Recipies
+  Use nrutil, Only: arth ! Num. Recipies utilities
+  Use trig_degrees, Only: SIND, COSD ! added for the gfortran compiler
+  Use linkstruct ! linkage structures
+  Use gridweight ! grid correlation structure
+  Use qpe_namelist, Only: clen ! correlation length
  
-  IMPLICIT NONE
+  Implicit None
 ! input
-  INTEGER (I4B), INTENT (IN) :: NSPL1 ! # points (1st spatial dimension)
-  INTEGER (I4B), INTENT (IN) :: NSPL2 ! # points (2nd spatial dimension)
-  TYPE (COORDS), INTENT (IN) :: grid ! input coordniate structure containing grid information
+  Integer (I4B), Intent (In) :: NSPL1 ! # points (1st spatial dimension)
+  Integer (I4B), Intent (In) :: NSPL2 ! # points (2nd spatial dimension)
+  Type (COORDS), Intent (In) :: grid ! input coordniate structure containing grid information
 ! define hyper parameters
-  INTEGER (I4B) :: NNST ! number of nests
-  INTEGER (I4B) :: NLOC ! number of local points used
+  Integer (I4B) :: NNST ! number of nests
+  Integer (I4B) :: NLOC ! number of local points used
 !REAL(DP)                                     :: CLEN        ! correlation length
 ! define looping variables
-  INTEGER (I4B) :: IRES ! loop through resolution increments
-  INTEGER (I4B) :: INCR ! spacing between grid cells
-  INTEGER (I4B) :: ISP1, ISP2 ! loop through lat-lon grid
-  INTEGER (I4B) :: JSP1, JSP2 ! loop through local grid
-  INTEGER (I4B) :: IPRC ! counter for # points generated
+  Integer (I4B) :: IRES ! loop through resolution increments
+  Integer (I4B) :: INCR ! spacing between grid cells
+  Integer (I4B) :: ISP1, ISP2 ! loop through lat-lon grid
+  Integer (I4B) :: JSP1, JSP2 ! loop through local grid
+  Integer (I4B) :: IPRC ! counter for # points generated
 ! identify previously generated points
-  INTEGER (I4B) :: K ! counter for prev generated points
-  INTEGER (I4B) :: MAXP ! max # of prev generated points
-  INTEGER (I4B) :: IPREV, JPREV ! loop through previously gen points
-  INTEGER (I4B) :: IERR ! error code for allocate statements
-  LOGICAL (LGT), DIMENSION (:, :), ALLOCATABLE :: GMSK ! x-y mask
-  INTEGER (I4B) :: NPTS ! # previously generated points
-  INTEGER (I4B), DIMENSION (:), ALLOCATABLE :: IPOS, JPOS ! (i,j) index of prev generated points
+  Integer (I4B) :: K ! counter for prev generated points
+  Integer (I4B) :: MAXP ! max # of prev generated points
+  Integer (I4B) :: IPREV, JPREV ! loop through previously gen points
+  Integer (I4B) :: IERR ! error code for allocate statements
+  Logical (LGT), Dimension (:, :), Allocatable :: GMSK ! x-y mask
+  Integer (I4B) :: NPTS ! # previously generated points
+  Integer (I4B), Dimension (:), Allocatable :: IPOS, JPOS ! (i,j) index of prev generated points
 ! compute correlation between points
-  REAL (DP) :: LAT1, LON1 ! lat-lon of 1st prev generated point
-  REAL (DP) :: LAT2, LON2 ! lat-lon of 2nd prev generated point
-  REAL (DP) :: DIST ! distance between points (km)
-  REAL (SP), DIMENSION (:, :), ALLOCATABLE :: CORR ! correlation among prev generated points
-  REAL (SP), DIMENSION (:), ALLOCATABLE :: GVEC ! corr btw prev gen pts & current point
+  Real (DP) :: LAT1, LON1 ! lat-lon of 1st prev generated point
+  Real (DP) :: LAT2, LON2 ! lat-lon of 2nd prev generated point
+  Real (DP) :: DIST ! distance between points (km)
+  Real (SP), Dimension (:, :), Allocatable :: CORR ! correlation among prev generated points
+  Real (SP), Dimension (:), Allocatable :: GVEC ! corr btw prev gen pts & current point
 ! compute weights and variance
-  REAL (SP), DIMENSION (:), ALLOCATABLE :: TWGT ! copy of GVEC
-  INTEGER (I4B), DIMENSION (:), ALLOCATABLE :: INDX ! row permutation (ludcmp)
-  REAL (SP) :: TMP ! identifier (ludcmp)
-  REAL (DP), DIMENSION (:), ALLOCATABLE :: WGHT ! weight applied to each previous point
-  REAL (DP) :: SDEV ! standard deviation of estimate
-  INTEGER (I4B) :: N ! # of prev generated points
-  LOGICAL (LGT), SAVE :: INIT = .TRUE. ! true for first call to spcorr_grd
+  Real (SP), Dimension (:), Allocatable :: TWGT ! copy of GVEC
+  Integer (I4B), Dimension (:), Allocatable :: INDX ! row permutation (ludcmp)
+  Real (SP) :: TMP ! identifier (ludcmp)
+  Real (DP), Dimension (:), Allocatable :: WGHT ! weight applied to each previous point
+  Real (DP) :: SDEV ! standard deviation of estimate
+  Integer (I4B) :: N ! # of prev generated points
+  Logical (LGT), Save :: INIT = .True. ! true for first call to spcorr_grd
  
 ! output (none) -- structures updated in gridweight.f90
 ! ----------------------------------------------------------------------------------------
 ! (0) CHECK THAT SPCORR IS NOT POPULATED ALREADY
 ! ----------------------------------------------------------------------------------------
-  IF ( .NOT. INIT) THEN
-   IF (ASSOCIATED(SPCORR)) RETURN
-  END IF
+  If ( .Not. INIT) Then
+    If (ASSOCIATED(SPCORR)) Return
+  End If
 ! ----------------------------------------------------------------------------------------
 ! (1) DEFINE HYPER-PARAMETERS
 ! ----------------------------------------------------------------------------------------
@@ -110,150 +110,150 @@ SUBROUTINE SPCORR_GRD (NSPL1, NSPL2, grid)
 ! define the maximum number of previously generated points
   MAXP = (NLOC*2+1) ** 2
 ! allocate space for the mask
-  IF (ALLOCATED(GMSK)) THEN
-   DEALLOCATE (GMSK, STAT=IERR)
-   IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for mask ')
-  END IF
-  ALLOCATE (GMSK(NSPL1, NSPL2), STAT=IERR)
-  IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating space for mask ')
+  If (ALLOCATED(GMSK)) Then
+    Deallocate (GMSK, Stat=IERR)
+    If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for mask ')
+  End If
+  Allocate (GMSK(NSPL1, NSPL2), Stat=IERR)
+  If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating space for mask ')
 ! nullify pointers
-  IF (INIT) NULLIFY (SPCORR, IORDER, JORDER)! in MODULE gridweight
+  If (INIT) NULLIFY (SPCORR, IORDER, JORDER)! in MODULE gridweight
 ! allocate space for the correlation structure (SPCORR has a pointer structure)
-  IF (ASSOCIATED(SPCORR)) THEN
-   DEALLOCATE (SPCORR, STAT=IERR)
-   IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for the spatial correlation structure ')
-  END IF
-  ALLOCATE (SPCORR(NSPL1, NSPL2), STAT=IERR)
-  IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating spatial corr struct ')
-  IF (INIT) THEN
-   DO ISP1 = 1, NSPL1
-    DO ISP2 = 1, NSPL2
-     NULLIFY (SPCORR(ISP1, ISP2)%IPOS, SPCORR(ISP1, ISP2)%JPOS, SPCORR(ISP1, ISP2)%WGHT)
-    END DO
-   END DO
-  END IF
+  If (ASSOCIATED(SPCORR)) Then
+    Deallocate (SPCORR, Stat=IERR)
+    If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for the spatial correlation structure ')
+  End If
+  Allocate (SPCORR(NSPL1, NSPL2), Stat=IERR)
+  If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating spatial corr struct ')
+  If (INIT) Then
+    Do ISP1 = 1, NSPL1
+      Do ISP2 = 1, NSPL2
+        Nullify (SPCORR(ISP1, ISP2)%IPOS, SPCORR(ISP1, ISP2)%JPOS, SPCORR(ISP1, ISP2)%WGHT)
+      End Do
+    End Do
+  End If
 ! allocate space for the processing order
-  IF (ASSOCIATED(IORDER)) THEN
-   DEALLOCATE (IORDER, STAT=IERR)
-   IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for the processing order ')
-  END IF
-  IF (ASSOCIATED(JORDER)) THEN
-   DEALLOCATE (JORDER, STAT=IERR)
-   IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for the processing order ')
-  END IF
-  ALLOCATE (IORDER(NSPL1*NSPL2), JORDER(NSPL1*NSPL2), STAT=IERR)
-  IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating space for the processing order ')
+  If (ASSOCIATED(IORDER)) Then
+    Deallocate (IORDER, Stat=IERR)
+    If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for the processing order ')
+  End If
+  If (ASSOCIATED(JORDER)) Then
+    Deallocate (JORDER, Stat=IERR)
+    If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for the processing order ')
+  End If
+  Allocate (IORDER(NSPL1*NSPL2), JORDER(NSPL1*NSPL2), Stat=IERR)
+  If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating space for the processing order ')
 ! ----------------------------------------------------------------------------------------
 ! (3) LOOP THROUGH THE DIFFERENT GRID RESOLUTIONS (PROCESS COARSE RESOLUTION FIRST)
 ! ----------------------------------------------------------------------------------------
   SDEV = 0D0 ! Initialize SDEV (added to account for the first point)  EÖH
   IPRC = 0 ! counter for the number of grid points processed
-  GMSK = .FALSE. ! initialize a logical array to identify which points have been processed
-  DO IRES = NNST - 1, 0, - 1
-   INCR = 2 ** IRES ! increment (2**4=16, 2**3=8, 2**2=4, 2**1=2, 2**0=1)
-   PRINT *, 'Working on Loop: ', IRES
+  GMSK = .False. ! initialize a logical array to identify which points have been processed
+  Do IRES = NNST - 1, 0, - 1
+    INCR = 2 ** IRES ! increment (2**4=16, 2**3=8, 2**2=4, 2**1=2, 2**0=1)
+    Print *, 'Working on Loop: ', IRES
  ! ---------------------------------------------------------------------------------------
  ! (4) LOOP THROUGH THE LAT-LON OF THE GRID AT A GIVEN RESOLUTION
  ! ---------------------------------------------------------------------------------------
-   DO ISP1 = 1, NSPL1, INCR
-    DO ISP2 = 1, NSPL2, INCR
+    Do ISP1 = 1, NSPL1, INCR
+      Do ISP2 = 1, NSPL2, INCR
    ! check that "current" point has not been generated yet
-     IF ( .NOT. GMSK(ISP1, ISP2)) THEN
+        If ( .Not. GMSK(ISP1, ISP2)) Then
     ! allocate space to store the (i,j) position, and weights
-      IF (ALLOCATED(IPOS)) THEN
-       DEALLOCATE (IPOS, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating ipos ')
-      END IF
-      IF (ALLOCATED(JPOS)) THEN
-       DEALLOCATE (JPOS, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating jpos ')
-      END IF
-      IF (ALLOCATED(WGHT)) THEN
-       DEALLOCATE (WGHT, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating wght ')
-      END IF
-      ALLOCATE (IPOS(MAXP), JPOS(MAXP), STAT=IERR)
-      IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating (i,j) position ')
-      ALLOCATE (WGHT(MAXP), STAT=IERR)
-      IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating space for weights ')
+          If (ALLOCATED(IPOS)) Then
+            Deallocate (IPOS, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating ipos ')
+          End If
+          If (ALLOCATED(JPOS)) Then
+            Deallocate (JPOS, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating jpos ')
+          End If
+          If (ALLOCATED(WGHT)) Then
+            Deallocate (WGHT, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating wght ')
+          End If
+          Allocate (IPOS(MAXP), JPOS(MAXP), Stat=IERR)
+          If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating (i,j) position ')
+          Allocate (WGHT(MAXP), Stat=IERR)
+          If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating space for weights ')
     ! increment IPRC
-      IPRC = IPRC + 1
+          IPRC = IPRC + 1
     ! save the (i,j) position of iprc
-      IORDER (IPRC) = ISP1
-      JORDER (IPRC) = ISP2
+          IORDER (IPRC) = ISP1
+          JORDER (IPRC) = ISP2
     ! ------------------------------------------------------------------------------------
     ! (5) IDENTIFY PREVIOUSLY GENERATED POINTS
     ! ------------------------------------------------------------------------------------
-      K = 0 ! initialize the number of previous points generated to zero
+          K = 0 ! initialize the number of previous points generated to zero
     ! loop through points in the local neighbourhood
-      DO JSP1 = Max (1, ISP1-(INCR*NLOC)), Min (ISP1+(INCR*NLOC), NSPL1)
-       DO JSP2 = Max (1, ISP2-(INCR*NLOC)), Min (ISP2+(INCR*NLOC), NSPL2)
+          Do JSP1 = Max (1, ISP1-(INCR*NLOC)), Min (ISP1+(INCR*NLOC), NSPL1)
+            Do JSP2 = Max (1, ISP2-(INCR*NLOC)), Min (ISP2+(INCR*NLOC), NSPL2)
       ! check to see if the "local" point has been generated previously
-        IF (GMSK(JSP1, JSP2)) THEN ! local point has been previously generated
-         K = K + 1
+              If (GMSK(JSP1, JSP2)) Then ! local point has been previously generated
+                K = K + 1
        ! save the (i,j) position of the previously generated point
-         IPOS (K) = JSP1
-         JPOS (K) = JSP2
-        END IF ! if the point has been previously generated
-       END DO ! jsp1
-      END DO ! jsp2
+                IPOS (K) = JSP1
+                JPOS (K) = JSP2
+              End If ! if the point has been previously generated
+            End Do ! jsp1
+          End Do ! jsp2
     ! include the (i,j) of the current point
-      K = K + 1
-      IPOS (K) = ISP1
-      JPOS (K) = ISP2
+          K = K + 1
+          IPOS (K) = ISP1
+          JPOS (K) = ISP2
     ! ...and save the number of points
-      NPTS = K
+          NPTS = K
     ! check that there are at least two points
-      IF (K .GE. 2) THEN
+          If (K .Ge. 2) Then
      ! ------------------------------------------------------------------------------------
      ! (6) COMPUTE THE CORRELATION AMONG PREVIOUSLY GENERATED POINTS
      ! ------------------------------------------------------------------------------------
-       IF (ALLOCATED(CORR)) THEN
-        DEALLOCATE (CORR, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating corr ')
-       END IF
-       IF (ALLOCATED(GVEC)) THEN
-        DEALLOCATE (GVEC, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating gvec ')
-       END IF
-       IF (ALLOCATED(TWGT)) THEN
-        DEALLOCATE (TWGT, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating twgt ')
-       END IF
-       IF (ALLOCATED(INDX)) THEN
-        DEALLOCATE (INDX, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating indx ')
-       END IF
-       ALLOCATE (CORR(K-1, K-1), GVEC(K-1), TWGT(K-1), INDX(K-1), STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating space for corr, gvec, twgt, or indx ')
+            If (ALLOCATED(CORR)) Then
+              Deallocate (CORR, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating corr ')
+            End If
+            If (ALLOCATED(GVEC)) Then
+              Deallocate (GVEC, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating gvec ')
+            End If
+            If (ALLOCATED(TWGT)) Then
+              Deallocate (TWGT, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating twgt ')
+            End If
+            If (ALLOCATED(INDX)) Then
+              Deallocate (INDX, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating indx ')
+            End If
+            Allocate (CORR(K-1, K-1), GVEC(K-1), TWGT(K-1), INDX(K-1), Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating space for corr, gvec, twgt, or indx ')
      ! Note that the vector of previously generated points includes the current point as its
      ! last element.  The correlation among all previously generated points are computed over
      ! elements (1...k-1) and saved in the matrix corr.  The correlation between previously
      ! generated points (1...k-1) and the current point (k) is saved in ther vector gvec.
-       DO IPREV = 1, K
-        DO JPREV = 1, IPREV
-         IF (IPREV .EQ. JPREV) THEN
-          IF (IPREV .LE. K-1) CORR (IPREV, JPREV) = 1.0D0 ! grid points are the same, correlation=1
-         ELSE
+            Do IPREV = 1, K
+              Do JPREV = 1, IPREV
+                If (IPREV .Eq. JPREV) Then
+                  If (IPREV .Le. K-1) CORR (IPREV, JPREV) = 1.0D0 ! grid points are the same, correlation=1
+                Else
         ! identify lat-lon of previously generated points
-          LON1 = grid%LON (IPOS(IPREV), JPOS(IPREV))! NOTE, iprev, lon
-          LON2 = grid%LON (IPOS(JPREV), JPOS(JPREV))! NOTE, jprev, lon
-          LAT1 = grid%LAT (IPOS(IPREV), JPOS(IPREV))! NOTE, iprev, lat
-          LAT2 = grid%LAT (IPOS(JPREV), JPOS(JPREV))! NOTE, jprev, lat
+                  LON1 = grid%LON (IPOS(IPREV), JPOS(IPREV))! NOTE, iprev, lon
+                  LON2 = grid%LON (IPOS(JPREV), JPOS(JPREV))! NOTE, jprev, lon
+                  LAT1 = grid%LAT (IPOS(IPREV), JPOS(IPREV))! NOTE, iprev, lat
+                  LAT2 = grid%LAT (IPOS(JPREV), JPOS(JPREV))! NOTE, jprev, lat
         ! compute distance (km) - on the surface of a sphere
-          DIST = 6378.0D0 * Acos (SIND(LAT1)*SIND(LAT2)+COSD(LAT1)*COSD(LAT2)*COSD(LON1-LON2))
+                  DIST = 6378.0D0 * Acos (SIND(LAT1)*SIND(LAT2)+COSD(LAT1)*COSD(LAT2)*COSD(LON1-LON2))
         ! compute correlation
-          IF (IPREV .LE. K-1) THEN
+                  If (IPREV .Le. K-1) Then
          ! correlation among all previously generated points (1...k-1,1...k-1) -- corr
-           CORR (IPREV, JPREV) = Exp (-(DIST/clen))
-           CORR (JPREV, IPREV) = CORR (IPREV, JPREV)
-          ELSE
+                    CORR (IPREV, JPREV) = Exp (-(DIST/clen))
+                    CORR (JPREV, IPREV) = CORR (IPREV, JPREV)
+                  Else
          ! correlation between all previously generated points and the current point -- gvec
-           IF (JPREV .LE. K-1) GVEC (JPREV) = Exp (-(DIST/clen))
-          END IF ! switch between corr and gvec
-         END IF ! if the points are the same
-        END DO ! jprev
-       END DO ! iprev
+                    If (JPREV .Le. K-1) GVEC (JPREV) = Exp (-(DIST/clen))
+                  End If ! switch between corr and gvec
+                End If ! if the points are the same
+              End Do ! jprev
+            End Do ! iprev
      ! ------------------------------------------------------------------------------------
      ! (7) COMPUTE THE WEIGHTS
      ! ------------------------------------------------------------------------------------
@@ -262,94 +262,94 @@ SUBROUTINE SPCORR_GRD (NSPL1, NSPL2, grid)
      ! elements (1...k-1) and saved in the matrix corr.  The correlation between previously
      ! generated points (1...k-1) and the current point (k) is saved in ther vector gvec.
      ! special case of the bi-variate normal
-       IF (K .EQ. 2) THEN
-        WGHT (1) = GVEC (1)
-        SDEV = Sqrt (1.-GVEC(1)**2.)
+            If (K .Eq. 2) Then
+              WGHT (1) = GVEC (1)
+              SDEV = Sqrt (1.-GVEC(1)**2.)
      ! all other points
-       ELSE
+            Else
       ! temporary weight (GVEC is over-written)
-        TWGT (1:K-1) = GVEC (1:K-1)
+              TWGT (1:K-1) = GVEC (1:K-1)
       ! estimate weights
-        CALL ludcmp (CORR, INDX, TMP)
-        CALL lubksb (CORR, INDX, TWGT)
+              Call ludcmp (CORR, INDX, TMP)
+              Call lubksb (CORR, INDX, TWGT)
       ! save weights and variance
-        WGHT (1:K-1) = TWGT (1:K-1)
-        SDEV = Sqrt (1.-DOT_PRODUCT(GVEC(1:K-1), TWGT(1:K-1)))
-       END IF ! ( if k gt 2 )
+              WGHT (1:K-1) = TWGT (1:K-1)
+              SDEV = Sqrt (1.-DOT_PRODUCT(GVEC(1:K-1), TWGT(1:K-1)))
+            End If ! ( if k gt 2 )
      ! deallocate correlation arrays
-       IF (ALLOCATED(CORR)) THEN
-        DEALLOCATE (CORR, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating corr ')
-       END IF
-       IF (ALLOCATED(GVEC)) THEN
-        DEALLOCATE (GVEC, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating gvec ')
-       END IF
-       IF (ALLOCATED(TWGT)) THEN
-        DEALLOCATE (TWGT, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating twgt ')
-       END IF
-       IF (ALLOCATED(INDX)) THEN
-        DEALLOCATE (INDX, STAT=IERR)
-        IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' probelm deallocating indx ')
-       END IF
-      END IF ! ( if k ge 2 )
+            If (ALLOCATED(CORR)) Then
+              Deallocate (CORR, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating corr ')
+            End If
+            If (ALLOCATED(GVEC)) Then
+              Deallocate (GVEC, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating gvec ')
+            End If
+            If (ALLOCATED(TWGT)) Then
+              Deallocate (TWGT, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating twgt ')
+            End If
+            If (ALLOCATED(INDX)) Then
+              Deallocate (INDX, Stat=IERR)
+              If (IERR .Ne. 0) Call EXIT_SCRF (1, ' probelm deallocating indx ')
+            End If
+          End If ! ( if k ge 2 )
     ! flag the point as "generated"
-      GMSK (ISP1, ISP2) = .TRUE.
+          GMSK (ISP1, ISP2) = .True.
     ! -------------------------------------------------------------------------------------
     ! (8) SAVE WEIGHTS IN THE SPATIAL CORRELATION STRUCTURE
     ! -------------------------------------------------------------------------------------
     ! allocate space for the (i,j) position of previously generated points
-      IF (ASSOCIATED(SPCORR(ISP1, ISP2)%IPOS)) THEN
-       DEALLOCATE (SPCORR(ISP1, ISP2)%IPOS, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for ipos, jpos ')
-      END IF
-      IF (ASSOCIATED(SPCORR(ISP1, ISP2)%JPOS)) THEN
-       DEALLOCATE (SPCORR(ISP1, ISP2)%JPOS, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for ipos, jpos ')
-      END IF
-      ALLOCATE (SPCORR(ISP1, ISP2)%IPOS(NPTS-1), SPCORR(ISP1, ISP2)%JPOS(NPTS-1), STAT=IERR)
-      IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating space for the (i,j) position of previously generated poi&
-     &nts ')
+          If (ASSOCIATED(SPCORR(ISP1, ISP2)%IPOS)) Then
+            Deallocate (SPCORR(ISP1, ISP2)%IPOS, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for ipos, jpos ')
+          End If
+          If (ASSOCIATED(SPCORR(ISP1, ISP2)%JPOS)) Then
+            Deallocate (SPCORR(ISP1, ISP2)%JPOS, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for ipos, jpos ')
+          End If
+          Allocate (SPCORR(ISP1, ISP2)%IPOS(NPTS-1), SPCORR(ISP1, ISP2)%JPOS(NPTS-1), Stat=IERR)
+          If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating space for the (i,j) position of previously generated&
+         & points ')
     ! allocate space for the weights assigned to previously generated points
-      IF (ASSOCIATED(SPCORR(ISP1, ISP2)%WGHT)) THEN
-       DEALLOCATE (SPCORR(ISP1, ISP2)%WGHT, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for weights assigned to previously generated po&
-      &ints ')
-      END IF
-      ALLOCATE (SPCORR(ISP1, ISP2)%WGHT(NPTS-1), STAT=IERR)
-      IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem allocating space for weights assigned to previously generated point&
-     &s ')
+          If (ASSOCIATED(SPCORR(ISP1, ISP2)%WGHT)) Then
+            Deallocate (SPCORR(ISP1, ISP2)%WGHT, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for weights assigned to previously generat&
+           &ed points ')
+          End If
+          Allocate (SPCORR(ISP1, ISP2)%WGHT(NPTS-1), Stat=IERR)
+          If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem allocating space for weights assigned to previously generated p&
+         &oints ')
     ! populate the structures (-1 excludes the current (i,j) point)
-      SPCORR(ISP1, ISP2)%IPOS(1:NPTS-1) = IPOS (1:NPTS-1)! i-position
-      SPCORR(ISP1, ISP2)%JPOS(1:NPTS-1) = JPOS (1:NPTS-1)! j-position
-      SPCORR(ISP1, ISP2)%WGHT(1:NPTS-1) = WGHT (1:NPTS-1)! weight assigned to previously generated points
-      SPCORR(ISP1, ISP2)%SDEV = SDEV ! standard deviation of estimate
+          SPCORR(ISP1, ISP2)%IPOS(1:NPTS-1) = IPOS (1:NPTS-1)! i-position
+          SPCORR(ISP1, ISP2)%JPOS(1:NPTS-1) = JPOS (1:NPTS-1)! j-position
+          SPCORR(ISP1, ISP2)%WGHT(1:NPTS-1) = WGHT (1:NPTS-1)! weight assigned to previously generated points
+          SPCORR(ISP1, ISP2)%SDEV = SDEV ! standard deviation of estimate
  
     ! deallocate (i,j) position and weights
-      IF (ALLOCATED(IPOS)) THEN
-       DEALLOCATE (IPOS, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating ipos ')
-      END IF
-      IF (ALLOCATED(JPOS)) THEN
-       DEALLOCATE (JPOS, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating jpos ')
-      END IF
-      IF (ALLOCATED(WGHT)) THEN
-       DEALLOCATE (WGHT, STAT=IERR)
-       IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating wght` ')
-      END IF
-     END IF ! if the point has not been generated yet
-    END DO ! ilat
-   END DO ! ilon
-  END DO ! ires
+          If (ALLOCATED(IPOS)) Then
+            Deallocate (IPOS, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating ipos ')
+          End If
+          If (ALLOCATED(JPOS)) Then
+            Deallocate (JPOS, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating jpos ')
+          End If
+          If (ALLOCATED(WGHT)) Then
+            Deallocate (WGHT, Stat=IERR)
+            If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating wght` ')
+          End If
+        End If ! if the point has not been generated yet
+      End Do ! ilat
+    End Do ! ilon
+  End Do ! ires
 ! deallocate mask
-  IF (ALLOCATED(GMSK)) THEN
-   DEALLOCATE (GMSK, STAT=IERR)
-   IF (IERR .NE. 0) CALL EXIT_SCRF (1, ' problem deallocating space for mask ')
-  END IF
+  If (ALLOCATED(GMSK)) Then
+    Deallocate (GMSK, Stat=IERR)
+    If (IERR .Ne. 0) Call EXIT_SCRF (1, ' problem deallocating space for mask ')
+  End If
 !IF (INIT) INIT=.FALSE.
  
 ! ----------------------------------------------------------------------------------------
-  RETURN
-END SUBROUTINE SPCORR_GRD
+  Return
+End Subroutine SPCORR_GRD

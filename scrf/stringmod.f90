@@ -1,681 +1,681 @@
-MODULE strings
+Module strings
  
-  USE precision
+  Use precision
  
-  PRIVATE :: value_dr, value_sr, value_di, value_si
-  PRIVATE :: write_dr, write_sr, write_di, write_si
-  PRIVATE :: writeq_dr, writeq_sr, writeq_di, writeq_si
+  Private :: value_dr, value_sr, value_di, value_si
+  Private :: write_dr, write_sr, write_di, write_si
+  Private :: writeq_dr, writeq_sr, writeq_di, writeq_si
  
-  INTERFACE value ! Generic operator for converting a number string to a
+  Interface value ! Generic operator for converting a number string to a
                  ! number. Calling syntax is 'call value(numstring,number,ios)'
                  ! where 'numstring' is a number string and 'number' is a
                  ! real number or an integer (single or double precision).
-   MODULE PROCEDURE value_dr
-   MODULE PROCEDURE value_sr
-   MODULE PROCEDURE value_di
-   MODULE PROCEDURE value_si
-  END INTERFACE
+    Module Procedure value_dr
+    Module Procedure value_sr
+    Module Procedure value_di
+    Module Procedure value_si
+  End Interface
  
-  INTERFACE writenum ! Generic  interface for writing a number to a string. The
+  Interface writenum ! Generic  interface for writing a number to a string. The
                     ! number is left justified in the string. The calling syntax
                     ! is 'call writenum(number,string,format)' where 'number' is
                     ! a real number or an integer, 'string' is a character string
                     ! containing the result, and 'format' is the format desired,
                     ! e.g., 'e15.6' or 'i5'.
-   MODULE PROCEDURE write_dr
-   MODULE PROCEDURE write_sr
-   MODULE PROCEDURE write_di
-   MODULE PROCEDURE write_si
-  END INTERFACE
+    Module Procedure write_dr
+    Module Procedure write_sr
+    Module Procedure write_di
+    Module Procedure write_si
+  End Interface
  
-  INTERFACE writeq ! Generic interface equating a name to a numerical value. The
+  Interface writeq ! Generic interface equating a name to a numerical value. The
                   ! calling syntax is 'call writeq(unit,name,value,format)' where
                   ! unit is the integer output unit number, 'name' is the variable
                   ! name, 'value' is the real or integer value of the variable,
                   ! and 'format' is the format of the value. The result written to
                   ! the output unit has the form <name> = <value>.
-   MODULE PROCEDURE writeq_dr
-   MODULE PROCEDURE writeq_sr
-   MODULE PROCEDURE writeq_di
-   MODULE PROCEDURE writeq_si
-  END INTERFACE
+    Module Procedure writeq_dr
+    Module Procedure writeq_sr
+    Module Procedure writeq_di
+    Module Procedure writeq_si
+  End Interface
  
  
 !**********************************************************************
  
-CONTAINS
+Contains
  
 !**********************************************************************
  
-  SUBROUTINE parse (str, delims, args, nargs)
+  Subroutine parse (str, delims, args, nargs)
  
 ! Parses the string 'str' into arguments args(1), ..., args(nargs) based on
 ! the delimiters contained in the string 'delims'. Preceding a delimiter in
 ! 'str' by a backslash (\) makes this particular instance not a delimiter.
 ! The integer output variable nargs contains the number of arguments found.
  
-   CHARACTER (LEN=*) :: str, delims
-   CHARACTER (LEN=len_trim(str)) :: strsav
-   CHARACTER (LEN=*), DIMENSION (:) :: args
+    Character (Len=*) :: str, delims
+    Character (Len=len_trim(str)) :: strsav
+    Character (Len=*), Dimension (:) :: args
  
-   strsav = str
-   CALL compact (str)
-   na = size (args)
-   DO i = 1, na
-    args (i) = ' '
-   END DO
-   nargs = 0
-   lenstr = len_trim (str)
-   IF (lenstr == 0) RETURN
-   k = 0
+    strsav = str
+    Call compact (str)
+    na = size (args)
+    Do i = 1, na
+      args (i) = ' '
+    End Do
+    nargs = 0
+    lenstr = len_trim (str)
+    If (lenstr == 0) Return
+    k = 0
  
-   DO
-    IF (len_trim(str) == 0) EXIT
-    nargs = nargs + 1
-    CALL split (str, delims, args(nargs))
-    CALL removebksl (args(nargs))
-   END DO
-   str = strsav
+    Do
+      If (len_trim(str) == 0) Exit
+      nargs = nargs + 1
+      Call split (str, delims, args(nargs))
+      Call removebksl (args(nargs))
+    End Do
+    str = strsav
  
-  END SUBROUTINE parse
+  End Subroutine parse
  
 !**********************************************************************
  
-  SUBROUTINE compact (str)
+  Subroutine compact (str)
  
 ! Converts multiple spaces and tabs to single spaces; deletes control characters;
 ! removes initial spaces.
  
-   CHARACTER (LEN=*) :: str
-   CHARACTER (LEN=1) :: ch
-   CHARACTER (LEN=len_trim(str)) :: outstr
+    Character (Len=*) :: str
+    Character (Len=1) :: ch
+    Character (Len=len_trim(str)) :: outstr
  
-   str = adjustl (str)
-   lenstr = len_trim (str)
-   outstr = ' '
-   isp = 0
-   k = 0
+    str = adjustl (str)
+    lenstr = len_trim (str)
+    outstr = ' '
+    isp = 0
+    k = 0
  
-   DO i = 1, lenstr
-    ch = str (i:i)
-    ich = iachar (ch)
+    Do i = 1, lenstr
+      ch = str (i:i)
+      ich = iachar (ch)
  
-    SELECT CASE (ich)
+      Select Case (ich)
  
-    CASE (9, 32)! space or tab character
-     IF (isp == 0) THEN
-      k = k + 1
-      outstr (k:k) = ' '
-     END IF
-     isp = 1
+      Case (9, 32)! space or tab character
+        If (isp == 0) Then
+          k = k + 1
+          outstr (k:k) = ' '
+        End If
+        isp = 1
  
-    CASE (33:)! not a space, quote, or control character
-     k = k + 1
-     outstr (k:k) = ch
-     isp = 0
+      Case (33:)! not a space, quote, or control character
+        k = k + 1
+        outstr (k:k) = ch
+        isp = 0
  
-    END SELECT
+      End Select
  
-   END DO
+    End Do
  
-   str = adjustl (outstr)
+    str = adjustl (outstr)
  
-  END SUBROUTINE compact
+  End Subroutine compact
  
 !**********************************************************************
  
-  SUBROUTINE removesp (str)
+  Subroutine removesp (str)
  
 ! Removes spaces, tabs, and control characters in string str
  
-   CHARACTER (LEN=*) :: str
-   CHARACTER (LEN=1) :: ch
-   CHARACTER (LEN=len_trim(str)) :: outstr
+    Character (Len=*) :: str
+    Character (Len=1) :: ch
+    Character (Len=len_trim(str)) :: outstr
  
-   str = adjustl (str)
-   lenstr = len_trim (str)
-   outstr = ' '
-   k = 0
+    str = adjustl (str)
+    lenstr = len_trim (str)
+    outstr = ' '
+    k = 0
  
-   DO i = 1, lenstr
-    ch = str (i:i)
-    ich = iachar (ch)
-    SELECT CASE (ich)
-    CASE (0:32)! space, tab, or control character
-     CYCLE
-    CASE (33:)
-     k = k + 1
-     outstr (k:k) = ch
-    END SELECT
-   END DO
+    Do i = 1, lenstr
+      ch = str (i:i)
+      ich = iachar (ch)
+      Select Case (ich)
+      Case (0:32)! space, tab, or control character
+        Cycle
+      Case (33:)
+        k = k + 1
+        outstr (k:k) = ch
+      End Select
+    End Do
  
-   str = adjustl (outstr)
+    str = adjustl (outstr)
  
-  END SUBROUTINE removesp
+  End Subroutine removesp
  
 !**********************************************************************
  
-  SUBROUTINE value_dr (str, rnum, ios)
+  Subroutine value_dr (str, rnum, ios)
  
 ! Converts number string to a double precision real number
  
-   CHARACTER (LEN=*) :: str
-   REAL (kr8) :: rnum
-   INTEGER :: ios
+    Character (Len=*) :: str
+    Real (kr8) :: rnum
+    Integer :: ios
  
-   ilen = len_trim (str)
-   ipos = scan (str, 'Ee')
-   IF ( .NOT. is_digit(str(ilen:ilen)) .AND. ipos /= 0) THEN
-    ios = 3
-    RETURN
-   END IF
-   READ (str,*, IOSTAT=ios) rnum
+    ilen = len_trim (str)
+    ipos = scan (str, 'Ee')
+    If ( .Not. is_digit(str(ilen:ilen)) .And. ipos /= 0) Then
+      ios = 3
+      Return
+    End If
+    Read (str,*, IoStat=ios) rnum
  
-  END SUBROUTINE value_dr
+  End Subroutine value_dr
  
 !**********************************************************************
  
-  SUBROUTINE value_sr (str, rnum, ios)
+  Subroutine value_sr (str, rnum, ios)
  
 ! Converts number string to a single precision real number
  
-   CHARACTER (LEN=*) :: str
-   REAL (kr4) :: rnum
-   REAL (kr8) :: rnumd
+    Character (Len=*) :: str
+    Real (kr4) :: rnum
+    Real (kr8) :: rnumd
  
-   CALL value_dr (str, rnumd, ios)
-   IF (Abs(rnumd) > huge(rnum)) THEN
-    ios = 15
-    RETURN
-   END IF
-   IF (Abs(rnumd) < tiny(rnum)) rnum = 0.0_kr4
-   rnum = rnumd
+    Call value_dr (str, rnumd, ios)
+    If (Abs(rnumd) > huge(rnum)) Then
+      ios = 15
+      Return
+    End If
+    If (Abs(rnumd) < tiny(rnum)) rnum = 0.0_kr4
+    rnum = rnumd
  
-  END SUBROUTINE value_sr
+  End Subroutine value_sr
  
 !**********************************************************************
  
-  SUBROUTINE value_di (str, inum, ios)
+  Subroutine value_di (str, inum, ios)
  
 ! Converts number string to a double precision integer value
  
-   CHARACTER (LEN=*) :: str
-   INTEGER (ki8) :: inum
-   REAL (kr8) :: rnum
+    Character (Len=*) :: str
+    Integer (ki8) :: inum
+    Real (kr8) :: rnum
  
-   CALL value_dr (str, rnum, ios)
-   IF (Abs(rnum) > huge(inum)) THEN
-    ios = 15
-    RETURN
-   END IF
-   inum = Nint (rnum, ki8)
+    Call value_dr (str, rnum, ios)
+    If (Abs(rnum) > huge(inum)) Then
+      ios = 15
+      Return
+    End If
+    inum = Nint (rnum, ki8)
  
-  END SUBROUTINE value_di
+  End Subroutine value_di
  
 !**********************************************************************
  
-  SUBROUTINE value_si (str, inum, ios)
+  Subroutine value_si (str, inum, ios)
  
 ! Converts number string to a single precision integer value
  
-   CHARACTER (LEN=*) :: str
-   INTEGER (ki4) :: inum
-   REAL (kr8) :: rnum
+    Character (Len=*) :: str
+    Integer (ki4) :: inum
+    Real (kr8) :: rnum
  
-   CALL value_dr (str, rnum, ios)
-   IF (Abs(rnum) > huge(inum)) THEN
-    ios = 15
-    RETURN
-   END IF
-   inum = Nint (rnum, ki4)
+    Call value_dr (str, rnum, ios)
+    If (Abs(rnum) > huge(inum)) Then
+      ios = 15
+      Return
+    End If
+    inum = Nint (rnum, ki4)
  
-  END SUBROUTINE value_si
+  End Subroutine value_si
  
 !**********************************************************************
  
-  SUBROUTINE shiftstr (str, n)
+  Subroutine shiftstr (str, n)
  
 ! Shifts characters in in the string 'str' n positions (positive values
 ! denote a right shift and negative values denote a left shift). Characters
 ! that are shifted off the end are lost. Positions opened up by the shift
 ! are replaced by spaces.
  
-   CHARACTER (LEN=*) :: str
+    Character (Len=*) :: str
  
-   lenstr = len (str)
-   nabs = iabs (n)
-   IF (nabs >= lenstr) THEN
-    str = repeat (' ', lenstr)
-    RETURN
-   END IF
-   IF (n < 0) str = str (nabs+1:) // repeat (' ', nabs)! shift left
-   IF (n > 0) str = repeat (' ', nabs) // str (:lenstr-nabs)! shift right
-   RETURN
+    lenstr = len (str)
+    nabs = iabs (n)
+    If (nabs >= lenstr) Then
+      str = repeat (' ', lenstr)
+      Return
+    End If
+    If (n < 0) str = str (nabs+1:) // repeat (' ', nabs)! shift left
+    If (n > 0) str = repeat (' ', nabs) // str (:lenstr-nabs)! shift right
+    Return
  
-  END SUBROUTINE shiftstr
+  End Subroutine shiftstr
  
 !**********************************************************************
  
-  SUBROUTINE insertstr (str, strins, loc)
+  Subroutine insertstr (str, strins, loc)
  
 ! Inserts the string 'strins' into the string 'str' at position 'loc'.
 ! Characters in 'str' starting at position 'loc' are shifted right to
 ! make room for the inserted string. Trailing spaces of 'strins' are
 ! removed prior to insertion
  
-   CHARACTER (LEN=*) :: str, strins
-   CHARACTER (LEN=LEN(str)) :: tempstr
+    Character (Len=*) :: str, strins
+    Character (Len=Len(str)) :: tempstr
  
-   lenstrins = len_trim (strins)
-   tempstr = str (loc:)
-   CALL shiftstr (tempstr, lenstrins)
-   tempstr (1:lenstrins) = strins (1:lenstrins)
-   str (loc:) = tempstr
-   RETURN
+    lenstrins = len_trim (strins)
+    tempstr = str (loc:)
+    Call shiftstr (tempstr, lenstrins)
+    tempstr (1:lenstrins) = strins (1:lenstrins)
+    str (loc:) = tempstr
+    Return
  
-  END SUBROUTINE insertstr
+  End Subroutine insertstr
  
 !**********************************************************************
  
-  SUBROUTINE delsubstr (str, substr)
+  Subroutine delsubstr (str, substr)
  
 ! Deletes first occurrence of substring 'substr' from string 'str' and
 ! shifts characters left to fill hole. Trailing spaces or blanks are
 ! not considered part of 'substr'.
  
-   CHARACTER (LEN=*) :: str, substr
+    Character (Len=*) :: str, substr
  
-   lensubstr = len_trim (substr)
-   ipos = index (str, substr)
-   IF (ipos == 0) RETURN
-   IF (ipos == 1) THEN
-    str = str (lensubstr+1:)
-   ELSE
-    str = str (:ipos-1) // str (ipos+lensubstr:)
-   END IF
-   RETURN
+    lensubstr = len_trim (substr)
+    ipos = index (str, substr)
+    If (ipos == 0) Return
+    If (ipos == 1) Then
+      str = str (lensubstr+1:)
+    Else
+      str = str (:ipos-1) // str (ipos+lensubstr:)
+    End If
+    Return
  
-  END SUBROUTINE delsubstr
+  End Subroutine delsubstr
  
 !**********************************************************************
  
-  SUBROUTINE delall (str, substr)
+  Subroutine delall (str, substr)
  
 ! Deletes all occurrences of substring 'substr' from string 'str' and
 ! shifts characters left to fill holes.
  
-   CHARACTER (LEN=*) :: str, substr
+    Character (Len=*) :: str, substr
  
-   lensubstr = len_trim (substr)
-   DO
-    ipos = index (str, substr)
-    IF (ipos == 0) EXIT
-    IF (ipos == 1) THEN
-     str = str (lensubstr+1:)
-    ELSE
-     str = str (:ipos-1) // str (ipos+lensubstr:)
-    END IF
-   END DO
-   RETURN
+    lensubstr = len_trim (substr)
+    Do
+      ipos = index (str, substr)
+      If (ipos == 0) Exit
+      If (ipos == 1) Then
+        str = str (lensubstr+1:)
+      Else
+        str = str (:ipos-1) // str (ipos+lensubstr:)
+      End If
+    End Do
+    Return
  
-  END SUBROUTINE delall
+  End Subroutine delall
  
 !**********************************************************************
  
-  FUNCTION uppercase (str) RESULT (ucstr)
+  Function uppercase (str) Result (ucstr)
  
 ! convert string to upper case
  
-   CHARACTER (LEN=*) :: str
-   CHARACTER (LEN=len_trim(str)) :: ucstr
+    Character (Len=*) :: str
+    Character (Len=len_trim(str)) :: ucstr
  
-   ilen = len_trim (str)
-   ioffset = iachar ('A') - iachar ('a')
-   iquote = 0
-   ucstr = str
-   DO i = 1, ilen
-    iav = iachar (str(i:i))
-    IF (iquote == 0 .AND. (iav == 34 .OR. iav == 39)) THEN
-     iquote = 1
-     iqc = iav
-     CYCLE
-    END IF
-    IF (iquote == 1 .AND. iav == iqc) THEN
-     iquote = 0
-     CYCLE
-    END IF
-    IF (iquote == 1) CYCLE
-    IF (iav >= iachar('a') .AND. iav <= iachar('z')) THEN
-     ucstr (i:i) = achar (iav+ioffset)
-    ELSE
-     ucstr (i:i) = str (i:i)
-    END IF
-   END DO
-   RETURN
+    ilen = len_trim (str)
+    ioffset = iachar ('A') - iachar ('a')
+    iquote = 0
+    ucstr = str
+    Do i = 1, ilen
+      iav = iachar (str(i:i))
+      If (iquote == 0 .And. (iav == 34 .Or. iav == 39)) Then
+        iquote = 1
+        iqc = iav
+        Cycle
+      End If
+      If (iquote == 1 .And. iav == iqc) Then
+        iquote = 0
+        Cycle
+      End If
+      If (iquote == 1) Cycle
+      If (iav >= iachar('a') .And. iav <= iachar('z')) Then
+        ucstr (i:i) = achar (iav+ioffset)
+      Else
+        ucstr (i:i) = str (i:i)
+      End If
+    End Do
+    Return
  
-  END FUNCTION uppercase
+  End Function uppercase
  
 !**********************************************************************
  
-  FUNCTION lowercase (str) RESULT (lcstr)
+  Function lowercase (str) Result (lcstr)
  
 ! convert string to lower case
  
-   CHARACTER (LEN=*) :: str
-   CHARACTER (LEN=len_trim(str)) :: lcstr
+    Character (Len=*) :: str
+    Character (Len=len_trim(str)) :: lcstr
  
-   ilen = len_trim (str)
-   ioffset = iachar ('A') - iachar ('a')
-   iquote = 0
-   lcstr = str
-   DO i = 1, ilen
-    iav = iachar (str(i:i))
-    IF (iquote == 0 .AND. (iav == 34 .OR. iav == 39)) THEN
-     iquote = 1
-     iqc = iav
-     CYCLE
-    END IF
-    IF (iquote == 1 .AND. iav == iqc) THEN
-     iquote = 0
-     CYCLE
-    END IF
-    IF (iquote == 1) CYCLE
-    IF (iav >= iachar('A') .AND. iav <= iachar('Z')) THEN
-     lcstr (i:i) = achar (iav-ioffset)
-    ELSE
-     lcstr (i:i) = str (i:i)
-    END IF
-   END DO
-   RETURN
+    ilen = len_trim (str)
+    ioffset = iachar ('A') - iachar ('a')
+    iquote = 0
+    lcstr = str
+    Do i = 1, ilen
+      iav = iachar (str(i:i))
+      If (iquote == 0 .And. (iav == 34 .Or. iav == 39)) Then
+        iquote = 1
+        iqc = iav
+        Cycle
+      End If
+      If (iquote == 1 .And. iav == iqc) Then
+        iquote = 0
+        Cycle
+      End If
+      If (iquote == 1) Cycle
+      If (iav >= iachar('A') .And. iav <= iachar('Z')) Then
+        lcstr (i:i) = achar (iav-ioffset)
+      Else
+        lcstr (i:i) = str (i:i)
+      End If
+    End Do
+    Return
  
-  END FUNCTION lowercase
+  End Function lowercase
  
 !**********************************************************************
  
-  SUBROUTINE readline (nunitr, line, ios)
+  Subroutine readline (nunitr, line, ios)
  
 ! Reads line from unit=nunitr, ignoring blank lines
 ! and deleting comments beginning with an exclamation point(!)
  
-   CHARACTER (LEN=*) :: line
+    Character (Len=*) :: line
  
-   DO
-    READ (nunitr, '(a)', IOSTAT=ios) line ! read input line
-    IF (ios /= 0) RETURN
-    line = adjustl (line)
-    ipos = index (line, '!')
-    IF (ipos == 1) CYCLE
-    IF (ipos /= 0) line = line (:ipos-1)
-    IF (len_trim(line) /= 0) EXIT
-   END DO
-   RETURN
+    Do
+      Read (nunitr, '(a)', IoStat=ios) line ! read input line
+      If (ios /= 0) Return
+      line = adjustl (line)
+      ipos = index (line, '!')
+      If (ipos == 1) Cycle
+      If (ipos /= 0) line = line (:ipos-1)
+      If (len_trim(line) /= 0) Exit
+    End Do
+    Return
  
-  END SUBROUTINE readline
+  End Subroutine readline
  
 !**********************************************************************
  
-  SUBROUTINE match (str, ipos, imatch)
+  Subroutine match (str, ipos, imatch)
  
 ! Sets imatch to the position in string of the delimiter matching the delimiter
 ! in position ipos. Allowable delimiters are (), [], {}, <>.
  
-   CHARACTER (LEN=*) :: str
-   CHARACTER :: delim1, delim2, ch
+    Character (Len=*) :: str
+    Character :: delim1, delim2, ch
  
-   lenstr = len_trim (str)
-   delim1 = str (ipos:ipos)
-   SELECT CASE (delim1)
-   CASE ('(')
-    idelim2 = iachar (delim1) + 1
-    istart = ipos + 1
-    iend = lenstr
-    inc = 1
-   CASE (')')
-    idelim2 = iachar (delim1) - 1
-    istart = ipos - 1
-    iend = 1
-    inc = - 1
-   CASE ('[', '{', '<')
-    idelim2 = iachar (delim1) + 2
-    istart = ipos + 1
-    iend = lenstr
-    inc = 1
-   CASE (']', '}', '>')
-    idelim2 = iachar (delim1) - 2
-    istart = ipos - 1
-    iend = 1
-    inc = - 1
-   CASE DEFAULT
-    WRITE (*,*) delim1, ' is not a valid delimiter'
-    RETURN
-   END SELECT
-   IF (istart < 1 .OR. istart > lenstr) THEN
-    WRITE (*,*) delim1, ' has no matching delimiter'
-    RETURN
-   END IF
-   delim2 = achar (idelim2)! matching delimiter
+    lenstr = len_trim (str)
+    delim1 = str (ipos:ipos)
+    Select Case (delim1)
+    Case ('(')
+      idelim2 = iachar (delim1) + 1
+      istart = ipos + 1
+      iend = lenstr
+      inc = 1
+    Case (')')
+      idelim2 = iachar (delim1) - 1
+      istart = ipos - 1
+      iend = 1
+      inc = - 1
+    Case ('[', '{', '<')
+      idelim2 = iachar (delim1) + 2
+      istart = ipos + 1
+      iend = lenstr
+      inc = 1
+    Case (']', '}', '>')
+      idelim2 = iachar (delim1) - 2
+      istart = ipos - 1
+      iend = 1
+      inc = - 1
+    Case Default
+      Write (*,*) delim1, ' is not a valid delimiter'
+      Return
+    End Select
+    If (istart < 1 .Or. istart > lenstr) Then
+      Write (*,*) delim1, ' has no matching delimiter'
+      Return
+    End If
+    delim2 = achar (idelim2)! matching delimiter
  
-   isum = 1
-   DO i = istart, iend, inc
-    ch = str (i:i)
-    IF (ch /= delim1 .AND. ch /= delim2) CYCLE
-    IF (ch == delim1) isum = isum + 1
-    IF (ch == delim2) isum = isum - 1
-    IF (isum == 0) EXIT
-   END DO
-   IF (isum /= 0) THEN
-    WRITE (*,*) delim1, ' has no matching delimiter'
-    RETURN
-   END IF
-   imatch = i
+    isum = 1
+    Do i = istart, iend, inc
+      ch = str (i:i)
+      If (ch /= delim1 .And. ch /= delim2) Cycle
+      If (ch == delim1) isum = isum + 1
+      If (ch == delim2) isum = isum - 1
+      If (isum == 0) Exit
+    End Do
+    If (isum /= 0) Then
+      Write (*,*) delim1, ' has no matching delimiter'
+      Return
+    End If
+    imatch = i
  
-   RETURN
+    Return
  
-  END SUBROUTINE match
+  End Subroutine match
  
 !**********************************************************************
  
-  SUBROUTINE write_dr (rnum, str, fmt)
+  Subroutine write_dr (rnum, str, fmt)
  
 ! Writes double precision real number rnum to string str using format fmt
  
-   REAL (kr8) :: rnum
-   CHARACTER (LEN=*) :: str, fmt
-   CHARACTER (LEN=80) :: formt
+    Real (kr8) :: rnum
+    Character (Len=*) :: str, fmt
+    Character (Len=80) :: formt
  
-   formt = '(' // trim (fmt) // ')'
-   WRITE (str, formt) rnum
-   str = adjustl (str)
+    formt = '(' // trim (fmt) // ')'
+    Write (str, formt) rnum
+    str = adjustl (str)
  
-  END SUBROUTINE write_dr
+  End Subroutine write_dr
  
 !***********************************************************************
  
-  SUBROUTINE write_sr (rnum, str, fmt)
+  Subroutine write_sr (rnum, str, fmt)
  
 ! Writes single precision real number rnum to string str using format fmt
  
-   REAL (kr4) :: rnum
-   CHARACTER (LEN=*) :: str, fmt
-   CHARACTER (LEN=80) :: formt
+    Real (kr4) :: rnum
+    Character (Len=*) :: str, fmt
+    Character (Len=80) :: formt
  
-   formt = '(' // trim (fmt) // ')'
-   WRITE (str, formt) rnum
-   str = adjustl (str)
+    formt = '(' // trim (fmt) // ')'
+    Write (str, formt) rnum
+    str = adjustl (str)
  
-  END SUBROUTINE write_sr
+  End Subroutine write_sr
  
 !***********************************************************************
  
-  SUBROUTINE write_di (inum, str, fmt)
+  Subroutine write_di (inum, str, fmt)
  
 ! Writes double precision integer inum to string str using format fmt
  
-   INTEGER (ki8) :: inum
-   CHARACTER (LEN=*) :: str, fmt
-   CHARACTER (LEN=80) :: formt
+    Integer (ki8) :: inum
+    Character (Len=*) :: str, fmt
+    Character (Len=80) :: formt
  
-   formt = '(' // trim (fmt) // ')'
-   WRITE (str, formt) inum
-   str = adjustl (str)
+    formt = '(' // trim (fmt) // ')'
+    Write (str, formt) inum
+    str = adjustl (str)
  
-  END SUBROUTINE write_di
+  End Subroutine write_di
  
 !***********************************************************************
  
-  SUBROUTINE write_si (inum, str, fmt)
+  Subroutine write_si (inum, str, fmt)
  
 ! Writes single precision integer inum to string str using format fmt
  
-   INTEGER (ki4) :: inum
-   CHARACTER (LEN=*) :: str, fmt
-   CHARACTER (LEN=80) :: formt
+    Integer (ki4) :: inum
+    Character (Len=*) :: str, fmt
+    Character (Len=80) :: formt
  
-   formt = '(' // trim (fmt) // ')'
-   WRITE (str, formt) inum
-   str = adjustl (str)
+    formt = '(' // trim (fmt) // ')'
+    Write (str, formt) inum
+    str = adjustl (str)
  
-  END SUBROUTINE write_si
+  End Subroutine write_si
  
 !***********************************************************************
  
-  SUBROUTINE trimzero (str)
+  Subroutine trimzero (str)
  
 ! Deletes nonsignificant trailing zeroes from number string str. If number
 ! string ends in a decimal point, one trailing zero is added.
  
-   CHARACTER (LEN=*) :: str
-   CHARACTER :: ch
-   CHARACTER (LEN=10) :: Exp
+    Character (Len=*) :: str
+    Character :: ch
+    Character (Len=10) :: Exp
  
-   ipos = scan (str, 'eE')
-   IF (ipos > 0) THEN
-    Exp = str (ipos:)
-    str = str (1:ipos-1)
-   END IF
-   lstr = len_trim (str)
-   DO i = lstr, 1, - 1
-    ch = str (i:i)
-    IF (ch == '0') CYCLE
-    IF (ch == '.') THEN
-     str = str (1:i) // '0'
-     IF (ipos > 0) str = trim (str) // trim (Exp)
-     EXIT
-    END IF
-    str = str (1:i)
-    EXIT
-   END DO
-   IF (ipos > 0) str = trim (str) // trim (Exp)
+    ipos = scan (str, 'eE')
+    If (ipos > 0) Then
+      Exp = str (ipos:)
+      str = str (1:ipos-1)
+    End If
+    lstr = len_trim (str)
+    Do i = lstr, 1, - 1
+      ch = str (i:i)
+      If (ch == '0') Cycle
+      If (ch == '.') Then
+        str = str (1:i) // '0'
+        If (ipos > 0) str = trim (str) // trim (Exp)
+        Exit
+      End If
+      str = str (1:i)
+      Exit
+    End Do
+    If (ipos > 0) str = trim (str) // trim (Exp)
  
-  END SUBROUTINE trimzero
+  End Subroutine trimzero
  
 !**********************************************************************
  
-  SUBROUTINE writeq_dr (unit, namestr, value, fmt)
+  Subroutine writeq_dr (unit, namestr, value, fmt)
  
 ! Writes a string of the form <name> = value to unit
  
-   REAL (kr8) :: value
-   INTEGER :: unit
-   CHARACTER (LEN=*) :: namestr, fmt
-   CHARACTER (LEN=32) :: tempstr
+    Real (kr8) :: value
+    Integer :: unit
+    Character (Len=*) :: namestr, fmt
+    Character (Len=32) :: tempstr
  
-   CALL writenum (value, tempstr, fmt)
-   CALL trimzero (tempstr)
-   WRITE (UNIT,*) trim (namestr) // ' = ' // trim (tempstr)
+    Call writenum (value, tempstr, fmt)
+    Call trimzero (tempstr)
+    Write (Unit,*) trim (namestr) // ' = ' // trim (tempstr)
  
-  END SUBROUTINE writeq_dr
+  End Subroutine writeq_dr
  
 !**********************************************************************
  
-  SUBROUTINE writeq_sr (unit, namestr, value, fmt)
+  Subroutine writeq_sr (unit, namestr, value, fmt)
  
 ! Writes a string of the form <name> = value to unit
  
-   REAL (kr4) :: value
-   INTEGER :: unit
-   CHARACTER (LEN=*) :: namestr, fmt
-   CHARACTER (LEN=32) :: tempstr
+    Real (kr4) :: value
+    Integer :: unit
+    Character (Len=*) :: namestr, fmt
+    Character (Len=32) :: tempstr
  
-   CALL writenum (value, tempstr, fmt)
-   CALL trimzero (tempstr)
-   WRITE (UNIT,*) trim (namestr) // ' = ' // trim (tempstr)
+    Call writenum (value, tempstr, fmt)
+    Call trimzero (tempstr)
+    Write (Unit,*) trim (namestr) // ' = ' // trim (tempstr)
  
-  END SUBROUTINE writeq_sr
+  End Subroutine writeq_sr
  
 !**********************************************************************
  
-  SUBROUTINE writeq_di (unit, namestr, ivalue, fmt)
+  Subroutine writeq_di (unit, namestr, ivalue, fmt)
  
 ! Writes a string of the form <name> = ivalue to unit
  
-   INTEGER (ki8) :: ivalue
-   INTEGER :: unit
-   CHARACTER (LEN=*) :: namestr, fmt
-   CHARACTER (LEN=32) :: tempstr
-   CALL writenum (ivalue, tempstr, fmt)
-   CALL trimzero (tempstr)
-   WRITE (UNIT,*) trim (namestr) // ' = ' // trim (tempstr)
+    Integer (ki8) :: ivalue
+    Integer :: unit
+    Character (Len=*) :: namestr, fmt
+    Character (Len=32) :: tempstr
+    Call writenum (ivalue, tempstr, fmt)
+    Call trimzero (tempstr)
+    Write (Unit,*) trim (namestr) // ' = ' // trim (tempstr)
  
-  END SUBROUTINE writeq_di
+  End Subroutine writeq_di
  
 !**********************************************************************
  
-  SUBROUTINE writeq_si (unit, namestr, ivalue, fmt)
+  Subroutine writeq_si (unit, namestr, ivalue, fmt)
  
 ! Writes a string of the form <name> = ivalue to unit
  
-   INTEGER (ki4) :: ivalue
-   INTEGER :: unit
-   CHARACTER (LEN=*) :: namestr, fmt
-   CHARACTER (LEN=32) :: tempstr
-   CALL writenum (ivalue, tempstr, fmt)
-   CALL trimzero (tempstr)
-   WRITE (UNIT,*) trim (namestr) // ' = ' // trim (tempstr)
+    Integer (ki4) :: ivalue
+    Integer :: unit
+    Character (Len=*) :: namestr, fmt
+    Character (Len=32) :: tempstr
+    Call writenum (ivalue, tempstr, fmt)
+    Call trimzero (tempstr)
+    Write (Unit,*) trim (namestr) // ' = ' // trim (tempstr)
  
-  END SUBROUTINE writeq_si
+  End Subroutine writeq_si
  
 !**********************************************************************
  
-  FUNCTION is_letter (ch) RESULT (res)
+  Function is_letter (ch) Result (res)
  
 ! Returns .true. if ch is a letter and .false. otherwise
  
-   CHARACTER :: ch
-   LOGICAL :: res
+    Character :: ch
+    Logical :: res
  
-   SELECT CASE (ch)
-   CASE ('A':'Z', 'a':'z')
-    res = .TRUE.
-   CASE DEFAULT
-    res = .FALSE.
-   END SELECT
-   RETURN
+    Select Case (ch)
+    Case ('A':'Z', 'a':'z')
+      res = .True.
+    Case Default
+      res = .False.
+    End Select
+    Return
  
-  END FUNCTION is_letter
+  End Function is_letter
  
 !**********************************************************************
  
-  FUNCTION is_digit (ch) RESULT (res)
+  Function is_digit (ch) Result (res)
  
 ! Returns .true. if ch is a digit (0,1,...,9) and .false. otherwise
  
-   CHARACTER :: ch
-   LOGICAL :: res
+    Character :: ch
+    Logical :: res
  
-   SELECT CASE (ch)
-   CASE ('0':'9')
-    res = .TRUE.
-   CASE DEFAULT
-    res = .FALSE.
-   END SELECT
-   RETURN
+    Select Case (ch)
+    Case ('0':'9')
+      res = .True.
+    Case Default
+      res = .False.
+    End Select
+    Return
  
-  END FUNCTION is_digit
+  End Function is_digit
  
 !**********************************************************************
  
-  SUBROUTINE split (str, delims, before, sep)
+  Subroutine split (str, delims, before, sep)
  
 ! Routine finds the first instance of a character from 'delims' in the
 ! the string 'str'. The characters before the found delimiter are
@@ -685,101 +685,101 @@ CONTAINS
 ! character if it is preceded by a backslash (\). If the backslash
 ! character is desired in 'str', then precede it with another backslash.
  
-   CHARACTER (LEN=*) :: str, delims, before
-   CHARACTER, OPTIONAL :: sep
-   LOGICAL :: pres
-   CHARACTER :: ch, cha
+    Character (Len=*) :: str, delims, before
+    Character, Optional :: sep
+    Logical :: pres
+    Character :: ch, cha
  
-   pres = present (sep)
-   str = adjustl (str)
-   CALL compact (str)
-   lenstr = len_trim (str)
-   IF (lenstr == 0) RETURN! string str is empty
-   k = 0
-   ibsl = 0 ! backslash initially inactive
-   before = ' '
-   DO i = 1, lenstr
-    ch = str (i:i)
-    IF (ibsl == 1) THEN ! backslash active
-     k = k + 1
-     before (k:k) = ch
-     ibsl = 0
-     CYCLE
-    END IF
-    IF (ch == '\') THEN ! backslash with backslash inactive
-     k = k + 1
-     before (k:k) = ch
-     ibsl = 1
-     CYCLE
-    END IF
-    ipos = index (delims, ch)
-    IF (ipos == 0) THEN ! character is not a delimiter
-     k = k + 1
-     before (k:k) = ch
-     CYCLE
-    END IF
-    IF (ch /= ' ') THEN ! character is a delimiter that is not a space
-     str = str (i+1:)
-     IF (pres) sep = ch
-     EXIT
-    END IF
-    cha = str (i+1:i+1)! character is a space delimiter
-    iposa = index (delims, cha)
-    IF (iposa > 0) THEN ! next character is a delimiter
-     str = str (i+2:)
-     IF (pres) sep = cha
-     EXIT
-    ELSE
-     str = str (i+1:)
-     IF (pres) sep = ch
-     EXIT
-    END IF
-   END DO
-   IF (i >= lenstr) str = ''
-   str = adjustl (str)! remove initial spaces
-   RETURN
+    pres = present (sep)
+    str = adjustl (str)
+    Call compact (str)
+    lenstr = len_trim (str)
+    If (lenstr == 0) Return! string str is empty
+    k = 0
+    ibsl = 0 ! backslash initially inactive
+    before = ' '
+    Do i = 1, lenstr
+      ch = str (i:i)
+      If (ibsl == 1) Then ! backslash active
+        k = k + 1
+        before (k:k) = ch
+        ibsl = 0
+        Cycle
+      End If
+      If (ch == '\') Then ! backslash with backslash inactive
+        k = k + 1
+        before (k:k) = ch
+        ibsl = 1
+        Cycle
+      End If
+      ipos = index (delims, ch)
+      If (ipos == 0) Then ! character is not a delimiter
+        k = k + 1
+        before (k:k) = ch
+        Cycle
+      End If
+      If (ch /= ' ') Then ! character is a delimiter that is not a space
+        str = str (i+1:)
+        If (pres) sep = ch
+        Exit
+      End If
+      cha = str (i+1:i+1)! character is a space delimiter
+      iposa = index (delims, cha)
+      If (iposa > 0) Then ! next character is a delimiter
+        str = str (i+2:)
+        If (pres) sep = cha
+        Exit
+      Else
+        str = str (i+1:)
+        If (pres) sep = ch
+        Exit
+      End If
+    End Do
+    If (i >= lenstr) str = ''
+    str = adjustl (str)! remove initial spaces
+    Return
  
-  END SUBROUTINE split
+  End Subroutine split
  
 !**********************************************************************
  
-  SUBROUTINE removebksl (str)
+  Subroutine removebksl (str)
  
 ! Removes backslash (\) characters. Double backslashes (\\) are replaced
 ! by a single backslash.
  
-   CHARACTER (LEN=*) :: str
-   CHARACTER (LEN=1) :: ch
-   CHARACTER (LEN=len_trim(str)) :: outstr
+    Character (Len=*) :: str
+    Character (Len=1) :: ch
+    Character (Len=len_trim(str)) :: outstr
  
-   str = adjustl (str)
-   lenstr = len_trim (str)
-   outstr = ' '
-   k = 0
-   ibsl = 0 ! backslash initially inactive
+    str = adjustl (str)
+    lenstr = len_trim (str)
+    outstr = ' '
+    k = 0
+    ibsl = 0 ! backslash initially inactive
  
-   DO i = 1, lenstr
-    ch = str (i:i)
-    IF (ibsl == 1) THEN ! backslash active
-     k = k + 1
-     outstr (k:k) = ch
-     ibsl = 0
-     CYCLE
-    END IF
-    IF (ch == '\') THEN ! backslash with backslash inactive
-     ibsl = 1
-     CYCLE
-    END IF
-    k = k + 1
-    outstr (k:k) = ch ! non-backslash with backslash inactive
-   END DO
+    Do i = 1, lenstr
+      ch = str (i:i)
+      If (ibsl == 1) Then ! backslash active
+        k = k + 1
+        outstr (k:k) = ch
+        ibsl = 0
+        Cycle
+      End If
+      If (ch == '\') Then ! backslash with backslash inactive
+        ibsl = 1
+        Cycle
+      End If
+      k = k + 1
+      outstr (k:k) = ch ! non-backslash with backslash inactive
+    End Do
  
-   str = adjustl (outstr)
+    str = adjustl (outstr)
  
-  END SUBROUTINE removebksl
+  End Subroutine removebksl
  
 !**********************************************************************
  
-END MODULE strings
+End Module strings
  
  
