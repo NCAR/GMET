@@ -21,6 +21,10 @@
 #not the bin directory
 bin/
 
+#others
+num_rec/
+downscale/numrec.f90
+
 #no text files
 *.txt
 
