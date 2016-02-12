@@ -1,203 +1,230 @@
+program precip
+  use type
+  use strings
+  use utim ! AWW
+  implicit none
  
-Program precip
-  Use type
-  Use strings
-  Implicit None
+  interface
+    subroutine get_time_list (startdate, enddate, t)
+      use utim
+      use type
+      character (len=100), intent (in) :: startdate, enddate
+      real (dp), allocatable, intent (out) :: t (:)
+    end subroutine get_time_list
  
-  Interface
-    Subroutine get_time_list (startdate, enddate, T)
-      Use utim
-      Use type
-      Character (Len=100), Intent (In) :: startdate, enddate
-      Real (DP), Allocatable, Intent (Out) :: T (:)
-    End Subroutine get_time_list
+    subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, forecast, v, x, &
+   & y, t, error)
+      use type
+      character (len=100), intent (in) :: startdate, enddate, file_var, perturbation
+      character (len=*), intent (in) :: var_name
+      integer (i4b), intent (in) :: forecast
+      real (dp), allocatable, intent (out) :: v (:, :), x (:), y (:)
+      real (dp), allocatable, intent (out) :: t (:)
+      integer, intent (out) :: error
+    end subroutine read_refcst
  
-    Subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, forecast, V, X, Y, T, error)
-      Use type
-      Character (Len=100), Intent (In) :: startdate, enddate, file_var, perturbation
-      Character (Len=*), Intent (In) :: var_name
-      Integer (I4B), Intent (In) :: forecast
-      Real (DP), Allocatable, Intent (Out) :: V (:, :), X (:), Y (:)
-      Real (DP), Allocatable, Intent (Out) :: T (:)
-      Integer, Intent (Out) :: error
-    End Subroutine read_refcst
+    subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e, n_stations, &
+   & error)
+      use type
+      character (len=500), intent (in) :: file_name
+      character (len=100), allocatable, intent (out) :: id (:), name (:)
+      real (dp), allocatable, intent (out) :: lat (:), lon (:), alt (:), sslp_n (:), sslp_e (:)
+      integer (i4b), intent (out) :: n_stations
+      integer, intent (out) :: error
+    end subroutine read_station_list
  
-    Subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e, n_stations, error)
-      Use type
-      Character (Len=500), Intent (In) :: file_name
-      Character (Len=100), Allocatable, Intent (Out) :: id (:), name (:)
-      Real (DP), Allocatable, Intent (Out) :: lat (:), lon (:), alt (:), sslp_n (:), sslp_e (:)
-      Integer (I4B), Intent (Out) :: n_stations
-      Integer, Intent (Out) :: error
-    End Subroutine read_station_list
+    subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
+      use type
+      character (len=500), intent (in) :: file_name
+      real (dp), allocatable, intent (out) :: lats (:), lons (:), alts (:), slp_n (:), slp_e (:)
+      integer (i4b), intent (out) :: nx, ny
+      integer, intent (out) :: error
+    end subroutine read_grid_list
  
-    Subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
-      Use type
-      Character (Len=500), Intent (In) :: file_name
-      Real (DP), Allocatable, Intent (Out) :: lats (:), lons (:), alts (:), slp_n (:), slp_e (:)
-      Integer (I4B), Intent (Out) :: nx, ny
-      Integer, Intent (Out) :: error
-    End Subroutine read_grid_list
+    subroutine read_nc_grid (file_name, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
+      use netcdf
+      use type
  
-    Subroutine read_nc_grid (file_name, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
-      Use netcdf
-      Use type
+      character (len=500), intent (in) :: file_name
+      real (dp), allocatable, intent (out) :: lat (:, :), lon (:, :), elev (:, :), grad_n (:, :), &
+     & grad_e (:, :), mask (:, :)
+      integer (i4b), intent (out) :: nx, ny
+      integer, intent (out) :: error
+    end subroutine read_nc_grid
  
-      Character (Len=500), Intent (In) :: file_name
-      Real (DP), Allocatable, Intent (Out) :: lat (:, :), lon (:, :), elev (:, :), grad_n (:, :), grad_e (:, :), mask &
+ 
+    ! subroutine estimate_coefficients(D, nvars, Lats, Lons, Times, stnid, stnlat, stnlon, &
+    subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
+   & stnlon, stnalt, stnvar, site_var, site_list, c, poc, error)
+      use type
+      real (dp), intent (in) :: d (:, :, :), lats (:), lons (:)
+      real (dp), intent (in) :: times (:)
+ 
+      integer (i4b), intent (in) :: st_rec, end_rec ! AWW
+ 
+      integer (i4b), intent (in) :: nvars
+      character (len=100), intent (in) :: stnid (:)
+      real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
+      character (len=100), intent (in) :: stnvar
+      character (len=100), intent (in) :: site_var
+      character (len=500), intent (in) :: site_list
+      real (dp), allocatable, intent (out) :: c (:, :, :), poc (:, :, :)
+      integer, intent (out) :: error
+    end subroutine estimate_coefficients
+ 
+    subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, times, site_list, &
+   & station_var, stnid, stnlat, stnlon, stnalt, forecast, file, error)
+      use netcdf
+      use type
+      character (len=100), intent (in) :: var_names (:), stnid (:)
+      integer, intent (in) :: n_vars, forecast
+      character (len=100), intent (in) :: startdate, enddate, station_var
+      character (len=500), intent (in) :: file, site_list
+      real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
+      real (dp), intent (in) :: coefs (:, :, :)
+      real (dp), intent (in) :: times (:)
+      integer, intent (out) :: error
+    end subroutine save_coefficients
+ 
+    !modified AJN Sept 2013
+    ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
+    ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
+    subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, st_rec, end_rec, &
+   & stnid, stnvar, site_var, site_var_t, site_list, pcp, pop, pcperr, tmean, tmean_err, trange, &
+   & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
+   & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+      use type
+      real (dp), intent (in) :: x (:, :), z (:, :)
+      real (dp), intent (in) :: maxdistance
+      integer (i4b), intent (in) :: nsta, ngrid
+      real (dp), intent (in) :: times (:)
+      integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec ! AWW added
+      character (len=100), intent (in) :: stnid (:)
+      character (len=100), intent (in) :: stnvar, site_var, site_var_t
+      character (len=500), intent (in) :: site_list
+      real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
+      real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
+      real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
+      real (sp), allocatable, intent (out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
+      real (sp), allocatable, intent (out) :: tmean_2 (:, :), tmean_err_2 (:, :)!OLS tmean estimate and error
+      real (sp), allocatable, intent (out) :: trange_2 (:, :), trange_err_2 (:, :)!OLS trange estimate and error
+      integer, intent (out) :: error
+      real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
+      real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
+      real (dp), intent (out) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)!std and mean of transformed time step precipitation
+      real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min,max of normalized time step precip
+    end subroutine estimate_forcing_regression
+    !end subroutine estimate_precip  ! AWW-Feb2016 renamed to be more descriptive
+ 
+    !modified AJN Sept 2013
+    !subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
+    ! AWW Feb2016, renamed to be more descriptive.  Note did NOT call scrf/save_precip.f90 subroutine
+    subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
+   & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
+   & y_min, y_max, file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
+   & trange_err_2)
+      use netcdf
+      use type
+      real (sp), intent (in) :: pcp (:, :), pop (:, :), pcperror (:, :)
+      real (sp), intent (in) :: tmean (:, :), tmean_err (:, :), trange (:, :), trange_err (:, :)
+      real (sp), intent (in) :: pcp_2 (:, :), pop_2 (:, :), pcperror_2 (:, :)
+      real (sp), intent (in) :: tmean_2 (:, :), tmean_err_2 (:, :), trange_2 (:, :), trange_err_2 &
      & (:, :)
-      Integer (I4B), Intent (Out) :: nx, ny
-      Integer, Intent (Out) :: error
-    End Subroutine read_nc_grid
+      integer (i4b), intent (in) :: nx, ny
+      real (dp), intent (in) :: grdlat (:), grdlon (:), grdalt (:)
+      real (dp), intent (in) :: times (:)
+      real (dp), intent (in) :: mean_autocorr (:), mean_tp_corr (:)
+      real (dp), intent (in) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)
+      real (dp), intent (in) :: y_min (:, :), y_max (:, :)
+      character (len=500), intent (in) :: file
+      integer, intent (out) :: error
+    end subroutine save_forcing_regression
+    !end subroutine save_precip
+ 
+  end interface
+ 
+  ! === end of interfaces, start of program ====
+ 
+  character (len=100) :: config_file
+  integer, parameter :: nconfigs = 15 !modified AJN Sept 2013
+  character (len=500) :: config_names (nconfigs)
+  character (len=500) :: config_values (nconfigs)
+  character (len=500) :: site_list, output_file, output_file2, grid_list
+  character (len=100) :: startdate, enddate, perturbation, station_var, site_var, site_var_t
+  character (len=100), allocatable :: file_var (:), var_name (:)
+  character (len=100), allocatable :: stnid (:), stnname (:)
+ 
+  character (len=2000) :: arg !command line arg for configuration file
+ 
+  integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
+  integer :: nstations, lenfile
+ 
+  real (dp), allocatable :: y (:, :, :), vals (:, :), lats (:), lons (:)
+  real (dp), allocatable :: coefs (:, :, :), prob_coefs (:, :, :)
+  real (dp), allocatable :: stnlat (:), stnlon (:), stnalt (:), stn_slp_n (:), stn_slp_e (:)
+  real (dp), allocatable :: times (:)
+  !modified AJN Sept 2013
+  real (dp), allocatable :: mean_autocorr (:)!mean auto correlation for all stations over entire time period
+  real (dp), allocatable :: mean_tp_corr (:)!mean correlation between precip and trange (31-day moving avg anomaly)
+  real (dp), allocatable :: y_mean (:, :)
+  real (dp), allocatable :: y_std (:, :)
+  real (dp), allocatable :: y_std_all (:, :)
+  real (dp), allocatable :: y_max (:, :)
+  real (dp), allocatable :: y_min (:, :)
+ 
+  !added for grid netcdf read  Oct 2015 AJN
+  real (dp), allocatable :: lat (:, :)
+  real (dp), allocatable :: lon (:, :)
+  real (dp), allocatable :: elev (:, :)
+  real (dp), allocatable :: grad_n (:, :)
+  real (dp), allocatable :: grad_e (:, :)
+  real (dp), allocatable :: mask (:, :)
  
  
-    Subroutine estimate_coefficients (D, nvars, lats, lons, Times, stnid, stnlat, stnlon, stnalt, stnvar, site_var, &
-   & site_list, C, POC, error)
-      Use type
-      Real (DP), Intent (In) :: D (:, :, :), lats (:), lons (:)
-      Real (DP), Intent (In) :: Times (:)
-      Integer (I4B), Intent (In) :: nvars
-      Character (Len=100), Intent (In) :: stnid (:)
-      Real (DP), Intent (In) :: stnlat (:), stnlon (:), stnalt (:)
-      Character (Len=100), Intent (In) :: stnvar
-      Character (Len=100), Intent (In) :: site_var
-      Character (Len=500), Intent (In) :: site_list
-      Real (DP), Allocatable, Intent (Out) :: C (:, :, :), POC (:, :, :)
-      Integer, Intent (Out) :: error
-    End Subroutine estimate_coefficients
+  real (dp), allocatable :: x (:, :), z (:, :)
+  integer :: ngrid
  
-    Subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, Times, site_list, station_var, stnid, &
-   & stnlat, stnlon, stnalt, forecast, file, error)
-      Use netcdf
-      Use type
-      Character (Len=100), Intent (In) :: var_names (:), stnid (:)
-      Integer, Intent (In) :: n_vars, forecast
-      Character (Len=100), Intent (In) :: startdate, enddate, station_var
-      Character (Len=500), Intent (In) :: file, site_list
-      Real (DP), Intent (In) :: stnlat (:), stnlon (:), stnalt (:)
-      Real (DP), Intent (In) :: coefs (:, :, :)
-      Real (DP), Intent (In) :: Times (:)
-      Integer, Intent (Out) :: error
-    End Subroutine save_coefficients
+  integer (i4b) :: nx, ny, ntimes
  
-    Subroutine estimate_precip (X, Z, nsta, ngrid, maxDistance, Times, stnid, stnvar, site_var, site_var_t, site_list, &
-   & PCP, POP, PCPERR, tmean, tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
-   & y_min, y_max, error, pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
-      Use type
-      Real (DP), Intent (In) :: X (:, :), Z (:, :)
-      Real (DP), Intent (In) :: maxDistance
-      Integer (I4B), Intent (In) :: nsta, ngrid
-      Real (DP), Intent (In) :: Times (:)
-      Character (Len=100), Intent (In) :: stnid (:)
-      Character (Len=100), Intent (In) :: stnvar, site_var, site_var_t
-      Character (Len=500), Intent (In) :: site_list
-      Real (SP), Allocatable, Intent (Out) :: PCP (:, :), POP (:, :), PCPERR (:, :)
-      Real (SP), Allocatable, Intent (Out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
-      Real (SP), Allocatable, Intent (Out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
+  integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec ! AWW
  
-      Real (SP), Allocatable, Intent (Out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
-      Real (SP), Allocatable, Intent (Out) :: tmean_2 (:, :), tmean_err_2 (:, :)!OLS tmean estimate and error
-      Real (SP), Allocatable, Intent (Out) :: trange_2 (:, :), trange_err_2 (:, :)!OLS trange estimate and error
+  real (dp) :: maxdistance
+  real (dp), allocatable :: grdlat (:), grdlon (:), grdalt (:), grd_slp_n (:), grd_slp_e (:), &
+ & mask_1d (:)
+  real (sp), allocatable :: pcp (:, :), pop (:, :), pcperror (:, :)
+  !modified AJN Sept 2013
+  real (sp), allocatable :: tmean (:, :), tmean_err (:, :)
+  real (sp), allocatable :: trange (:, :), trange_err (:, :)
  
- 
-      Integer, Intent (Out) :: error
-      Real (DP), Intent (Out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
-      Real (DP), Intent (Out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
- 
-      Real (DP), Intent (Out) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)!std and mean of transformed time step precipitation
-      Real (DP), Intent (Out) :: y_min (:, :), y_max (:, :)!min,max of normalized time step precip
-    End Subroutine estimate_precip
- 
-    Subroutine save_precip (PCP, POP, pcperror, tmean, tmean_err, trange, trange_err, nx, ny, grdlat, grdlon, grdalt, &
-   & Times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, file, error, pcp_2, pop_2, pcperror_2, &
-   & tmean_2, tmean_err_2, trange_2, trange_err_2)
-      Use netcdf
-      Use type
- 
-      Real (SP), Intent (In) :: PCP (:, :), POP (:, :), pcperror (:, :)
-      Real (SP), Intent (In) :: tmean (:, :), tmean_err (:, :), trange (:, :), trange_err (:, :)
- 
-      Real (SP), Intent (In) :: pcp_2 (:, :), pop_2 (:, :), pcperror_2 (:, :)
-      Real (SP), Intent (In) :: tmean_2 (:, :), tmean_err_2 (:, :), trange_2 (:, :), trange_err_2 (:, :)
- 
-      Integer (I4B), Intent (In) :: nx, ny
-      Real (DP), Intent (In) :: grdlat (:), grdlon (:), grdalt (:)
-      Real (DP), Intent (In) :: Times (:)
-      Real (DP), Intent (In) :: mean_autocorr (:), mean_tp_corr (:)
- 
-      Real (DP), Intent (In) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)
-      Real (DP), Intent (In) :: y_min (:, :), y_max (:, :)
-      Character (Len=500), Intent (In) :: file
-      Integer, Intent (Out) :: error
-    End Subroutine save_precip
- 
-  End Interface
- 
-  Character (Len=100) :: config_file
-  Integer, Parameter :: nconfigs = 15
-  Character (Len=500) :: config_names (nconfigs)
-  Character (Len=500) :: config_values (nconfigs)
-  Character (Len=500) :: site_list, output_file, output_file2, grid_list
-  Character (Len=100) :: startdate, enddate, perturbation, station_var, site_var, site_var_t
-  Character (Len=100), Allocatable :: file_var (:), var_name (:)
-  Character (Len=100), Allocatable :: stnid (:), stnname (:)
- 
-  Character (Len=2000) :: arg !command line arg for configuration file
- 
-  Integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
-  Integer :: nstations, lenfile
- 
-  Real (DP), Allocatable :: Y (:, :, :), Vals (:, :), lats (:), lons (:)
-  Real (DP), Allocatable :: coefs (:, :, :), prob_coefs (:, :, :)
-  Real (DP), Allocatable :: stnlat (:), stnlon (:), stnalt (:), stn_slp_n (:), stn_slp_e (:)
-  Real (DP), Allocatable :: Times (:)
- 
-  Real (DP), Allocatable :: mean_autocorr (:)!mean auto correlation for all stations over entire time period
-  Real (DP), Allocatable :: mean_tp_corr (:)!mean correlation between precip and trange (31-day moving avg anomaly)
-  Real (DP), Allocatable :: y_mean (:, :)
-  Real (DP), Allocatable :: y_std (:, :)
-  Real (DP), Allocatable :: y_std_all (:, :)
-  Real (DP), Allocatable :: y_max (:, :)
-  Real (DP), Allocatable :: y_min (:, :)
- 
-  Real (DP), Allocatable :: lat (:, :)
-  Real (DP), Allocatable :: lon (:, :)
-  Real (DP), Allocatable :: elev (:, :)
-  Real (DP), Allocatable :: grad_n (:, :)
-  Real (DP), Allocatable :: grad_e (:, :)
-  Real (DP), Allocatable :: mask (:, :)
- 
- 
-  Real (DP), Allocatable :: X (:, :), Z (:, :)
-  Integer :: ngrid
- 
-  Integer (I4B) :: nx, ny, ntimes
-  Real (DP) :: maxDistance
-  Real (DP), Allocatable :: grdlat (:), grdlon (:), grdalt (:), grd_slp_n (:), grd_slp_e (:), mask_1d (:)
-  Real (SP), Allocatable :: PCP (:, :), POP (:, :), pcperror (:, :)
-  Real (SP), Allocatable :: tmean (:, :), tmean_err (:, :)
-  Real (SP), Allocatable :: trange (:, :), trange_err (:, :)
- 
-  Real (SP), Allocatable :: pcp_2 (:, :), pop_2 (:, :), pcperror_2 (:, :)
-  Real (SP), Allocatable :: tmean_2 (:, :), tmean_err_2 (:, :)
-  Real (SP), Allocatable :: trange_2 (:, :), trange_err_2 (:, :)
+  real (sp), allocatable :: pcp_2 (:, :), pop_2 (:, :), pcperror_2 (:, :)
+  !modified AJN Sept 2013
+  real (sp), allocatable :: tmean_2 (:, :), tmean_err_2 (:, :)
+  real (sp), allocatable :: trange_2 (:, :), trange_err_2 (:, :)
  
 !code starts below
  
 !mode 2
-  config_file = "config_pnw.txt"
+!  config_file = "config_boulder_flood.txt"
+!  config_file = "config_gunnison_filled.txt"
+!   config_file = "config_gunnison_qc.txt"
+!   config_file = "config_conus_stats.txt"
+!  config_file = "config_conus_test_1980.txt"
+!  config_file = "config_conus_test_1991.txt"
+!  config_file = "config_conus_test_2002.txt"
+!  config_file = "config_alaska.txt"
+!   config_file = "config_pnw.txt"
 !mode 1
 !  config_file = "config_prcp.txt"
  
  
-!get config_file filename from command line
+  !get config_file filename from command line
   i = 0
-  Do
-    Call get_command_argument (i, arg)
-    If (i .Eq. 1) config_file = arg
-    If (LEN_TRIM(arg) == 0) Exit
+  do
+    call get_command_argument (i, arg)
+    if (i .eq. 1) config_file = arg
+    if (len_trim(arg) == 0) exit
     i = i + 1
-  End Do
+  end do
  
   config_names (1) = "MODE"
   config_names (2) = "START_DATE"
@@ -213,18 +240,18 @@ Program precip
   config_names (12) = "OUTPUT_FILE"
   config_names (13) = "GRID_LIST"
   config_names (14) = "MAX_DISTANCE"
-  config_names (15) = "SITE_VAR_T"
+  config_names (15) = "SITE_VAR_T" !modified AJN Sept 2013
  
   error = 0
   n_vars = 0
   forecast = - 1
  
-  Call read_config (config_file, nconfigs, config_names, config_values)
-  Call value (config_values(1), mode, error)
-  If (error /= 0) Then
-    Print *, "ERROR: Failed to read mode from config file."
-    Return
-  End If
+  call read_config (config_file, nconfigs, config_names, config_values)
+  call value (config_values(1), mode, error)
+  if (error /= 0) then
+    print *, "ERROR: Failed to read mode from config file."
+    return
+  end if
  
   startdate = config_values (2)
   enddate = config_values (3)
@@ -234,112 +261,147 @@ Program precip
   station_var = config_values (6)
   output_file = config_values (12)
  
+  ! print *,trim(site_var_t),' ',trim(site_var)
  
-  If (len(trim(startdate)) == 0 .Or. len(trim(enddate)) == 0 .Or. len(trim(site_list)) == 0 .Or. len(trim(output_file)) &
- & == 0) Then
-    Print *, "ERROR: Failed to read in one more more required config parameters. (START_DATE, END_DATE, SITE_LIST or OU&
-   &TPUT_FILE)"
-    Return
-  End If
+  if (len(trim(startdate)) == 0 .or. len(trim(enddate)) == 0 .or. len(trim(site_list)) == 0 .or. &
+ & len(trim(output_file)) == 0) then
+    print *, "ERROR: Failed to read in one more more required config parameters. (START_DATE, END_D&
+   &ATE, SITE_LIST or OUTPUT_FILE)"
+    return
+  end if
  
-  If (mode == 1) Then
+  ! --- AWW:  figure out start and end records for reading station data ---
+  call get_time_list (startdate, enddate, times)
+  ntimes = size (times)
+  print *, 'startdate=', startdate, 'enddate=', enddate, 'ntimes=', ntimes
+ 
+  !translate times to a start and end record for station files
+  st_stndata_utime = date_to_unix ('19800101')! returns secs-since-1970 for end date of station files
+                                                ! hardwired for testing
+  end_stndata_utime = date_to_unix ('20141231')! returns secs-since-1970 for end date of station files
+                                                 ! hardwired for testing
+ 
+  st_rec = floor ((times(1)-st_stndata_utime)/86400) + 1
+  end_rec = floor ((times(ntimes)-st_stndata_utime)/86400) + 1
+ 
+  print *, 'st_rec and end_rec =', st_rec, end_rec
+  ! --- end AWW add ---
+ 
+ 
+  ! === SWITCH BETWEEN MODE 1 (read atmos model data) and MODE 2 ====
+  if (mode == 1) then
      ! Model Variables
     perturbation = config_values (7)
-    Call value (config_values(8), forecast, error)
-    If (error /= 0) forecast = - 1
-    Call value (config_values(9), n_vars, error)
-    If (error /= 0) n_vars = 0
+    call value (config_values(8), forecast, error)
+    if (error /= 0) forecast = - 1
+    call value (config_values(9), n_vars, error)
+    if (error /= 0) n_vars = 0
  
-    If (len(trim(perturbation)) == 0 .Or. n_vars == 0 .Or. forecast ==-1) Then
-      Print *, "ERROR: Failed to read in one or more required model config parameters. (PERTURBATION, NUMBER_VARS or FO&
-     &RECAST)"
-      Return
-    End If
+    if (len(trim(perturbation)) == 0 .or. n_vars == 0 .or. forecast ==-1) then
+      print *, "ERROR: Failed to read in one or more required model config parameters. (PERTURBATIO&
+     &N, NUMBER_VARS or FORECAST)"
+      return
+    end if
  
-    If (n_vars > 1) Then
-      Allocate (file_var(n_vars))
-      Allocate (var_name(n_vars))
-      Call parse (config_values(10), ",", file_var, nfile_var)
-      Call parse (config_values(11), ",", var_name, nvar_name)
-      If (nfile_var /= n_vars .Or. nvar_name /= n_vars) Then
-        Print *, "ERROR: Number of variables in config file does not match."
-        Return
-      End If
-    Else
-      Allocate (file_var(1))
-      Allocate (var_name(1))
+    if (n_vars > 1) then
+      allocate (file_var(n_vars))
+      allocate (var_name(n_vars))
+      call parse (config_values(10), ",", file_var, nfile_var)
+      call parse (config_values(11), ",", var_name, nvar_name)
+      if (nfile_var /= n_vars .or. nvar_name /= n_vars) then
+        print *, "ERROR: Number of variables in config file does not match."
+        return
+      end if
+    else
+      allocate (file_var(1))
+      allocate (var_name(1))
       file_var (1) = config_values (10)
       var_name (1) = config_values (11)
-      If (len(trim(file_var(1))) == 0 .Or. len(trim(var_name(1))) == 0) Then
-        Print *, "ERROR: Failed to read in one or more required model config parameters. (FILE_VARIABLE or VARIABLE_NAM&
-       &E)"
-        Return
-      End If
+      if (len(trim(file_var(1))) == 0 .or. len(trim(var_name(1))) == 0) then
+        print *, "ERROR: Failed to read in one or more required model config parameters. (FILE_VARI&
+       &ABLE or VARIABLE_NAME)"
+        return
+      end if
  
-    End If
+    end if
+     !  print *,'start date ',startdate
  
-    Do i = 1, n_vars, 1
-      Call read_refcst (startdate, enddate, file_var(i), perturbation, var_name(i), forecast, Vals, lats, lons, Times, &
-     & error)
-      If (error /= 0) Return
-      If (i == 1) Then
-        Allocate (Y(n_vars, size(lons)*size(lats), size(Times)))
-      End If
-      Y (i, :, :) = Vals (:, :)
-      Deallocate (Vals)
-    End Do
+    do i = 1, n_vars, 1
+      call read_refcst (startdate, enddate, file_var(i), perturbation, var_name(i), forecast, vals, &
+     & lats, lons, times, error)
+      if (error /= 0) return
+      if (i == 1) then
+        allocate (y(n_vars, size(lons)*size(lats), size(times)))
+      end if
+      y (i, :, :) = vals (:, :)
+      deallocate (vals)
+    end do
  
-    Call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, stn_slp_e, nstations, error)
-    If (error /= 0) Return
+    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
+   & stn_slp_e, nstations, error)
+    if (error /= 0) return
  
-    Call estimate_coefficients (Y, n_vars, lats, lons, Times, stnid, stnlat, stnlon, stnalt, station_var, site_var, &
-   & site_list, coefs, prob_coefs, error)
-    If (error /= 0) Return
+!     call estimate_coefficients(Y, n_vars, Lats, Lons, Times, stnid, stnlat, stnlon, &
+    call estimate_coefficients (y, n_vars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
+   & stnlon, stnalt, station_var, site_var, site_list, coefs, prob_coefs, error)
+    if (error /= 0) return
  
- 
-    If (trim(station_var) .Eq. "PRCP") Then
-      lenfile = LEN_TRIM (output_file)
+    if (trim(station_var) .eq. "PRCP") then
+      lenfile = len_trim (output_file)
       output_file2 (:) = " "
       output_file2 (1:5) = "prob_"
       output_file2 (6:lenfile+6) = output_file (1:lenfile)
+      print *, trim (output_file2)
  
-      Call save_coefficients (n_vars, var_name, prob_coefs, startdate, enddate, Times, site_list, station_var, stnid, &
-     & stnlat, stnlon, stnalt, forecast, output_file2, error)
-      If (error /= 0) Return
-    End If
+      call save_coefficients (n_vars, var_name, prob_coefs, startdate, enddate, times, site_list, &
+     & station_var, stnid, stnlat, stnlon, stnalt, forecast, output_file2, error)
+      if (error /= 0) return
+    end if
  
-    Call save_coefficients (n_vars, var_name, coefs, startdate, enddate, Times, site_list, station_var, stnid, stnlat, &
-   & stnlon, stnalt, forecast, output_file, error)
-    If (error /= 0) Return
+    call save_coefficients (n_vars, var_name, coefs, startdate, enddate, times, site_list, &
+   & station_var, stnid, stnlat, stnlon, stnalt, forecast, output_file, error)
+    if (error /= 0) return
  
-  Else
-    If (mode == 2) Then
+     ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec...just passed now because
+     !   an internal subroutine wants them
+ 
+  else
+ 
+     ! =================== ensemble forcing generation =====================
+    if (mode == 2) then
  
       grid_list = config_values (13)
-      Call value (config_values(14), maxDistance, error)
-      maxDistance = maxDistance * 0.539957
-      If (error /= 0) maxDistance = - 1
+      call value (config_values(14), maxdistance, error)
+      maxdistance = maxdistance * 0.539957
+      if (error /= 0) maxdistance = - 1
  
-      If (len(trim(grid_list)) == 0) Then
-        Print *, "ERROR: Failed to read in one more more required model config parameters. (GRID_LIST)"
-        Return
-      End If
+      if (len(trim(grid_list)) == 0) then
+        print *, "ERROR: Failed to read in one more more required model config parameters. (GRID_LI&
+       &ST)"
+        return
+      end if
  
  
-      Call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, stn_slp_e, nstations, &
-     & error)
-      If (error /= 0) Return
+      call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
+     & stn_slp_e, nstations, error)
+      if (error /= 0) return
  
-      Call read_nc_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
+!        call read_grid_list(grid_list, grdlat, grdlon, grdalt, grd_slp_n, grd_slp_e, nx, ny, error)
+!        if(error /= 0) return
  
-      !allocate 1-d grid variables
-      Allocate (grdlat(nx*ny))
-      Allocate (grdlon(nx*ny))
-      Allocate (grdalt(nx*ny))
-      Allocate (grd_slp_n(nx*ny))
-      Allocate (grd_slp_e(nx*ny))
-      Allocate (mask_1d(nx*ny))
+      call read_nc_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
  
+      print *, size (lat), size (elev), nx, ny, nx * ny
+ 
+       !allocate 1-d grid variables
+      allocate (grdlat(nx*ny))
+      allocate (grdlon(nx*ny))
+      allocate (grdalt(nx*ny))
+      allocate (grd_slp_n(nx*ny))
+      allocate (grd_slp_e(nx*ny))
+      allocate (mask_1d(nx*ny))
+ 
+      print *, size (grdlat)
  
       grdlat = reshape (lat, (/ nx*ny /))
       grdlon = reshape (lon, (/ nx*ny /))
@@ -348,83 +410,102 @@ Program precip
       grd_slp_e = reshape (grad_e, (/ nx*ny /))
       mask_1d = reshape (mask, (/ nx*ny /))
  
+      print *, size (lat), size (elev), nx, ny
+ 
       ngrid = nx * ny
-      Allocate (X(nstations, 6))
-      Allocate (Z(ngrid, 6))
-      X (:, 1) = 1.0
-      X (:, 2) = stnlat (:)
-      X (:, 3) = stnlon (:)
-      X (:, 4) = stnalt (:)
-      X (:, 5) = stn_slp_n (:)
-      X (:, 6) = stn_slp_e (:)
+      allocate (x(nstations, 6))
+      allocate (z(ngrid, 6))
+      x (:, 1) = 1.0
+      x (:, 2) = stnlat (:)
+      x (:, 3) = stnlon (:)
+      x (:, 4) = stnalt (:)
+      x (:, 5) = stn_slp_n (:)
+      x (:, 6) = stn_slp_e (:)
  
-      Z (:, 1) = 1.0
-      Z (:, 2) = grdlat (:)
-      Z (:, 3) = grdlon (:)
-      Z (:, 4) = grdalt (:)
-      Z (:, 5) = grd_slp_n (:)
-      Z (:, 6) = grd_slp_e (:)
+      z (:, 1) = 1.0
+      z (:, 2) = grdlat (:)
+      z (:, 3) = grdlon (:)
+      z (:, 4) = grdalt (:)
+      z (:, 5) = grd_slp_n (:)
+      z (:, 6) = grd_slp_e (:)
+ 
+      print *, size (lat), size (elev), nx, ny
+ 
+!        call get_time_list(startdate, enddate, Times)
+!	ntimes = size(Times)
+!        print *,'startdate=',startdate,'enddate=',enddate,'ntimes=',ntimes
+ 
+        ! -- AWW:  translate times to a start and end record for station files
+!        st_stndata_utime = date_to_unix('19800101')   ! returns secs-since-1970 for end date of station files
+                                                       ! hardwired for testing
+!        end_stndata_utime = date_to_unix('20141231')   ! returns secs-since-1970 for end date of station files
+                                                       ! hardwired for testing
+!        st_rec  = FLOOR((Times(1) - st_stndata_utime)/86400) + 1
+!        end_rec = FLOOR((Times(ntimes) - st_stndata_utime)/86400) + 1
+!        print*, 'st_rec and end_rec =', st_rec, end_rec
+        ! -- AWW:  end addition
+ 
+        !modified AJN Sept 2013
+      allocate (mean_autocorr(ntimes))
+      allocate (mean_tp_corr(ntimes))
+      allocate (y_mean(ngrid, ntimes))
+      allocate (y_std(ngrid, ntimes))
+      allocate (y_std_all(ngrid, ntimes))
+      allocate (y_max(ngrid, ntimes))
+      allocate (y_min(ngrid, ntimes))
+ 
+        !        call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, &
+        !call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, st_rec, end_rec, &
+      call estimate_forcing_regression (x, z, nstations, ngrid, maxdistance, times, st_rec, &
+     & end_rec, stnid, station_var, site_var, site_var_t, site_list, pcp, pop, pcperror, tmean, &
+     & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
+     & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+      if (error /= 0) return
+ 
+      print *, 'Creating output file'
+ 
+        !call save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
+      call save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, nx, &
+     & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
+     & y_min, y_max, output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
+     & trange_err_2)
+      if (error /= 0) return
+ 
+    end if
+  end if
  
  
-      Call get_time_list (startdate, enddate, Times)
- 
-      ntimes = size (Times)
- 
-      Allocate (mean_autocorr(ntimes))
-      Allocate (mean_tp_corr(ntimes))
-      Allocate (y_mean(ngrid, ntimes))
-      Allocate (y_std(ngrid, ntimes))
-      Allocate (y_std_all(ngrid, ntimes))
-      Allocate (y_max(ngrid, ntimes))
-      Allocate (y_min(ngrid, ntimes))
- 
-      Call estimate_precip (X, Z, nstations, ngrid, maxDistance, Times, stnid, station_var, site_var, site_var_t, &
-     & site_list, PCP, POP, pcperror, tmean, tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, &
-     & y_std_all, y_min, y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
-      If (error /= 0) Return
+end program precip
  
  
-      Print *, 'Creating output file'
+subroutine get_time_list (startdate, enddate, times)
+  use utim
+  use type
+  implicit none
  
-      Call save_precip (PCP, POP, pcperror, tmean, tmean_err, trange, trange_err, nx, ny, grdlat, grdlon, grdalt, &
-     & Times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, output_file, error, pcp_2, pop_2, &
-     & pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
-      If (error /= 0) Return
+  character (len=100), intent (in) :: startdate, enddate
+  real (dp), allocatable, intent (out) :: times (:)
  
+  integer (i4b) :: t, ntimes, sday, eday, error
+  integer (i4b) :: sec, min, hour, day, month, year
+  real (dp) :: utime
  
-    End If
-  End If
- 
- 
-End Program precip
- 
- 
- 
-Subroutine get_time_list (startdate, enddate, Times)
-  Use utim
-  Use type
-  Implicit None
- 
-  Character (Len=100), Intent (In) :: startdate, enddate
-  Real (DP), Allocatable, Intent (Out) :: Times (:)
- 
-  Integer (I4B) :: T, ntimes, sday, eday, error
-  Integer (I4B) :: sec, Min, hour, day, month, year
-  Real (DP) :: utime
- 
-  Call parse_date (startdate, year, month, day, hour, Min, sec, error)
+  call parse_date (startdate, year, month, day, hour, min, sec, error)
   sday = julian_date (day, month, year)
-  Call parse_date (enddate, year, month, day, hour, Min, sec, error)
+  call parse_date (enddate, year, month, day, hour, min, sec, error)
   eday = julian_date (day, month, year)
   ntimes = eday - sday + 1
-  Allocate (Times(ntimes))
+  allocate (times(ntimes))
  
  
   utime = date_to_unix (startdate)
-  Do T = 1, ntimes, 1
-    If (utime > date_to_unix(enddate)) Exit
-    Times (T) = utime
+  print *, 'times!', eday, sday, utime, date_to_unix (enddate), ntimes
+  do t = 1, ntimes, 1
+    if (utime > date_to_unix(enddate)) exit
+    times (t) = utime
     utime = utime + 86400
-  End Do
+  end do
  
-End Subroutine get_time_list
+  print *, 'time list:', times
+ 
+end subroutine get_time_list

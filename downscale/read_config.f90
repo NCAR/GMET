@@ -1,47 +1,43 @@
+! modified AWW Dec 2015
+subroutine read_config (fname, n, names, values)
  
-Subroutine read_config (fname, n, names, values)
+  use strings
+  implicit none
  
-  Use strings
-  Implicit None
+  character (len=*) :: fname
+  integer :: n
+  character (len=500) :: names (n)
+  character (len=500) :: values (n)
+  character (len=500) :: settings (2)
+  character (1000) line
+  integer ipos, stat, nsettings, i
+  logical fexist
  
-  Character (Len=*) :: fname
-  Integer :: n
-  Character (Len=500) :: names (n)
-  Character (Len=500) :: values (n)
+  inquire (file=fname, exist=fexist)
+  if ( .not. fexist) then
+    print *, "Cannot find config file: ", trim (fname)
+    return
+  end if
  
- 
-  Character (Len=500) :: peices (2)
-  Character (1000) line
-  Integer ipos, stat, npeices, i
-  Logical fexist
- 
-  Inquire (File=fname, Exist=fexist)
-  If ( .Not. fexist) Then
-    Print *, "Cannot find config file: ", trim (fname)
-    Return
-  End If
- 
-  Do i = 1, n, 1
+  do i = 1, n, 1
     values (i) = ""
-  End Do
+  end do
  
-  Open (11, File=fname, Status='old', Form='formatted')
+  open (11, file=fname, status='old', access='sequential')
  
-  Do
-    Read (11, "(A)", IoStat=stat) line
-    If (stat < 0) Exit
+  do
+    read (11, "(A)", iostat=stat) line
+    if (stat < 0) exit
     line = adjustl (line)
-    If (line(1:1) .Ne. "!" .And. len(trim(line)) /= 0) Then
+    if (line(1:1) .ne. "!" .and. len(trim(line)) /= 0) then
       ipos = index (line, '=')
-      If (ipos > 0) Then
-        Call parse (line, "=", peices, npeices)
-        Do i = 1, n, 1
-          If (index(peices(1), names(i)) == 1) values (i) = peices (2)
-        End Do
-      End If
+      if (ipos > 0) then
+        call parse (line, "=", settings, nsettings)
+        do i = 1, n, 1
+          if (index(settings(1), names(i)) == 1) values (i) = settings (2)
+        end do
+      end if
+    end if
+  end do
  
-    End If
- 
-  End Do
- 
-End Subroutine read_config
+end subroutine read_config
