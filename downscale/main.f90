@@ -1,4 +1,5 @@
-program precip
+! Main program file for the Gridded Meteorological Ensemble Tool (GMET)
+program gmet
   use type
   use strings
   use utim ! AWW
@@ -24,10 +25,11 @@ program precip
     end subroutine read_refcst
  
     subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e, n_stations, &
-   & error)
+   & error, vars) !AWW
       use type
       character (len=500), intent (in) :: file_name
       character (len=100), allocatable, intent (out) :: id (:), name (:)
+      character (len=2), allocatable, intent (out) :: vars (:) !AWW holds PT identifiers
       real (dp), allocatable, intent (out) :: lat (:), lon (:), alt (:), sslp_n (:), sslp_e (:)
       integer (i4b), intent (out) :: n_stations
       integer, intent (out) :: error
@@ -52,22 +54,21 @@ program precip
       integer, intent (out) :: error
     end subroutine read_nc_grid
  
- 
     ! subroutine estimate_coefficients(D, nvars, Lats, Lons, Times, stnid, stnlat, stnlon, &
+    ! AWW modified feb-2016
     subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
-   & stnlon, stnalt, stnvar, site_var, site_list, c, poc, error)
+   & stnlon, stnalt, stnvar, site_var, site_list, directory, c, poc, error)
       use type
       real (dp), intent (in) :: d (:, :, :), lats (:), lons (:)
       real (dp), intent (in) :: times (:)
- 
       integer (i4b), intent (in) :: st_rec, end_rec ! AWW
- 
       integer (i4b), intent (in) :: nvars
       character (len=100), intent (in) :: stnid (:)
       real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
       character (len=100), intent (in) :: stnvar
       character (len=100), intent (in) :: site_var
       character (len=500), intent (in) :: site_list
+      character (len=500), intent (in) :: directory !AWW added
       real (dp), allocatable, intent (out) :: c (:, :, :), poc (:, :, :)
       integer, intent (out) :: error
     end subroutine estimate_coefficients
@@ -90,7 +91,7 @@ program precip
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
     subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, stnvar, site_var, site_var_t, site_list, pcp, pop, pcperr, tmean, tmean_err, trange, &
+   & stnid, stnvar, site_var, site_var_t, site_list, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
       use type
@@ -102,6 +103,7 @@ program precip
       character (len=100), intent (in) :: stnid (:)
       character (len=100), intent (in) :: stnvar, site_var, site_var_t
       character (len=500), intent (in) :: site_list
+      character (len=500), intent (in) :: directory !AWW
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
       real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
       real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
@@ -142,17 +144,20 @@ program precip
     !end subroutine save_precip
  
   end interface
- 
   ! === end of interfaces, start of program ====
  
   character (len=100) :: config_file
-  integer, parameter :: nconfigs = 15 !modified AJN Sept 2013
+  !integer, parameter :: nconfigs = 15 !modified AJN Sept 2013
+  integer, parameter :: nconfigs = 16 !modified AWW Feb 2016
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
+  character (len=500) :: directory ! AWW feb 2016
+
   character (len=100) :: startdate, enddate, perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
   character (len=100), allocatable :: stnid (:), stnname (:)
+  character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
  
   character (len=2000) :: arg !command line arg for configuration file
  
@@ -226,21 +231,22 @@ program precip
     i = i + 1
   end do
  
-  config_names (1) = "MODE"
-  config_names (2) = "START_DATE"
-  config_names (3) = "END_DATE"
-  config_names (4) = "SITE_LIST"
-  config_names (5) = "SITE_VAR"
-  config_names (6) = "STATION_VAR"
-  config_names (7) = "PERTURBATION"
-  config_names (8) = "FORECAST"
-  config_names (9) = "NUMBER_VARS"
-  config_names (10) = "FILE_VARIABLE"
-  config_names (11) = "VARIABLE_NAME"
-  config_names (12) = "OUTPUT_FILE"
-  config_names (13) = "GRID_LIST"
-  config_names (14) = "MAX_DISTANCE"
-  config_names (15) = "SITE_VAR_T" !modified AJN Sept 2013
+  config_names(1) = "MODE"
+  config_names(2) = "START_DATE"
+  config_names(3) = "END_DATE"
+  config_names(4) = "SITE_LIST"
+  config_names(5) = "SITE_VAR"
+  config_names(6) = "STATION_VAR"
+  config_names(7) = "PERTURBATION"
+  config_names(8) = "FORECAST"
+  config_names(9) = "NUMBER_VARS"
+  config_names(10) = "FILE_VARIABLE"
+  config_names(11) = "VARIABLE_NAME"
+  config_names(12) = "OUTPUT_FILE"
+  config_names(13) = "GRID_LIST"
+  config_names(14) = "MAX_DISTANCE"
+  config_names(15) = "SITE_VAR_T" !modified AJN Sept 2013
+  config_names(16) = "DATA_DIRECTORY" !AWW-feb2016, free data dir from site list path
  
   error = 0
   n_vars = 0
@@ -253,13 +259,14 @@ program precip
     return
   end if
  
-  startdate = config_values (2)
-  enddate = config_values (3)
-  site_list = config_values (4)
-  site_var = config_values (5)
-  site_var_t = config_values (15)
-  station_var = config_values (6)
-  output_file = config_values (12)
+  startdate = config_values(2)
+  enddate = config_values(3)
+  site_list = config_values(4)
+  site_var = config_values(5)
+  site_var_t = config_values(15)
+  station_var = config_values(6)
+  output_file = config_values(12)
+  directory = config_values(16)
  
   ! print *,trim(site_var_t),' ',trim(site_var)
  
@@ -270,16 +277,22 @@ program precip
     return
   end if
  
-  ! --- AWW:  figure out start and end records for reading station data ---
-  call get_time_list (startdate, enddate, times)
+  ! --- AWW:  figure out start and end records for requested station data read times ---
+  call get_time_list (startdate, enddate, times)  
   ntimes = size (times)
   print *, 'startdate=', startdate, 'enddate=', enddate, 'ntimes=', ntimes
  
+  ! AWW:  NEED TO MAKE THIS READ FROM STATION FILES TO FIND TIME LIMITS
+
   !translate times to a start and end record for station files
-  st_stndata_utime = date_to_unix ('19800101')! returns secs-since-1970 for end date of station files
+  !st_stndata_utime = date_to_unix ('19800101')  ! returns secs-since-1970 for st date of station files
+  !                                              ! hardwired for testing
+  !end_stndata_utime = date_to_unix ('20141231') ! returns secs-since-1970 for end date of station files
+  !                                              ! hardwired for testing
+  st_stndata_utime = date_to_unix ('20150101')  ! returns secs-since-1970 for st date of station files
                                                 ! hardwired for testing
-  end_stndata_utime = date_to_unix ('20141231')! returns secs-since-1970 for end date of station files
-                                                 ! hardwired for testing
+  end_stndata_utime = date_to_unix ('20160229') ! returns secs-since-1970 for end date of station files
+                                                ! hardwired for testing
  
   st_rec = floor ((times(1)-st_stndata_utime)/86400) + 1
   end_rec = floor ((times(ntimes)-st_stndata_utime)/86400) + 1
@@ -288,9 +301,11 @@ program precip
   ! --- end AWW add ---
  
  
-  ! === SWITCH BETWEEN MODE 1 (read atmos model data) and MODE 2 ====
+  ! === SWITCH BETWEEN MODE 1 and MODE 2 ====
   if (mode == 1) then
-     ! Model Variables
+
+    ! =================== Ensemble Source Is Gridded Model Variables =================
+
     perturbation = config_values (7)
     call value (config_values(8), forecast, error)
     if (error /= 0) forecast = - 1
@@ -338,12 +353,13 @@ program precip
     end do
  
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
-   & stn_slp_e, nstations, error)
+   & stn_slp_e, nstations, error, vars)  ! AWW-feb2016 handled reading station variables
+    !   & stn_slp_e, nstations, error)
     if (error /= 0) return
  
-!     call estimate_coefficients(Y, n_vars, Lats, Lons, Times, stnid, stnlat, stnlon, &
+    !call estimate_coefficients(Y, n_vars, Lats, Lons, Times, stnid, stnlat, stnlon, &
     call estimate_coefficients (y, n_vars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
-   & stnlon, stnalt, station_var, site_var, site_list, coefs, prob_coefs, error)
+   & stnlon, stnalt, station_var, site_var, site_list, directory, coefs, prob_coefs, error)
     if (error /= 0) return
  
     if (trim(station_var) .eq. "PRCP") then
@@ -362,32 +378,31 @@ program precip
    & station_var, stnid, stnlat, stnlon, stnalt, forecast, output_file, error)
     if (error /= 0) return
  
-     ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec...just passed now because
-     !   an internal subroutine wants them
+    ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec...just passed now because
+    !   an internal subroutine wants them
  
   else
  
-     ! =================== ensemble forcing generation =====================
+    ! =================== ensemble forcing generation =====================
     if (mode == 2) then
  
       grid_list = config_values (13)
       call value (config_values(14), maxdistance, error)
-      maxdistance = maxdistance * 0.539957
+      maxdistance = maxdistance * 0.539957   ! AWW...why?
       if (error /= 0) maxdistance = - 1
  
       if (len(trim(grid_list)) == 0) then
-        print *, "ERROR: Failed to read in one more more required model config parameters. (GRID_LI&
-       &ST)"
+        print *, "ERROR: Failed to read in one more more required model config parameters.&
+       & (GRID_LIST)"
         return
       end if
- 
- 
+  
       call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
-     & stn_slp_e, nstations, error)
+     & stn_slp_e, nstations, error, vars) !AWW added vars
       if (error /= 0) return
  
-!        call read_grid_list(grid_list, grdlat, grdlon, grdalt, grd_slp_n, grd_slp_e, nx, ny, error)
-!        if(error /= 0) return
+      ! call read_grid_list(grid_list, grdlat, grdlon, grdalt, grd_slp_n, grd_slp_e, nx, ny, error)
+      ! if(error /= 0) return
  
       call read_nc_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
  
@@ -457,7 +472,7 @@ program precip
         !        call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, &
         !call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, st_rec, end_rec, &
       call estimate_forcing_regression (x, z, nstations, ngrid, maxdistance, times, st_rec, &
-     & end_rec, stnid, station_var, site_var, site_var_t, site_list, pcp, pop, pcperror, tmean, &
+     & end_rec, stnid, station_var, site_var, site_var_t, site_list, directory, pcp, pop, pcperror, tmean, &
      & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
      & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
       if (error /= 0) return
@@ -473,19 +488,19 @@ program precip
  
     end if
   end if
- 
- 
-end program precip
+  
+end program gmet
  
  
 subroutine get_time_list (startdate, enddate, times)
+  ! makes a list of data times in secs since 1970-1-1
+  ! corresponding to requested period
   use utim
   use type
   implicit none
  
   character (len=100), intent (in) :: startdate, enddate
   real (dp), allocatable, intent (out) :: times (:)
- 
   integer (i4b) :: t, ntimes, sday, eday, error
   integer (i4b) :: sec, min, hour, day, month, year
   real (dp) :: utime
@@ -497,8 +512,7 @@ subroutine get_time_list (startdate, enddate, times)
   ntimes = eday - sday + 1
   allocate (times(ntimes))
  
- 
-  utime = date_to_unix (startdate)
+  utime = date_to_unix (startdate)  ! secs since 1970-1-1
   print *, 'times!', eday, sday, utime, date_to_unix (enddate), ntimes
   do t = 1, ntimes, 1
     if (utime > date_to_unix(enddate)) exit
@@ -506,6 +520,6 @@ subroutine get_time_list (startdate, enddate, times)
     utime = utime + 86400
   end do
  
-  print *, 'time list:', times
+  print *, 'time list:', times  !seconds since 1970-1-1
  
 end subroutine get_time_list

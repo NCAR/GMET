@@ -1,5 +1,6 @@
 subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
-& stnlon, stnalt, stnvar, site_var, site_list, c, poc, error)
+& stnlon, stnalt, stnvar, site_var, site_list, directory, c, poc, error) !AWW added directory
+!& stnlon, stnalt, stnvar, site_var, site_list, c, poc, error) 
   use type
   use utim ! AWW-add:  can figure out start & ends records with this for station read
   implicit none
@@ -9,17 +10,16 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
  
     ! subroutine read_station(stnvar, stnid, site_list, vals, tair_vals, vals_miss,&
     ! AWW - added back Times
-    subroutine read_station (stnvar, stnid, site_list, times, st_rec, end_rec, vals, tair_vals, &
+    subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end_rec, vals, tair_vals, &
    & vals_miss, vals_miss_t, error)
       use type
       use utim ! AWW
       character (len=100), intent (in) :: stnvar
       character (len=100), intent (in) :: stnid
       character (len=500), intent (in) :: site_list
- 
+      character (len=500), intent (in) :: directory ! AWW
       real (dp), intent (in) :: times (:)! AWW
       integer (i4b), intent (in) :: st_rec, end_rec ! AWW
- 
       real (dp), allocatable, intent (out) :: vals (:), tair_vals (:, :)
       logical, allocatable, intent (out) :: vals_miss (:), vals_miss_t (:)
       integer, intent (out) :: error
@@ -74,6 +74,7 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
   character (len=100), intent (in) :: stnvar
   character (len=100), intent (in) :: site_var
   character (len=500), intent (in) :: site_list
+  character (len=500), intent (in) :: directory ! AWW-feb2016 added for data location
   real (dp), allocatable, intent (out) :: c (:, :, :), poc (:, :, :)
   integer, intent (out) :: error
  
@@ -89,7 +90,7 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
   integer (i4b) :: minlatk, minlonj, gridindex
   integer (i4b) :: vshape (2)
   character (len=100) :: site_var_t !modified AJN Sept 2013
-  real (dp) :: transform_exp !precip. transform variable, the exponent of transform norm_pcp = pcp^(1/transform_exp)
+  real (dp) :: transform_exp !precip. transform variable, the exp. of transform norm_pcp = pcp^(1/transform_exp)
  
   print *, "allocated memory in estimate_coefficients"
   error = 0
@@ -158,8 +159,8 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
     end do
  
     ! call read_station(stnvar, stnid(i), site_list, Y, tair_vals, &
-    ! AWW added Times
-    call read_station (stnvar, stnid(i), site_list, times, st_rec, end_rec, y, tair_vals, y_miss, &
+    ! AWW added Times, directory, st_rec, end_rec
+    call read_station (stnvar, stnid(i), site_list, directory, times, st_rec, end_rec, y, tair_vals, y_miss, &
    & y_miss_t, error)
     !     print *, "Y:", Y
  
@@ -244,9 +245,9 @@ end subroutine estimate_coefficients
 ! modified AJN Sept 2013
 ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
 ! AWW-2016Jan, substantial modifications to handle time subsetting and mem (de)allocations, and clean up
-!   renamed to reflect what its usage beyond precip
+!   renamed to reflect what its usage beyond precip; add also 'directory'
 subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, st_rec, end_rec, &
-& stnid, stnvar, site_var, site_var_t, site_list, pcp, pop, pcperr, tmean, tmean_err, trange, &
+& stnid, stnvar, site_var, site_var_t, site_list, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
 & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
 & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
  
@@ -255,6 +256,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   use type
   implicit none
  
+  ! ===== start interfaces =======
   interface
     subroutine read_transform_exp (ntimes, file_name, texp)
       use type
@@ -264,16 +266,15 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     end subroutine read_transform_exp
  
     ! subroutine read_station(stnvar, stnid, site_list, vals, tair_vals, vals_miss, vals_miss_t, error)
-    subroutine read_station (stnvar, stnid, site_list, times, st_rec, end_rec, vals, tair_vals, &
+    subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end_rec, vals, tair_vals, &
    & vals_miss, vals_miss_t, error)
       use type
       character (len=100), intent (in) :: stnvar
       character (len=100), intent (in) :: stnid
       character (len=500), intent (in) :: site_list
- 
+      character (len=500), intent (in) :: directory !AWW
       real (dp), intent (in) :: times (:)!AWW
       integer (i4b), intent (in) :: st_rec, end_rec ! AWW
- 
       real (dp), allocatable, intent (out) :: vals (:), tair_vals (:, :)
       logical, allocatable, intent (out) :: vals_miss (:), vals_miss_t (:)
       integer, intent (out) :: error
@@ -329,9 +330,9 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     end subroutine logistic_regression
  
     ! added AJN Sept 2013
-    subroutine generic_corr (stn_data, tair_data, lag, window, auto_corr, t_p_corr)
+    subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
       use type
-      real (dp), intent (in) :: stn_data (:)
+      real (dp), intent (in) :: prcp_data (:)
       real (dp), intent (in) :: tair_data (:, :)
       integer (i4b), intent (in) :: lag
       integer (i4b), intent (in) :: window
@@ -355,6 +356,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     end subroutine heapsort
  
   end interface
+  ! =========== end interfaces, start code =============
  
   real (dp), intent (in) :: x (:, :), z (:, :)!station and grid point description arrays
   real (dp), intent (in) :: maxdistance !max distance for weight function
@@ -366,6 +368,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   character (len=100), intent (in) :: stnid (:)!station id array
   character (len=100), intent (in) :: stnvar, site_var, site_var_t !control file variables
   character (len=500), intent (in) :: site_list !file name of station list
+  character (len=500), intent (in) :: directory !AWw feb-2016
+
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
   real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
@@ -401,7 +405,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
   real (dp), allocatable :: y_tmean (:), y_trange (:)!transformed station data arrays
   real (dp), allocatable :: y_tmean_red (:), y_trange_red (:)!transformed station data arrays
-  real (dp), allocatable :: stn_vals (:), stn_data (:, :), tair_data (:, :, :), stn_tair (:, :)!original station data arrays
+  real (dp), allocatable :: stn_prcp (:), prcp_data (:, :), tair_data (:, :, :), stn_tair (:, :)!original station data arrays
   real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation for stations over entire time period used
   real (dp), allocatable :: t_p_corr (:)!correlation between temp and precip
   integer (i4b), allocatable :: yp (:)!binary for logistic regression
@@ -473,7 +477,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   ! allocate variables
   allocate (y(nstns))
   allocate (y_tmean(nstns), y_trange(nstns))
-  allocate (stn_data(nstns, ntimes))
+  allocate (prcp_data(nstns, ntimes))
   allocate (tair_data(2, nstns, ntimes))
   allocate (w_pcp_red(sta_limit, sta_limit))
   allocate (w_temp_red(sta_limit, sta_limit))
@@ -555,30 +559,30 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
   do i = 1, nstns, 1
     !print *,'station read'
-    !print *,stnvar,stnid(i),site_var,site_var_t,site_list,Times
-    call read_station (stnvar, stnid(i), site_list, times, st_rec, end_rec, stn_vals, stn_tair, &
+    !print *,stnvar,stnid(i),site_var,site_var_t,site_list,Times  !AWW modified
+    call read_station (stnvar, stnid(i), site_list, directory, times, st_rec, end_rec, stn_prcp, stn_tair, &
    & stn_miss, stn_miss_t, error)
  
     stn_count = stn_count + 1 !AWW doesn't appear to be used
  
-    stn_data (i, :) = stn_vals
+    prcp_data (i, :) = stn_prcp
     tair_data (1, i, :) = stn_tair (1, :)
     tair_data (2, i, :) = stn_tair (2, :)
  
     ! check data if needed
     ! print *, '-----------'
-    ! print *, 'precip',stn_data(i,:),'MISS',stn_miss
+    ! print *, 'precip',prcp_data(i,:),'MISS',stn_miss
     ! print *, '-----------'
     ! print *,'tmin',tair_data(1,i,:),'MISS',stn_miss_t
     ! print *, '-----------'
  
     lag = 1
     window = 31 ! AWW:  hardwired parameter; should bring out
- 
-    call generic_corr (stn_data(i, :), tair_data(:, i, :), lag, window, auto_corr(i), t_p_corr(i))
+
+    ! compute mean autocorrelation for all stations and all times 
+    call generic_corr (prcp_data(i, :), tair_data(:, i, :), lag, window, auto_corr(i), t_p_corr(i))
     ! print *,auto_corr(i)
  
-    ! compute mean autocorrelation for all stations and all times
     ! check for values outside of -1 to 1
     ! stations with incomplete data are set to -999
     if (auto_corr(i) .ge.-1.0 .and. auto_corr(i) .le. 1.0) then
@@ -592,11 +596,11 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
     deallocate (stn_miss_t)
     deallocate (stn_miss)
-    deallocate (stn_vals)
+    deallocate (stn_prcp)
     deallocate (stn_tair)
  
   end do
-  ! end station read loop
+  ! --- end station read loop
  
   error = 0 ! AWW:  why is this set?  not used again in subroutine
  
@@ -612,25 +616,30 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
   print *, 'Temp lag-1 autocorrelation: ', mean_autocorr (1)
   print *, 'Temp-precip correlation: ', mean_tp_corr (1)
+  print *, '===================================================='
+  print *, ' '
+
   call system_clock (t1, count_rate)
  
-  ! ========= LOOP OVER GRID CELLS ==========
+  ! ========= LOOP OVER GRID CELLS ==================
   print *, 'Generating base weight matrix and finding nearest stations for each gridpoint'
-  ! AJN 01/15/2014 -- pulled weight generation outside of time loop, which is now down below
+  ! AJN 01/15/2014 -- pulled this weight generation step out of time loop, which is now down below
  
   do g = 1, ngrid, 1
  
     ! AJN
-    close_count (g) = 1
+    close_count (g) = 1   ! these are for precip
     min_weight = 0.0d0
-    close_weights (g, :) = 0.0d0
+    close_weights (g, :) = 0.0d0  ! close station weights
  
-    close_count_t (g) = 1
+    close_count_t (g) = 1  ! these are for temp
     min_weight_t = 0.0d0
     close_weights_t (g, :) = 0.0d0
  
+    ! for current grid cell, loop through stations, find distance
     do i = 1, nstns, 1
       ! setup distinct weight matrices for precip and temperature
+      ! x() are station locations; z() are grid locations; returns weight (w_base) for grd-to-stn
       call calc_distance_weight (search_distance, x(i, 2), x(i, 3), z(g, 2), z(g, 3), w_base(g, i))
  
       ! original call
@@ -639,7 +648,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
       ! also set some logic to limit the number of stations to the N closest
       min_weight = 0.0d0
  
-      if (w_base(g, i) .gt. min_weight .and. stn_data(i, 1) .gt.-100.0d0) then
+      if (w_base(g, i) .gt. min_weight .and. prcp_data(i, 1) .gt.-100.0d0) then
  
         if (close_count(g) .le. sta_limit) then
           close_weights (g, close_count(g)) = w_base (g, i)
@@ -713,7 +722,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     print *, "TIME STEP = ", times (t), " (", t, "/", ntimes, ")"
  
     do i = 1, nstns, 1
-      y (i) = stn_data (i, t)
+      y (i) = prcp_data (i, t)
       y_tmean (i) = (tair_data(1, i, t)+tair_data(2, i, t)) / 2.0d0
       y_trange (i) = abs (tair_data(2, i, t)-tair_data(1, i, t))
     end do
@@ -724,16 +733,20 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     ! --- loop through all grid cells for a given time step ---
     do g = 1, ngrid, 1
       ! call system_clock(tg1,count_rate)
+
+      ! IF the elevation is valid for this grid cell
+      ! this starts a long section working first on precip, then temp
  
-      if (z(g, 4) .gt.-200) then ! If the elevation is valid for this grid cell
-                                 ! this starts a long section working on precip
- 
+      if (z(g, 4) .gt.-200) then
+        ! call system_clock(t1,count_rate)
+
         ! want to reset weights for closest sta_limit stations...
         ! recalc calc_distance_weight function for selected stations
         ! set max_distance equal to the farthest station distance
- 
+
+        ! ---- first, PRECIP ----
+
         ! set data count integers and initialize reduced arrays to zero
-        ! call system_clock(t1,count_rate)
         ndata = 0
         nodata = 0
         w_pcp_red = 0.0
@@ -770,7 +783,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           y_red (i) = y (close_loc(g, i))
           x_red (i, :) = x (close_loc(g, i), :)
  
-          if (stn_data(close_loc(g, i), t) .gt. 0.0) then
+          if (prcp_data(close_loc(g, i), t) .gt. 0.0) then
             ndata = ndata + 1
             yp_red (i) = 1
           else
@@ -787,6 +800,9 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
         y_min (g, t) = step_min
         y_max (g, t) = step_max
  
+        ! ---- second, TEMPERATURES ----
+
+        ! start with initializations
         ndata_t = 0
         nodata_t = 0
         w_temp_red = 0.0
@@ -828,6 +844,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
             nodata_t = nodata_t + 1
           end if
         end do
+
+        ! ---- checks on station availability for precip and temp
  
         if (ndata == 0 .and. nodata == 0) then
           print *, "WARNING:  No stations within max distance of grid cell!"
@@ -837,7 +855,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           pop_2 (g, t) = 0.0
           pcp_2 (g, t) = 0.0
           pcperr_2 (g, t) = 0.0
- 
         end if
 
         ! added AJN Sept 2013
@@ -866,7 +883,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
         end if
         ! print *,ndata
  
-        ! ========= AWW:  precip & temp are processed sequentially ===========
+        ! ========= Precip & temp are processed sequentially, again ===========
         ! this is the start of the PRECIP processing block ---
         if (ndata >= 1) then
  
@@ -969,7 +986,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           pcp_2 (g, t) = 0.0
           pcperr_2 (g, t) = 0.0
  
-        end if ! done with precip if block
+        end if ! done with precip if (ndata>=1) block
  
         ! added AJN Sept 2013
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1332,8 +1349,8 @@ subroutine calc_distance_weight (maxd, lat1, lon1, lat2, lon2, weight)
   if (dist .gt. maxd) then
     weight = 0.0d0
   else
-    weight = (1.0d0-(dist/maxd)**3) ** 3
-!    weight = 1.0d0 - (dist/maxd)**0.5
+    weight = (1.0d0-(dist/maxd)**3) ** 3    ! inverse cubic for weight fcn
+    ! weight = 1.0d0 - (dist/maxd)**0.5
   end if
  
 end subroutine calc_distance_weight
@@ -1612,35 +1629,35 @@ subroutine logistic_regressionrf (x, y, tx, b)
       end if
  
       b = b + bn
-!        print *, "Bnew = ", B
+      ! print *, "Bnew = ", B
       deallocate (bn)
  
     end if
     it = it + 1
   end do
-!  print *, "Iterations = ", it
-  !print *, "Final B = ", B
+  ! print *, "Iterations = ", it
+  ! print *, "Final B = ", B
  
 end subroutine logistic_regressionrf
  
-!added AJN Sept 2013
-subroutine generic_corr (stn_data, tair_data, lag, window, auto_corr, t_p_corr)
+! added AJN Sept 2013
+! modified AWW Feb 2016, change stn_data name to prcp_data
+subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   use type
  
   implicit none
  
-!input
-  real (dp), intent (in) :: stn_data (:)
+  ! input
+  real (dp), intent (in) :: prcp_data (:)
   real (dp), intent (in) :: tair_data (:, :)
   integer (i4b), intent (in) :: lag
   integer (i4b), intent (in) :: window
  
- 
-!output
+  ! output
   real (dp), intent (out) :: auto_corr
   real (dp), intent (out) :: t_p_corr
  
-!local variables
+  ! local variables
   real (dp), allocatable :: tmean (:), trange (:)
   real (dp), allocatable :: moving_avg (:, :)
   real (dp) :: lag_0_mean
@@ -1661,14 +1678,14 @@ subroutine generic_corr (stn_data, tair_data, lag, window, auto_corr, t_p_corr)
   integer (i4b) :: cnt_sums
   integer (i4b) :: data_cnt
  
-!code
-  ntimes = size (stn_data)
+  ! code
+  ntimes = size (prcp_data)
  
   allocate (tmean(ntimes))
   allocate (trange(ntimes))
   allocate (moving_avg(2, ntimes))
  
-!  print *,'corr'
+  ! print *,'corr'
   data_cnt = 0
   do i = 1, ntimes, 1
     if (tair_data(1, i) .gt.-100.0 .and. tair_data(2, i) .gt.-100.0) then
@@ -1781,10 +1798,9 @@ subroutine generic_corr (stn_data, tair_data, lag, window, auto_corr, t_p_corr)
  
   lag_0_mean = lag_0_sum / real (cnt_sums, kind(dp))
   lag_n_mean = lag_n_sum / real (cnt_sums, kind(dp))
+  ! print *,lag_0_mean,lag_n_mean
  
-!print *,lag_0_mean,lag_n_mean
- 
-!compute variance,covariance
+  ! compute variance,covariance
   do i = lag + 1, ntimes, 1
     if (tmean(i) .gt.-100.0 .and. tmean(i-lag) .gt.-100.0 .and. moving_avg(1, i) .gt.-100.0 .and. &
    & moving_avg(1, i-lag) .gt.-100.0) then
@@ -1795,16 +1811,13 @@ subroutine generic_corr (stn_data, tair_data, lag, window, auto_corr, t_p_corr)
     end if
   end do
  
-!compute autocorrelation
+  ! compute autocorrelation
   auto_corr = cov / (sqrt(lag_0_var)*sqrt(lag_n_var))
  
- 
-!!!!!!!!!!!!!!!!
-!
-! now do the t - p correlation
-! do correlation on trange, not tmean
-!
-!!!!!!!!!!!!!!!!!!!
+  !-------------------------------------
+  ! now do the t - p correlation
+  ! do correlation on trange, not tmean
+  !-------------------------------------
  
   lag_0_pmean = 0.0d0
   lag_0_pvar = 0.0d0
@@ -1815,12 +1828,12 @@ subroutine generic_corr (stn_data, tair_data, lag, window, auto_corr, t_p_corr)
   cov = 0.0d0
   tmp_cnt = 0
  
- 
-!again need to check for missing values....
+  ! again need to check for missing values....
   do i = 1, ntimes, 1
-    if (trange(i) .gt.-100 .and. stn_data(i) .gt.-100.0) then
+    ! if (trange(i) .gt.-100 .and. prcp_data(i) .gt.-100.0) then
+    if (trange(i) .gt.-100 .and. prcp_data(i) .gt.-1.0) then   ! AWW-feb2016
       !compute for precip mean
-      lag_0_psum = lag_0_psum + stn_data (i)
+      lag_0_psum = lag_0_psum + prcp_data (i)
       !anomaly means of trange
       trange_sum = trange_sum + (trange(i)-moving_avg(2, i))
       tmp_cnt = tmp_cnt + 1
@@ -1829,30 +1842,29 @@ subroutine generic_corr (stn_data, tair_data, lag, window, auto_corr, t_p_corr)
   lag_0_pmean = lag_0_psum / real (tmp_cnt, kind(dp))
   trange_mean = trange_sum / real (tmp_cnt, kind(dp))
  
-!compute variance and covariance
+  ! compute variance and covariance
   do i = 1, ntimes, 1
-    if (trange(i) .gt.-100 .and. stn_data(i) .gt.-100.0) then
-      lag_0_pvar = lag_0_pvar + (stn_data(i)-lag_0_pmean) ** 2
+    if (trange(i) .gt.-100 .and. prcp_data(i) .gt.-100.0) then
+      lag_0_pvar = lag_0_pvar + (prcp_data(i)-lag_0_pmean) ** 2
       trange_var = trange_var + ((trange(i)-moving_avg(2, i))-trange_mean) ** 2
-      cov = cov + ((trange(i)-moving_avg(2, i))-trange_mean) * (stn_data(i)-lag_0_pmean)
+      cov = cov + ((trange(i)-moving_avg(2, i))-trange_mean) * (prcp_data(i)-lag_0_pmean)
     end if
   end do
-!print *,cov,lag_0_pvar,trange_var,trange_mean,lag_0_pmean,lag_0_psum
+  ! print *,cov,lag_0_pvar,trange_var,trange_mean,lag_0_pmean,lag_0_psum
  
   t_p_corr = cov / (sqrt(lag_0_pvar)*sqrt(trange_var))
   if (sqrt(lag_0_pvar)*sqrt(trange_var) .le. 0.00001) then
     t_p_corr = 0.0
   end if
+  ! print *,t_p_corr
  
-!print *,t_p_corr
- 
-!in some situations, there are very limited data used for calculations
-!set those cases to missing value
+  ! in some situations, there are very limited data used for calculations
+  ! set those cases to missing value
   if (data_cnt .lt. real(ntimes)*0.25) then
     auto_corr = - 999.0
     t_p_corr = - 999.0
   end if
  
-!print *,cov,lag_0_var,lag_n_var,auto_corr
+  ! print *,cov,lag_0_var,lag_n_var,auto_corr
  
 end subroutine generic_corr

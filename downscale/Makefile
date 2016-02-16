@@ -1,6 +1,6 @@
 # ======= Makefile for downscaling program ============
 
-EXE = downscale.exe
+EXE = downscale.test.exe
 
 # first link one numrec.f file needed into this directory
 #  ln -s ../num_rec/numrec.f

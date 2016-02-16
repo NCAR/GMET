@@ -1,3 +1,5 @@
+! This source code file contains a number of subroutines related to reading files
+
 subroutine read_transform_exp (ntimes, file_name, texp)
   use type
   implicit none
@@ -146,13 +148,14 @@ end subroutine read_refcst
  
  
 subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e, n_stations, &
-& error)
+                              & error, vars)
   use strings
   use type
   implicit none
  
   character (len=500), intent (in) :: file_name
   character (len=100), allocatable, intent (out) :: id (:), name (:)
+  character (len=2), allocatable, intent (out) :: vars (:) ! AWW-feb2016 holds P/T flags
   real (dp), allocatable, intent (out) :: lat (:), lon (:), alt (:), sslp_n (:), sslp_e (:)
   integer (i4b), intent (out) :: n_stations
   integer, intent (out) :: error
@@ -197,6 +200,7 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
           allocate (alt(n_stations))
           allocate (sslp_n(n_stations))
           allocate (sslp_e(n_stations))
+          allocate (vars(n_stations))  !AWW-feb2016 holds P/T flags
         end if
       end if
       ipos = index (line, ',')
@@ -251,12 +255,11 @@ subroutine check (status)
 end subroutine check
  
  
-! == subroutine to read station data in netcdf format ==
-!modified AJN Sept 2013
-!modified EAC Dec 2015
-!modified AWW Dec 2015
+! ======== subroutine to read station data in netcdf format ===========
+!modified EAC Dec 2015 adapted from AJN version for ASCII, replacing it
+!modified AWW Dec 2015, Feb 2016 -- added times, directory, st_rec, end_rec
 !subroutine read_station(stnvar, stnid, site_list, vals, tair_vals, vals_miss, vals_miss_t, error)
-subroutine read_station (stnvar, stnid, site_list, times, st_rec, end_rec, vals, tair_vals, &
+subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end_rec, vals, tair_vals, &
 & vals_miss, vals_miss_t, error)
   use strings
   use utim
@@ -267,6 +270,7 @@ subroutine read_station (stnvar, stnid, site_list, times, st_rec, end_rec, vals,
   character (len=100), intent (in) :: stnvar !! prcp variable name
   character (len=100), intent (in) :: stnid
   character (len=500), intent (in) :: site_list
+  character (len=500), intent (in) :: directory ! AWW-feb2016 data dir separated from site list
  
   real (dp), intent (in) :: times (:)! AWW
   integer (i4b), intent (in) :: st_rec, end_rec ! AWW
@@ -281,7 +285,7 @@ subroutine read_station (stnvar, stnid, site_list, times, st_rec, end_rec, vals,
   character (len=20) :: recorddimname
  
   character (len=500) :: file_name
-  character (len=500) :: directory
+  !character (len=500) :: directory  AWW
   character (len=100) :: settings (10)
   character (len=100) :: stnvar_t1, stnvar_t2
   integer (i4b) :: i, nsettings, t
@@ -294,20 +298,18 @@ subroutine read_station (stnvar, stnid, site_list, times, st_rec, end_rec, vals,
  
   !!!! Get directory and file name based on station_list and stnid
  
-       !! AW need to REDO this, allow the station list and data files to reside in different places
- 
-  call parse (site_list, "/", settings, nsettings)
- 
-  if (nsettings == 0) then
-    directory = "."
-  else
-    directory = settings (1)
-    if (nsettings > 2) then
-      do i = 2, nsettings - 1, 1
-        directory = trim (directory) // "/" // settings (i)
-      end do
-    end if
-  end if
+  !! AWW-redid following: allow the station list and data files to reside in different places
+  !call parse (site_list, "/", settings, nsettings)
+  !if (nsettings == 0) then
+  !  directory = "."
+  !else
+  !  directory = settings (1)
+  !  if (nsettings > 2) then
+  !    do i = 2, nsettings - 1, 1
+  !      directory = trim (directory) // "/" // settings (i)
+  !    end do
+  !  end if
+  !end if
  
   file_name = trim (directory) // "/" // trim (stnid) // ".nc"
  

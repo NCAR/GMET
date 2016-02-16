@@ -30,14 +30,14 @@ contains
  
  
   subroutine calendar_date (jdate, day, month, year)
- 
+    !   algorithm from Wikipedia: http://en.wikipedia.org/wiki/Julian_day
+    !   originally from Richards, E. G. (2013). Calendars. In S. E. Urban & P. K. Seidelmann, eds.
+    !                   Explanatory Supplement to the Astronomical Almanac, 3rd ed. (pp. 585–624).
+    !                   Mill Valley, Calif.: University Science Books. ISBN 978-1-89138-985-6
+    !                   p617-9
+
     integer, intent (in) :: jdate
     integer, intent (out) :: day, month, year
-!   algorithm from Wikipedia: http://en.wikipedia.org/wiki/Julian_day
-!   originally from Richards, E. G. (2013). Calendars. In S. E. Urban & P. K. Seidelmann, eds.
-!                   Explanatory Supplement to the Astronomical Almanac, 3rd ed. (pp. 585–624).
-!                   Mill Valley, Calif.: University Science Books. ISBN 978-1-89138-985-6
-!                   p617-9
     integer :: y = 4716, j = 1401, m = 2, n = 12, r = 4, p = 1461
     integer :: v = 3, u = 5, s = 153, w = 2, b = 274277, c = - 38
     integer :: f, e, g, h
@@ -97,11 +97,8 @@ contains
     i_day = julian_date (day, month, year)
     days = i_day - u_day
  
- 
- 
     date_to_unix = (days*86400) + (hour*3600) + (min*60) + sec
- 
-!  print *,days, hour,sec,u_day,i_day,day,month,year,date_to_unix
+    !  print *,days, hour,sec,u_day,i_day,day,month,year,date_to_unix
  
   end function date_to_unix
  
@@ -120,7 +117,7 @@ contains
     i_day = i_day + 1
  
     call calendar_date (u_day+i_day, day, month, year)
-!  print*, u_day+i_day,day,month,year
+    !  print*, u_day+i_day,day,month,year
     i_day = mod (itime, 86400.0)
     if (i_day < 0) then
       i_day = i_day + 86400
@@ -134,6 +131,7 @@ contains
  
  
   integer function julian_date (day, month, year)
+    ! returns Julian Day (JD), where zero is noon on 1 Jan -4712 (eg 4713 BC)
  
     integer, intent (in) :: day, month, year
     double precision :: d, m, y
@@ -145,7 +143,7 @@ contains
     y = year
     a = 0
     b = 0
-  ! there is no year 0
+    ! there is no year 0
     if (year < 0) then
       y = y + 1
       yr_corr = 0.75
