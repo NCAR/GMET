@@ -206,23 +206,15 @@ program gmet
   real (sp), allocatable :: tmean_2 (:, :), tmean_err_2 (:, :)
   real (sp), allocatable :: trange_2 (:, :), trange_err_2 (:, :)
  
-!code starts below
+  ! ========== code starts below ==============================
  
-!mode 2
-!  config_file = "config_boulder_flood.txt"
-!  config_file = "config_gunnison_filled.txt"
-!   config_file = "config_gunnison_qc.txt"
-!   config_file = "config_conus_stats.txt"
-!  config_file = "config_conus_test_1980.txt"
-!  config_file = "config_conus_test_1991.txt"
-!  config_file = "config_conus_test_2002.txt"
-!  config_file = "config_alaska.txt"
-!   config_file = "config_pnw.txt"
-!mode 1
-!  config_file = "config_prcp.txt"
- 
- 
-  !get config_file filename from command line
+  ! test configs
+  ! mode 1
+  !  config_file = "config_prcp.txt" 
+  ! mode 2
+  !  config_file = "config_pnw.txt"
+  
+  ! get config_file filename from command line
   i = 0
   do
     call get_command_argument (i, arg)
@@ -259,14 +251,15 @@ program gmet
     return
   end if
  
-  startdate = config_values(2)
-  enddate = config_values(3)
-  site_list = config_values(4)
-  site_var = config_values(5)
-  site_var_t = config_values(15)
+  startdate   = config_values(2)
+  enddate     = config_values(3)
+  site_list   = config_values(4)
+  site_var    = config_values(5)
+  site_var_t  = config_values(15)
   station_var = config_values(6)
   output_file = config_values(12)
-  directory = config_values(16)
+  directory   = config_values(16)
+  ! may need to put station data file start & stop here (currently hardwired)
  
   ! print *,trim(site_var_t),' ',trim(site_var)
  
@@ -381,116 +374,120 @@ program gmet
     ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec...just passed now because
     !   an internal subroutine wants them
  
-  else
+  else if (mode == 2) then
  
     ! =================== ensemble forcing generation =====================
-    if (mode == 2) then
  
-      grid_list = config_values (13)
-      call value (config_values(14), maxdistance, error)
-      maxdistance = maxdistance * 0.539957   ! AWW...why?
-      if (error /= 0) maxdistance = - 1
+    grid_list = config_values (13)
+    call value (config_values(14), maxdistance, error)
+    maxdistance = maxdistance * 0.539957   ! AWW...why?
+    if (error /= 0) maxdistance = - 1
  
-      if (len(trim(grid_list)) == 0) then
-        print *, "ERROR: Failed to read in one more more required model config parameters.&
-       & (GRID_LIST)"
-        return
-      end if
-  
-      call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
-     & stn_slp_e, nstations, error, vars) !AWW added vars
-      if (error /= 0) return
- 
-      ! call read_grid_list(grid_list, grdlat, grdlon, grdalt, grd_slp_n, grd_slp_e, nx, ny, error)
-      ! if(error /= 0) return
- 
-      call read_nc_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
- 
-      print *, size (lat), size (elev), nx, ny, nx * ny
- 
-       !allocate 1-d grid variables
-      allocate (grdlat(nx*ny))
-      allocate (grdlon(nx*ny))
-      allocate (grdalt(nx*ny))
-      allocate (grd_slp_n(nx*ny))
-      allocate (grd_slp_e(nx*ny))
-      allocate (mask_1d(nx*ny))
- 
-      print *, size (grdlat)
- 
-      grdlat = reshape (lat, (/ nx*ny /))
-      grdlon = reshape (lon, (/ nx*ny /))
-      grdalt = reshape (elev, (/ nx*ny /))
-      grd_slp_n = reshape (grad_n, (/ nx*ny /))
-      grd_slp_e = reshape (grad_e, (/ nx*ny /))
-      mask_1d = reshape (mask, (/ nx*ny /))
- 
-      print *, size (lat), size (elev), nx, ny
- 
-      ngrid = nx * ny
-      allocate (x(nstations, 6))
-      allocate (z(ngrid, 6))
-      x (:, 1) = 1.0
-      x (:, 2) = stnlat (:)
-      x (:, 3) = stnlon (:)
-      x (:, 4) = stnalt (:)
-      x (:, 5) = stn_slp_n (:)
-      x (:, 6) = stn_slp_e (:)
- 
-      z (:, 1) = 1.0
-      z (:, 2) = grdlat (:)
-      z (:, 3) = grdlon (:)
-      z (:, 4) = grdalt (:)
-      z (:, 5) = grd_slp_n (:)
-      z (:, 6) = grd_slp_e (:)
- 
-      print *, size (lat), size (elev), nx, ny
- 
-!        call get_time_list(startdate, enddate, Times)
-!	ntimes = size(Times)
-!        print *,'startdate=',startdate,'enddate=',enddate,'ntimes=',ntimes
- 
-        ! -- AWW:  translate times to a start and end record for station files
-!        st_stndata_utime = date_to_unix('19800101')   ! returns secs-since-1970 for end date of station files
-                                                       ! hardwired for testing
-!        end_stndata_utime = date_to_unix('20141231')   ! returns secs-since-1970 for end date of station files
-                                                       ! hardwired for testing
-!        st_rec  = FLOOR((Times(1) - st_stndata_utime)/86400) + 1
-!        end_rec = FLOOR((Times(ntimes) - st_stndata_utime)/86400) + 1
-!        print*, 'st_rec and end_rec =', st_rec, end_rec
-        ! -- AWW:  end addition
- 
-        !modified AJN Sept 2013
-      allocate (mean_autocorr(ntimes))
-      allocate (mean_tp_corr(ntimes))
-      allocate (y_mean(ngrid, ntimes))
-      allocate (y_std(ngrid, ntimes))
-      allocate (y_std_all(ngrid, ntimes))
-      allocate (y_max(ngrid, ntimes))
-      allocate (y_min(ngrid, ntimes))
- 
-        !        call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, &
-        !call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, st_rec, end_rec, &
-      call estimate_forcing_regression (x, z, nstations, ngrid, maxdistance, times, st_rec, &
-     & end_rec, stnid, station_var, site_var, site_var_t, site_list, directory, pcp, pop, pcperror, tmean, &
-     & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
-     & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
-      if (error /= 0) return
- 
-      print *, 'Creating output file'
- 
-        !call save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
-      call save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, nx, &
-     & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
-     & y_min, y_max, output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
-     & trange_err_2)
-      if (error /= 0) return
- 
+    if (len(trim(grid_list)) == 0) then
+      print *, "ERROR: Failed to read in one more more required model config parameters.&
+     & (GRID_LIST)"
+      return
     end if
-  end if
+  
+    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
+   & stn_slp_e, nstations, error, vars) !AWW added vars
+    if (error /= 0) return
+ 
+    ! call read_grid_list(grid_list, grdlat, grdlon, grdalt, grd_slp_n, grd_slp_e, nx, ny, error)
+    ! if(error /= 0) return
+ 
+    call read_nc_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
+ 
+    print *, size (lat), size (elev), nx, ny, nx * ny
+ 
+    !allocate 1-d grid variables
+    allocate (grdlat(nx*ny))
+    allocate (grdlon(nx*ny))
+    allocate (grdalt(nx*ny))
+    allocate (grd_slp_n(nx*ny))
+    allocate (grd_slp_e(nx*ny))
+    allocate (mask_1d(nx*ny))
+ 
+    print *, size (grdlat)
+ 
+    grdlat = reshape (lat, (/ nx*ny /))
+    grdlon = reshape (lon, (/ nx*ny /))
+    grdalt = reshape (elev, (/ nx*ny /))
+    grd_slp_n = reshape (grad_n, (/ nx*ny /))
+    grd_slp_e = reshape (grad_e, (/ nx*ny /))
+    mask_1d = reshape (mask, (/ nx*ny /))
+ 
+    print *, size (lat), size (elev), nx, ny
+ 
+    ngrid = nx * ny
+    allocate (x(nstations, 6))   ! x arrays for station variables
+    allocate (z(ngrid, 6))
+    x(:, 1) = 1.0
+    x(:, 2) = stnlat (:)
+    x(:, 3) = stnlon (:)
+    x(:, 4) = stnalt (:)
+    x(:, 5) = stn_slp_n (:)
+    x(:, 6) = stn_slp_e (:)
+ 
+    z(:, 1) = 1.0               ! z arrays for grid variables
+    z(:, 2) = grdlat (:)
+    z(:, 3) = grdlon (:)
+    z(:, 4) = grdalt (:)
+    z(:, 5) = grd_slp_n (:)
+    z(:, 6) = grd_slp_e (:)
+ 
+    print *, size (lat), size (elev), nx, ny
+ 
+    !       call get_time_list(startdate, enddate, Times)
+    !	ntimes = size(Times)
+    !        print *,'startdate=',startdate,'enddate=',enddate,'ntimes=',ntimes
+  
+    ! -- AWW:  translate times to a start and end record for station files
+    !        st_stndata_utime = date_to_unix('19800101')   ! returns secs-since-1970 for enddate of stn files
+                                                       ! hardwired for testing
+    !        end_stndata_utime = date_to_unix('20141231')   ! returns secs-since-1970 for enddate of stn files
+                                                       ! hardwired for testing
+    !        st_rec  = FLOOR((Times(1) - st_stndata_utime)/86400) + 1
+    !        end_rec = FLOOR((Times(ntimes) - st_stndata_utime)/86400) + 1
+    !        print*, 'st_rec and end_rec =', st_rec, end_rec
+    ! -- AWW:  end addition
+ 
+    ! modified AJN Sept 2013
+    allocate (mean_autocorr(ntimes))
+    allocate (mean_tp_corr(ntimes))
+    allocate (y_mean(ngrid, ntimes))
+    allocate (y_std(ngrid, ntimes))
+    allocate (y_std_all(ngrid, ntimes))
+    allocate (y_max(ngrid, ntimes))
+    allocate (y_min(ngrid, ntimes))
+ 
+    ! call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, st_rec, end_rec, &
+    call estimate_forcing_regression (x, z, nstations, ngrid, maxdistance, times, st_rec, &
+   & end_rec, stnid, station_var, site_var, site_var_t, site_list, directory, pcp, pop, pcperror, tmean, &
+   & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
+   & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+    if (error /= 0) return
+ 
+    print *, 'Creating output file'
+ 
+    ! call save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
+    call save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, nx, &
+   & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
+   & y_min, y_max, output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
+   & trange_err_2)
+    if (error /= 0) return
+ 
+  else
+
+    ! mode not recognized...stop
+    print*, 'Mode given in config file = ',mode,' Not recognized (can be 1 or 2).  Quitting.' 
+    stop
+
+  end if  ! end if mode=2
   
 end program gmet
  
+! ================= SUBROUTINES =================
  
 subroutine get_time_list (startdate, enddate, times)
   ! makes a list of data times in secs since 1970-1-1

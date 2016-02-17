@@ -1,10 +1,9 @@
-# ============= Makefile for downscaling program ======================
-# AWW-2016:  split mega-file coefficients.f90 into several smaller ones
-
-# NOTE: first link one numrec.f file needed into this directory if not present
-#  eg, ln -s ../num_rec/numrec.f
+# ======= Makefile for downscaling program ============
 
 EXE = downscale.test.exe
+
+# first link one numrec.f file needed into this directory
+#  ln -s ../num_rec/numrec.f
 
 #FC = gfortran
 FC = pgf90
@@ -17,13 +16,13 @@ ifeq ($(FC),pgf90)
 #	FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
 #	FCFLAGS = -O2 -Mbackslash -fPIC
 
-        # flags forall (e.g. look for system .mod files, required in gfortran)
+	# flags forall (e.g. look for system .mod files, required in gfortran)
 #	FCFLAGS += -I/usr/local/netcdf4-pgi/include
 #	FCFLAGS += -I/opt/netcdf4/include
         FCFLAGS += -I/opt/netcdf4-pgi/include
 #	FCFLAGS += -I/opt/netcdf-4.3.3.1/pgi-15.1/include
 
-        # libraries needed for linking, unused in the examples
+	# libraries needed for linking, unused in the examples
 #	LDLOCAL = -rpath,/usr/local/netcdf-4.1.1/pgi-v11-7/lib
 #	LDLOCAL = -rpath,/opt/netcdf4/lib
 	LDLOCAL = -rpath,/opt/netcdf4-pgi/lib
@@ -32,19 +31,20 @@ ifeq ($(FC),pgf90)
 #	LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
 #	LDFLAGS = $(LDLOCAL) -L/opt/netcdf4/lib -lnetcdff -lnetcdf
 	LDFLAGS = $(LDLOCAL) -L/opt/netcdf4-pgi/lib -lnetcdff -lnetcdf
+
 endif
 
 ifeq ($(FC),gfortran)
 #	FCFLAGS = -g
-        #FCFLAGS = -O2
+	#FCFLAGS = -O2
 
-        # flags forall (e.g. look for system .mod files, required in gfortran)
+	# flags forall (e.g. look for system .mod files, required in gfortran)
 #	FCFLAGS += -I/usr/local.net/netcdf-4.3.0/gcc-4.7.2/include
 
-        # libraries needed for linking, unused in the examples
+	# libraries needed for linking, unused in the examples
         LDLOCAL = -Wl,-rpath,/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib
 	LDFLAGS = $(LDLOCAL) -L/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib -lnetcdf -lnetcdff
-        #LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
+	#LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
 endif
 
 
@@ -61,14 +61,8 @@ $(EXE):	type.o \
 	read_nc.o \
 	read_nc_grid.o \
 	write_nc.o \
-        stats_routines.o \
-        regression_routines.o \
-        estimate_coefficients.o \
-        estimate_forcing_regression.o \
+	coefficients.o \
 	main.o
-
-        # coefficients.o \    /AWW removed
-
 
 	$(FC) $(FCFLAGS) $(LDFLAGS) -o $@ $^ 
 
