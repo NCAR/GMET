@@ -206,9 +206,9 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
       ipos = index (line, ',')
       if (ipos > 0 .and. n_stations > 0) then
         call parse (line, ",", settings, nsettings)
-        if (nsettings == 7) then
-          id (i) = settings (1)
-          name (i) = settings (7)
+        if (nsettings == 7 .or. nsettings == 8) then  ! orig number of fields
+          id(i) = settings(1)
+          name(i) = settings(7)
           call delall (name(i), '"')
           call value (settings(2), lat(i), err)
           if (err /= 0) lat (i) = - 999.99
@@ -220,12 +220,16 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
           if (err /= 0) sslp_n (i) = - 999.99
           call value (settings(6), sslp_e(i), err)
           if (err /= 0) sslp_e (i) = - 999.99
- 
-!              print *, trim(id(i)), "  ", trim(name(i)), lat(i), lon(i), alt(i)
+
+          if (nsettings == 8) then ! AWW-feb2016
+            vars(i) = settings(8)  ! need to upgrade station list
+          end if
+         
+          ! print *, trim(id(i)), "  ", trim(name(i)), lat(i), lon(i), alt(i), vars[i]
           i = i + 1
         end if
-      end if
  
+     end if
     end if
  
   end do
@@ -359,10 +363,12 @@ subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end
       call check (nf90_get_var(ncid, varid, valsp))! read the precip
       print *, "reading in prcp data"
  
+      ! AWW here could make it so that if the station var not specified (PT), don't use
+
       ! do t = 1, nctimes, 1  AWW-del
       do t = st_rec, end_rec, 1 ! AWW store only within desired period
         if (valsp(t) == nf90_fill_float) then
-          vals_miss = .false.
+          vals_miss = .false.   ! this is the reverse of what the name suggests -AWW need to FIX
           vals = - 999.0
           print *, 'found missing precip at timestep', t, ' -- all values set to void'
           exit

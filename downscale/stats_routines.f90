@@ -304,14 +304,14 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
  
   ! code
   ntimes = size (prcp_data)
- 
   allocate (tmean(ntimes))
   allocate (trange(ntimes))
   allocate (moving_avg(2, ntimes))
  
-  ! print *,'corr'
   data_cnt = 0
   do i = 1, ntimes, 1
+    ! here assume data are in C, switch to Kelvin?  Is that needed?
+    ! Calculate Trange
     if (tair_data(1, i) .gt.-100.0 .and. tair_data(2, i) .gt.-100.0) then
       tmean (i) = ((tair_data(1, i)+tair_data(2, i))/2.d0) + 273.15d0
       trange (i) = (tair_data(2, i)-tair_data(1, i)/2.d0)
@@ -322,13 +322,11 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
     end if
   end do
  
- 
   half_window = floor (window/2.0d0)
  
-!do the lag correlation for temperature
-!first compute the moving average for climo removal
-!need to check for missing values....
- 
+  ! do the lag correlation for temperature
+  ! first compute the moving average for climo removal in window
+  ! need to check for missing values....
   do i = 1, ntimes, 1
     if (i .lt. half_window) then
       tmp_tmean = 0.0
@@ -348,11 +346,6 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
           moving_avg (2, i) = - 999.0
         end if
       end do
- 
-!      if(i.eq.1) then
-!         print *,tmp_cnt,tmp_tmean
-!      endif
- 
     else if (i .gt. ntimes-half_window) then
       tmp_tmean = 0.0
       tmp_trange = 0.0
@@ -368,8 +361,8 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
         moving_avg (1, i) = tmp_tmean / real (tmp_cnt, kind(dp))
         moving_avg (2, i) = tmp_trange / real (tmp_cnt, kind(dp))
       else
-        moving_avg (1, i) = - 999.0
-        moving_avg (2, i) = - 999.0
+        moving_avg (1, i) = -999.0
+        moving_avg (2, i) = -999.0
       end if
     else
       tmp_tmean = 0.0
@@ -386,8 +379,8 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
         moving_avg (1, i) = tmp_tmean / real (tmp_cnt, kind(dp))
         moving_avg (2, i) = tmp_trange / real (tmp_cnt, kind(dp))
       else
-        moving_avg (1, i) = - 999.0
-        moving_avg (2, i) = - 999.0
+        moving_avg (1, i) = -999.0
+        moving_avg (2, i) = -999.0
       end if
  
       !moving_avg(1,i) = sum(tmean(i-half_window:i+half_window))/real(window,kind(dp))
@@ -395,15 +388,14 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
     end if
   end do
  
-! print *,'tmean ',moving_avg(1,1:2)
-! print *,'trange ',moving_avg(2,1:2)
+  ! print *,'tmean ',moving_avg(1,1:2)
+  ! print *,'trange ',moving_avg(2,1:2)
  
+  ! only use portions of timeseries to compute auto_corr
+  ! need to go through and check to see if values exist for lag-0 and lag-n and moving_avg
+  ! if values do not exist for any of the three, don't add to running sums
  
-!only use portions of timeseries to compute auto_corr
-!need to go through and check to see if values exist for lag-0 and lag-n and moving_avg
-!if values do not exist for any of the three, don't add to running sums
- 
-!compute means
+  ! compute means
   lag_0_sum = 0.0d0
   lag_n_sum = 0.0d0
   lag_0_var = 0.0d0
@@ -424,7 +416,7 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   lag_n_mean = lag_n_sum / real (cnt_sums, kind(dp))
   ! print *,lag_0_mean,lag_n_mean
  
-  ! compute variance,covariance
+  ! compute variance, covariance
   do i = lag + 1, ntimes, 1
     if (tmean(i) .gt.-100.0 .and. tmean(i-lag) .gt.-100.0 .and. moving_avg(1, i) .gt.-100.0 .and. &
    & moving_avg(1, i-lag) .gt.-100.0) then
@@ -438,10 +430,10 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   ! compute autocorrelation
   auto_corr = cov / (sqrt(lag_0_var)*sqrt(lag_n_var))
  
-  !-------------------------------------
-  ! now do the t - p correlation
+  !------------------------------------------------------
+  ! now do the TxP cross-correlation for a single station
   ! do correlation on trange, not tmean
-  !-------------------------------------
+  !------------------------------------------------------
  
   lag_0_pmean = 0.0d0
   lag_0_pvar = 0.0d0

@@ -191,7 +191,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   integer (i4b), parameter :: sta_limit = 30
   integer (i4b), allocatable :: close_loc (:, :)
   integer (i4b), allocatable :: close_count (:)
- 
   real (dp), allocatable :: close_weights (:, :)
   real (dp), allocatable :: close_meta (:, :, :)
   real (dp) :: min_weight
@@ -202,7 +201,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   integer (i4b) :: out_loc_t
   integer (i4b), allocatable :: close_loc_t (:, :)
   integer (i4b), allocatable :: close_count_t (:)
- 
   real (dp), allocatable :: close_weights_t (:, :)
   real (dp), allocatable :: close_meta_t (:, :, :)
   real (dp) :: min_weight_t
@@ -337,10 +335,9 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     ! print *,'tmin',tair_data(1,i,:),'MISS',stn_miss_t
     ! print *, '-----------'
  
+    ! compute mean autocorrelation for all stations and all times 
     lag = 1
     window = 31 ! AWW:  hardwired parameter; should bring out
-
-    ! compute mean autocorrelation for all stations and all times 
     call generic_corr (prcp_data(i, :), tair_data(:, i, :), lag, window, auto_corr(i), t_p_corr(i))
     ! print *,auto_corr(i)
  
@@ -400,7 +397,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     ! for current grid cell, loop through stations, find distance
     do i = 1, nstns, 1
       ! setup distinct weight matrices for precip and temperature
-      ! x() are station locations; z() are grid locations; returns weight (w_base) for grd-to-stn
+      ! x() are station lonlat; z() are grid lonlat; returns weight (w_base) for grd-to-stn
       call calc_distance_weight (search_distance, x(i, 2), x(i, 3), z(g, 2), z(g, 3), w_base(g, i))
  
       ! original call
@@ -408,7 +405,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
       ! also set some logic to limit the number of stations to the N closest
       min_weight = 0.0d0
- 
+
+      ! THIS uses the first value in the timeseries to decide if a variable is present for the stn
       if (w_base(g, i) .gt. min_weight .and. prcp_data(i, 1) .gt.-100.0d0) then
  
         if (close_count(g) .le. sta_limit) then
@@ -545,10 +543,10 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           x_red (i, :) = x (close_loc(g, i), :)
  
           if (prcp_data(close_loc(g, i), t) .gt. 0.0) then
-            ndata = ndata + 1
+            ndata = ndata + 1    ! count data points with non-zero precip
             yp_red (i) = 1
           else
-            nodata = nodata + 1
+            nodata = nodata + 1  ! count data points with zero precip
           end if
         end do
  
@@ -600,16 +598,17 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           x_red_t (i, :) = x (close_loc_t(g, i), :)
  
           if (y_tmean(close_loc_t(g, i)) .gt.-100.0) then
-            ndata_t = ndata_t + 1
-          else
-            nodata_t = nodata_t + 1
+            ndata_t = ndata_t + 1    ! count data points with valid temperature
+          else 
+            nodata_t = nodata_t + 1  ! count data points with invalid temperature
           end if
         end do
 
         ! ---- checks on station availability for precip and temp
  
         if (ndata == 0 .and. nodata == 0) then
-          print *, "WARNING:  No stations within max distance of grid cell!"
+          print *, "WARNING:  No stations with data within max distance of grid cell!"
+          ! this should not happen if station data are filled
           pop (g, t) = 0.0
           pcp (g, t) = 0.0
           pcperr (g, t) = 0.0
@@ -631,13 +630,13 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
             tmean_err_2 (g, t) = tmean_err_2 (g, t-1)
             trange_err_2 (g, t) = trange_err_2 (g, t-1)
           else
-            tmean (g, t) = - 999
-            trange (g, t) = - 999
+            tmean (g, t) = -999
+            trange (g, t) = -999
             tmean_err (g, t) = 0.0
             trange_err (g, t) = 0.0
  
-            tmean_2 (g, t) = - 999
-            trange_2 (g, t) = - 999
+            tmean_2 (g, t) = -999
+            trange_2 (g, t) = -999
             tmean_err_2 (g, t) = 0.0
             trange_err_2 (g, t) = 0.0
           end if
@@ -646,7 +645,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
         ! ========= Precip & temp are processed sequentially, again ===========
         ! this is the start of the PRECIP processing block ---
-        if (ndata >= 1) then
+
+        if (ndata >= 1) then  ! at least one station close by has pcp > 0
  
           ! original call
           ! TWX = matmul(TX, w_pcp)
@@ -675,7 +675,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
               tx_red = transpose (x_red)
               twx_red = matmul (tx_red, w_pcp_red)
               call logistic_regression (x_red, y_red, twx_red, yp_red, b)!AJN
- 
               pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
  
               deallocate (b)
@@ -686,7 +685,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
             tx_red_2 = transpose (x_red(:, 1:4))
             twx_red_2 = matmul (tx_red_2, w_pcp_red)
             call logistic_regression (x_red(:, 1:4), y_red, twx_red_2, yp_red, b)!AJN
- 
             pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
  
             deallocate (b)! B must get allocated in logistic reg.; could this also be allocated just once?
@@ -738,8 +736,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           ! print *,'done precip'
  
         else
-          print *, "WARNING: Not enough stations for precip with data within max distance"
-          print *, "         precip for this cell being set to zero"
+          print *, "INFO:  No stations nearby have pcp > 0, so precip for this cell being set to zero"
           pop (g, t) = 0.0
           pcp (g, t) = 0.0
           pcperr (g, t) = 0.0

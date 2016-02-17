@@ -42,3 +42,9 @@ run/
 
 #bash scripts
 *.bash
+
+# notes files
+LASTNEXT
+NOTES
+
+

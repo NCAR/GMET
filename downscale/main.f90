@@ -278,14 +278,16 @@ program gmet
   ! AWW:  NEED TO MAKE THIS READ FROM STATION FILES TO FIND TIME LIMITS
 
   !translate times to a start and end record for station files
-  !st_stndata_utime = date_to_unix ('19800101')  ! returns secs-since-1970 for st date of station files
-  !                                              ! hardwired for testing
-  !end_stndata_utime = date_to_unix ('20141231') ! returns secs-since-1970 for end date of station files
-  !                                              ! hardwired for testing
-  st_stndata_utime = date_to_unix ('20150101')  ! returns secs-since-1970 for st date of station files
+  ! retro dates
+  st_stndata_utime = date_to_unix ('19800101')  ! returns secs-since-1970 for st date of station files
                                                 ! hardwired for testing
-  end_stndata_utime = date_to_unix ('20160229') ! returns secs-since-1970 for end date of station files
+  end_stndata_utime = date_to_unix ('20141231') ! returns secs-since-1970 for end date of station files
                                                 ! hardwired for testing
+  ! spinup dates
+  !st_stndata_utime = date_to_unix ('20150101')  ! returns secs-since-1970 for st date of station files
+                                                 ! hardwired for testing
+  !end_stndata_utime = date_to_unix ('20160229') ! returns secs-since-1970 for end date of station files
+                                                 ! hardwired for testing
  
   st_rec = floor ((times(1)-st_stndata_utime)/86400) + 1
   end_rec = floor ((times(ntimes)-st_stndata_utime)/86400) + 1
