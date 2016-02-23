@@ -66,11 +66,11 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   error = nf90_open (file, nf90_write, ncid)
   if (error /= nf90_noerr) then
     error = 0
-     ! Create the file.
+    ! Create the file.
     call check (nf90_create(file, nf90_clobber, ncid), "File creation error", error)
     if (error /= 0) return
  
-     ! Define the dimensions.
+    ! Define the dimensions.
     call check (nf90_def_dim(ncid, stn_name, n_stns, stn_dimid), "station dim def error", error)
     call check (nf90_def_dim(ncid, var_name, n_vars+1, vars_dimid), "variable dim def error", &
    & error)
@@ -607,9 +607,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
  
     if (error /= 0) return
  
- 
- 
- 
      ! End define mode.
     call check (nf90_enddef(ncid), "end define mode error", error)
     if (error /= 0) return
@@ -626,7 +623,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
  
     trec = 1
     nrecs = 0
- 
  
   else
  
@@ -722,7 +718,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
  & error)
   if (error /= 0) return
  
- 
   !correlation variables
   call check (nf90_put_var(ncid, autoc_varid, mean_autocorr, start=start1, count=count1), "put mean&
  & autocorrelation error", error)
@@ -731,9 +726,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   call check (nf90_put_var(ncid, tpc_varid, mean_tp_corr, start=start1, count=count1), "put mean t_&
  &p correlation error", error)
   if (error /= 0) return
- 
- 
- 
  
   !3-d variables
   count3 = (/ inx, iny, n_times /)
@@ -749,7 +741,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   call check (nf90_put_var(ncid, pcp_error_varid, real(pcperror, kind(dp)), start=start3, &
  & count=count3), "put pcp_error error", error)
   if (error /= 0) return
- 
  
   call check (nf90_put_var(ncid, tmean_varid, real(tmean, kind(dp)), start=start3, count=count3), "&
  &put tmean error", error)
@@ -779,7 +770,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
  & count=count3), "put pcp_error error", error)
   if (error /= 0) return
  
- 
   call check (nf90_put_var(ncid, tmean_varid_2, real(tmean_2, kind(dp)), start=start3, &
  & count=count3), "put tmean error", error)
   if (error /= 0) return
@@ -795,8 +785,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   call check (nf90_put_var(ncid, trange_error_varid_2, real(trange_error_2, kind(dp)), &
  & start=start3, count=count3), "put trange_error error", error)
   if (error /= 0) return
- 
- 
+  
  
 !transformed mean,std variables, min & max of normalized y
   call check (nf90_put_var(ncid, ymean_varid, y_mean, start=start3, count=count3), "put ymean error&

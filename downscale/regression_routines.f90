@@ -92,14 +92,14 @@ subroutine logistic_regression (x, y, tx, yp, b)
   real (dp), allocatable, intent (out) :: b (:)
  
   real (dp), allocatable :: ypd (:), p (:), yn (:), bn (:), v (:, :), xv (:, :)
-!  real(DP), allocatable :: P(:), YN(:), BN(:), V(:,:), XV(:,:)
+  !  real(DP), allocatable :: P(:), YN(:), BN(:), V(:,:), XV(:,:)
   integer (i4b) :: nvars, ntimes, i, t, f, it
   real (dp) :: d
  
   nvars = size (x, 2) - 1
   ntimes = size (y)
  
-!print *, 'logistic regression',ntimes,nvars,Yp
+  ! print *, 'logistic regression',ntimes,nvars,Yp
  
   allocate (b(nvars+1))
   allocate (ypd(ntimes))
@@ -109,7 +109,7 @@ subroutine logistic_regression (x, y, tx, yp, b)
   allocate (xv(ntimes, nvars+1))
  
   do t = 1, ntimes, 1
-!    if(Y(t) .ne. 0.0) then
+    ! if(Y(t) .ne. 0.0) then
     if (yp(t) .gt. 0.0) then
       ypd (t) = 1.0d0
     else
@@ -123,11 +123,11 @@ subroutine logistic_regression (x, y, tx, yp, b)
   b = 0.0d0
   i = 0
   it = 0
-  !print *, "B = ", B
+  ! print *, "B = ", B
   do while (f /=  1)
-!     print *, "Iteration ", it
+    ! print *, "Iteration ", it
     p = 1.0d0 / (1.0d0+exp(-matmul(x, b)))
-!     print *, "Pie = ", P
+    !  print *, "Pie = ", P
     if (any(p > 0.97)) then
         !print *, "WARNING: logistic regression diverging"
       f = 1
@@ -139,9 +139,9 @@ subroutine logistic_regression (x, y, tx, yp, b)
         v (t, t) = p (t) * (1.0d0-p(t))
       end do
       xv = matmul (v, x)
-!        print *, "XV = ", XV
+      ! print *, "XV = ", XV
       call least_squares (xv, yn, tx, bn)
-!        print *, "increment = ", BN
+      ! print *, "increment = ", BN
  
       f = 1
       do i = 1, nvars + 1, 1
@@ -155,14 +155,14 @@ subroutine logistic_regression (x, y, tx, yp, b)
       end if
  
       b = b + bn
-!        print *, "Bnew = ", B
+      ! print *, "Bnew = ", B
       deallocate (bn)
  
     end if
     it = it + 1
   end do
-!  print *, "Iterations = ", it
-  !print *, "Final B = ", B
+  ! print *, "Iterations = ", it
+  ! print *, "Final B = ", B
  
 end subroutine logistic_regression
  

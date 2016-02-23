@@ -243,7 +243,9 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
     end if
   end if
   close (11)
+
   print *, "Done with read_station_list"
+
 end subroutine read_station_list
  
  

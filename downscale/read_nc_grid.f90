@@ -3,7 +3,6 @@ subroutine read_nc_grid (file_name, lat, lon, elev, grad_n_s, grad_w_e, mask, nx
   use type
   implicit none
  
- 
   character (len=*), intent (in) :: file_name
  
   real (dp), allocatable, intent (out) :: lat (:, :)
@@ -17,7 +16,7 @@ subroutine read_nc_grid (file_name, lat, lon, elev, grad_n_s, grad_w_e, mask, nx
   integer (i4b), intent (out) :: ny
   integer, intent (out) :: error
  
-!local variables
+  ! local variables
  
   integer :: ncid !netcdf file id
   integer :: i
@@ -32,13 +31,14 @@ subroutine read_nc_grid (file_name, lat, lon, elev, grad_n_s, grad_w_e, mask, nx
   character (len=*), parameter :: grad_we_name = "gradient_w_e"
   character (len=*), parameter :: mask_name = "mask"
  
+  ! ======= code starts below ========
  
-!code starts below
- 
- 
-!open netcdf grid file
+  ! open netcdf grid file
   call check (nf90_open(file_name, nf90_nowrite, ncid), "File open error", error)
-  if (error /= 0) return
+  if (error /= 0) then 
+    print*, 'Could not find domain grid -- check path/name in config file'
+    stop  ! AWW: doesn't quit in main routine, so trap error here
+  endif
  
   !inquire about latitude
   call check (nf90_inq_varid(ncid, lat_name, varid), "Latitude name error", error)

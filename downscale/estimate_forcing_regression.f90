@@ -1,5 +1,5 @@
-! AWW-2016Jan, substantial modifications to handle time subsetting and reduce mem alloc, and clean up
-!   renamed from estimate_precip to reflect its actual usage); add also 'directory', changed some var names
+! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
+!   renamed from estimate_precip; add also 'directory' var, changed some var names
 
 subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, st_rec, end_rec, &
 & stnid, stnvar, site_var, site_var_t, site_list, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
@@ -7,7 +7,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
 & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
   ! ===============================================================================================
-  ! This routine is called during MODE 2 usage:  creating gridded ensembles from station/point data
+  ! This routine is called during MODE 2 usage:  creates gridded ensembles from station/point data
   ! ===============================================================================================
  
   use strings
@@ -352,13 +352,13 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
       tp_cnt = tp_cnt + 1
     end if
  
-    deallocate (stn_miss_t)
+    deallocate (stn_miss_t)  ! must be allocated within read_station
     deallocate (stn_miss)
     deallocate (stn_prcp)
     deallocate (stn_tair)
  
   end do
-  ! --- end station read loop
+  ! =========== end station read loop ============
  
   error = 0 ! AWW:  why is this set?  not used again in subroutine
  
@@ -463,7 +463,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
       end if
  
     end do ! end station loop
-  end do ! end grid point loop to find nearest stations
+  end do 
+  ! ============== end grid point loop to find nearest stations ==============
  
   call system_clock (t2, count_rate)
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
@@ -474,28 +475,33 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   allocate (twx_red_2(4, sta_limit))! these are for no slope calcs, have dim1 = 4
   allocate (tx_red_2(4, sta_limit))
  
-  ! === now LOOP through all TIME steps and populate grids ===
+  ! =========== now LOOP through all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
  
     call system_clock (tg1, count_rate)
     print *, "TIME STEP = ", times (t), " (", t, "/", ntimes, ")"
- 
+
+    ! --- assign vectors of station values for prcp, temp, for current time step
     do i = 1, nstns, 1
       y (i) = prcp_data (i, t)
       y_tmean (i) = (tair_data(1, i, t)+tair_data(2, i, t)) / 2.0d0
       y_trange (i) = abs (tair_data(2, i, t)-tair_data(1, i, t))
     end do
  
-    ! do power transformation on input vector
+    ! do power transformation on precip vector (AWW: consider alternate transforms)
     call normalize_y (4.0d0, y)
  
-    ! --- loop through all grid cells for a given time step ---
+    ! -------- loop through all grid cells for a given time step --------
     do g = 1, ngrid, 1
       ! call system_clock(tg1,count_rate)
 
+      deallocate (twx_red)
+      deallocate (tx_red)
+      allocate (twx_red(6, sta_limit))! these have dim1 = 6
+      allocate (tx_red(6, sta_limit))
+
       ! IF the elevation is valid for this grid cell
-      ! this starts a long section working first on precip, then temp
- 
+      ! (this starts a long section working first on precip, then temp)
       if (z(g, 4) .gt.-200) then
         ! call system_clock(t1,count_rate)
 
@@ -662,16 +668,17 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
             slope_flag_pcp = 1
           end if
  
+          ! -------------- 1. CALCULATING POP -----------------
           if (nodata == 0) then
-            ! print *, "All stations have precip, POP = 1.0"
+            ! print *, "All stations have precip>0, POP = 1.0"
             pop (g, t) = 1.0
             pop_2 (g, t) = 1.0
           else
+            ! some stations don't have precip > 0
             if (slope_flag_pcp .eq. 0) then
-              pop (g, t) = - 999.
+              pop (g, t) = -999.   ! when not using slope regressions
             else
-              ! print *,'pop slope'
-              ! regression with slope
+              ! --- regression with slope ---
               tx_red = transpose (x_red)
               twx_red = matmul (tx_red, w_pcp_red)
               call logistic_regression (x_red, y_red, twx_red, yp_red, b)!AJN
@@ -680,10 +687,16 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
               deallocate (b)
             end if
  
-            ! --- regression without slope
+            ! --- regression without slope ---
             ! AWW note that these now use the 2nd set of T* variables (different dimension)
-            tx_red_2 = transpose (x_red(:, 1:4))
-            twx_red_2 = matmul (tx_red_2, w_pcp_red)
+
+            deallocate(tx_red_2)   ! just testing
+            deallocate(twx_red_2)
+            allocate(tx_red_2(4, sta_limit))
+            allocate(twx_red_2(4, sta_limit))
+
+            tx_red_2 = transpose(x_red(:, 1:4))
+            twx_red_2 = matmul(tx_red_2, w_pcp_red)
             call logistic_regression (x_red(:, 1:4), y_red, twx_red_2, yp_red, b)!AJN
             pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
  
@@ -691,8 +704,15 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           end if
           ! print *, "POP: ", POP(g,t)
  
-          if (slope_flag_pcp .eq. 0) then
-            pcp (g, t) = - 999.
+          ! -------------- 2. NOW CALCULATING PCP -----------------
+
+          deallocate(twx_red)
+          deallocate(tx_red)   ! just testing
+          allocate(twx_red(6, sta_limit))
+          allocate(tx_red(6, sta_limit))
+
+          if(slope_flag_pcp .eq. 0) then
+            pcp (g, t) = -999.
           else
             ! regression with slope
             tx_red = transpose (x_red)
@@ -700,6 +720,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
             call least_squares (x_red, y_red, twx_red, b)
             pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
+            deallocate (b)  !AWW-seems to be missing
  
             wgtsum = 0.0
             errsum = 0.0
@@ -714,6 +735,12 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           end if
  
           ! regression without slope
+
+          deallocate(tx_red_2)   ! just testing
+          deallocate(twx_red_2)
+          allocate(tx_red_2(4, sta_limit))
+          allocate(twx_red_2(4, sta_limit))
+
           ! AWW note that these use the 2nd set of T* variables (different dimension)
           tx_red_2 = transpose (x_red(:, 1:4))
           twx_red_2 = matmul (tx_red_2, w_pcp_red)
@@ -736,14 +763,15 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           ! print *,'done precip'
  
         else
-          print *, "INFO:  No stations nearby have pcp > 0, so precip for this cell being set to zero"
+          ! this means ndata = 0 for this grid cell and timestep
+          ! print *, "INFO:  No stations nearby have pcp > 0, so precip for this cell being set to zero"
           pop (g, t) = 0.0
           pcp (g, t) = 0.0
           pcperr (g, t) = 0.0
           pop_2 (g, t) = 0.0
           pcp_2 (g, t) = 0.0
           pcperr_2 (g, t) = 0.0
- 
+
         end if ! done with precip if (ndata>=1) block
  
         ! added AJN Sept 2013
@@ -754,7 +782,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
         if (ndata_t .ge. 1) then ! AJN
  
           ! regression with slope
-          ! AWW note that these use the 1st set of T* variables
+          ! AWW note that these use the 1st set of T* variables (6 dim)
           tx_red = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t, y_tmean_red, twx_red, b)
@@ -771,6 +799,12 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           deallocate (b)
  
           ! regression without slope
+
+          deallocate(tx_red_2)   ! just testing
+          deallocate(twx_red_2)
+          allocate(tx_red_2(4, sta_limit))
+          allocate(twx_red_2(4, sta_limit))
+
           ! AWW note that these use the 2nd set of T* variables
           tx_red_2 = transpose (x_red_t(:, 1:4))
           twx_red_2 = matmul (tx_red_2, w_temp_red)
@@ -790,7 +824,13 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           ! ===== NOW do TRANGE ============
  
           ! regression with slope
-          ! AWW note that these use the 2nd set of T* variables
+
+          deallocate(tx_red)   ! just testing
+          deallocate(twx_red)
+          allocate(tx_red(6, sta_limit))
+          allocate(twx_red(6, sta_limit))
+
+          ! AWW note that these use the 1st set of T* variables
           tx_red = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t, y_trange_red, twx_red, b)
@@ -806,7 +846,13 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
           trange_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
  
-          ! regression without slope
+          ! --- regression without slope ---
+
+          deallocate(tx_red_2)   ! just testing
+          deallocate(twx_red_2)
+          allocate(tx_red_2(4, sta_limit))
+          allocate(twx_red_2(4, sta_limit))
+
           ! AWW note that these use the 2nd set of T* variables
           tx_red_2 = transpose (x_red_t(:, 1:4))
           twx_red_2 = matmul (tx_red_2, w_temp_red)
@@ -822,6 +868,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
             errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)
           end do
           trange_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+          deallocate (b)  !AWW-seems to be missing
  
         else ! alternative to having (ndata_t <= 1)
  
