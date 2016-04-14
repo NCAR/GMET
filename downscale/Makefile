@@ -4,8 +4,8 @@
 # NOTE: first link one numrec.f file needed into this directory if not present
 #  eg, ln -s ../num_rec/numrec.f
 
-EXE = downscale.retro.exe
-#EXE = downscale.spinup.exe
+#EXE = downscale.retro.exe
+EXE = downscale.spinup.exe
 
 #FC = gfortran
 FC = pgf90

@@ -148,13 +148,15 @@ program gmet
  
   character (len=100) :: config_file
   !integer, parameter :: nconfigs = 15 !modified AJN Sept 2013
-  integer, parameter :: nconfigs = 16 !modified AWW Feb 2016
+  integer, parameter :: nconfigs = 18 !modified AWW Feb 2016
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
   character (len=500) :: directory ! AWW feb 2016
 
-  character (len=100) :: startdate, enddate, perturbation, station_var, site_var, site_var_t
+  character (len=100) :: startdate, enddate ! desired output dates, YYYYMMDD, read from config file
+  character (len=20) :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
+  character (len=100) :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
   character (len=100), allocatable :: stnid (:), stnname (:)
   character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
@@ -239,10 +241,12 @@ program gmet
   config_names(14) = "MAX_DISTANCE"
   config_names(15) = "SITE_VAR_T" !modified AJN Sept 2013
   config_names(16) = "DATA_DIRECTORY" !AWW-feb2016, free data dir from site list path
+  config_names(17) = "STN_START_DATE" !AWW-apr2016, add station period limits
+  config_names(18) = "STN_END_DATE"   !  to get them out of being hardwired
  
-  error = 0
-  n_vars = 0
-  forecast = - 1
+  error    = 0
+  n_vars   = 0
+  forecast = -1
  
   call read_config (config_file, nconfigs, config_names, config_values)
   call value (config_values(1), mode, error)
@@ -259,7 +263,8 @@ program gmet
   station_var = config_values(6)
   output_file = config_values(12)
   directory   = config_values(16)
-  ! may need to put station data file start & stop here (currently hardwired)
+  stn_startdate   = config_values(17)
+  stn_enddate     = config_values(18)
  
   ! print *,trim(site_var_t),' ',trim(site_var)
  
@@ -270,25 +275,33 @@ program gmet
     return
   end if
  
-  ! --- AWW:  figure out start and end records for requested station data read times ---
-  call get_time_list (startdate, enddate, times)  
+  ! --- AWW:  figure out start and end utimes & records for requested station data read period ---
+  call get_time_list (startdate, enddate, times)  ! makes unix-time list for desired records
   ntimes = size (times)
-  print *, 'startdate=', startdate, 'enddate=', enddate, 'ntimes=', ntimes
- 
-  ! AWW:  NEED TO MAKE THIS READ FROM STATION FILES TO FIND TIME LIMITS
+  print *, 'startdate=', startdate, 'enddate=', enddate, 'ntimes=', ntimes  ! YYYYMMDD dates
 
   !translate times to a start and end record for station files
+
+  ! the station file start & end dates are given in the config file so that this calculation 
+  !   doesn't have to be done for every single station (ie reading st/end from the station file
+  !   but it would be more flexible to do it for every station file, perhaps -- then they would
+  !   not all have to be the same lengths
+
   ! retro dates
-  st_stndata_utime = date_to_unix ('19800101')  ! returns secs-since-1970 for st date of station files
+  !st_stndata_utime = date_to_unix ('19800101')  ! returns secs-since-1970 for st date of station files
                                                 ! hardwired for testing
-  end_stndata_utime = date_to_unix ('20141231') ! returns secs-since-1970 for end date of station files
+  !end_stndata_utime = date_to_unix ('20141231') ! returns secs-since-1970 for end date of station files
                                                 ! hardwired for testing
   ! spinup dates
   !st_stndata_utime = date_to_unix ('20150101')  ! returns secs-since-1970 for st date of station files
                                                  ! hardwired for testing
-  !end_stndata_utime = date_to_unix ('20160229') ! returns secs-since-1970 for end date of station files
+  !end_stndata_utime = date_to_unix ('20160430') ! returns secs-since-1970 for end date of station files
                                                  ! hardwired for testing
- 
+  ! --- station data start and end dates
+  st_stndata_utime = date_to_unix (stn_startdate) ! returns secs-since-1970 for st date of station files
+  end_stndata_utime = date_to_unix (stn_enddate)  ! returns secs-since-1970 for end date of station files
+
+  ! calculate start & end recs for processing station data files 
   st_rec = floor ((times(1)-st_stndata_utime)/86400) + 1
   end_rec = floor ((times(ntimes)-st_stndata_utime)/86400) + 1
  
@@ -296,7 +309,7 @@ program gmet
   ! --- end AWW add ---
  
  
-  ! === SWITCH BETWEEN MODE 1 and MODE 2 ====
+  ! === CHOOSE BETWEEN MODE 1 and MODE 2 ====
   if (mode == 1) then
 
     ! =================== Ensemble Source Is Gridded Model Variables =================
@@ -374,7 +387,7 @@ program gmet
     if (error /= 0) return
  
     ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec...just passed now because
-    !   an internal subroutine wants them
+    !   an internal subroutine wants them and may use them in the future
  
   else if (mode == 2) then
  

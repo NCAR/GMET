@@ -2,9 +2,9 @@
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
 subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, st_rec, end_rec, &
-& stnid, stnvar, site_var, site_var_t, site_list, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
-& trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
-& pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+& stnid, stnvar, site_var, site_var_t, site_list, directory, pcp, pop, pcperr, tmean, tmean_err, &
+& trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
+& pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
   ! ===============================================================================================
   ! This routine is called during MODE 2 usage:  creates gridded ensembles from station/point data

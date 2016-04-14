@@ -2,9 +2,9 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
 & stnlon, stnalt, stnvar, site_var, site_list, directory, c, poc, error) !AWW added directory
 !& stnlon, stnalt, stnvar, site_var, site_list, c, poc, error) 
 
-  ! =======================================================================================================
-  ! This routine is called during MODE 1 usage:  downscaling gridded data to create station/point ensembles
-  ! =======================================================================================================
+  ! ==================================================================================================
+  ! This routine called in MODE 1 usage:  downscaling gridded data to create station/point ensembles
+  ! ==================================================================================================
 
   use type
   use utim ! AWW-add:  can figure out start & ends records with this for station read
