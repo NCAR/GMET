@@ -1,4 +1,4 @@
-Subroutine FIELD_RAND (NSPL1, NSPL2, CFIELD)
+subroutine field_rand (nspl1, nspl2, cfield)
 ! ----------------------------------------------------------------------------------------
 ! Purpose:
 !
@@ -23,87 +23,87 @@ Subroutine FIELD_RAND (NSPL1, NSPL2, CFIELD)
 !   (1) INPUTDAT2D
 !   --------------
 !   Correspondence between basins and gridpoints
- 
+!
 !   (2) GRIDWEIGHT
 !   --------------
 !   Weights applied to each grid point to generate spatially correlated random fields
 !
 ! ----------------------------------------------------------------------------------------
- 
-  Use nrtype ! variable types (DP, I4B, etc.)
-  Use nr, Only: gasdev ! Num. Recipies
-  Use inputdat2d ! use to relate basins to gridpoints
- 
-  Use gridweight ! correlation structure
-  Implicit None
- 
+!
+  use nrtype ! variable types (DP, I4B, etc.)
+  use nr, only: gasdev ! Num. Recipies
+  use inputdat2d ! use to relate basins to gridpoints
+!
+  use gridweight ! correlation structure
+  implicit none
+!
 ! input
-  Integer (I4B), Intent (In) :: NSPL1 ! # points (1st spatial dimension)
-  Integer (I4B), Intent (In) :: NSPL2 ! # points (2nd spatial dimension)
- 
+  integer (i4b), intent (in) :: nspl1 ! # points (1st spatial dimension)
+  integer (i4b), intent (in) :: nspl2 ! # points (2nd spatial dimension)
+!
   ! Output
-  Real (DP), Dimension (NSPL1, NSPL2) :: CFIELD ! correlated random field
- 
- 
+  real (dp), dimension (nspl1, nspl2) :: cfield ! correlated random field
+!
+!
   ! Internal variables
-  Integer (I4B) :: NLON ! number of x points in the 2-d grid
-  Integer (I4B) :: NLAT ! number of y points in the 2-d grid
-  Integer (I4B) :: IERR ! error code for alolocate statement
-  Integer (I4B) :: IGRD ! loop through the gridpoints
-  Integer (I4B) :: ILON, ILAT ! (i,j) position of the igrd-th point
-  Integer (I4B), Pointer :: JLON, JLAT ! (i,j) position of prev generated point
-  Integer (I4B) :: IPREV ! loop thru previously generated points
-  Integer (I4B) :: NPRV ! number of previously generated points
-  Integer (I4B) :: ILNK ! index to the nearest grid point
-  Real (DP), Dimension (:), Allocatable :: VPRV ! vector of previously generated points
-  Real (DP) :: XBAR ! conditional mean at each grid
-  Real (SP) :: ARAN ! a single random number
-  Real (DP), Dimension (:, :), Allocatable :: CRAN ! grid of correlated random numbers
-  Integer (I4B) :: IRCH ! loop through the stream segments
- 
+  integer (i4b) :: nlon ! number of x points in the 2-d grid
+  integer (i4b) :: nlat ! number of y points in the 2-d grid
+  integer (i4b) :: ierr ! error code for alolocate statement
+  integer (i4b) :: igrd ! loop through the gridpoints
+  integer (i4b) :: ilon, ilat ! (i,j) position of the igrd-th point
+  integer (i4b), pointer :: jlon, jlat ! (i,j) position of prev generated point
+  integer (i4b) :: iprev ! loop thru previously generated points
+  integer (i4b) :: nprv ! number of previously generated points
+  integer (i4b) :: ilnk ! index to the nearest grid point
+  real (dp), dimension (:), allocatable :: vprv ! vector of previously generated points
+  real (dp) :: xbar ! conditional mean at each grid
+  real (sp) :: aran ! a single random number
+  real (dp), dimension (:, :), allocatable :: cran ! grid of correlated random numbers
+  integer (i4b) :: irch ! loop through the stream segments
+!
   ! ----------------------------------------------------------------------------------------
   ! (1) GET THE NUMBER OF X AND Y POINTS AND ALLOCATE SPACE FOR THE RANDOM GRID
   ! ----------------------------------------------------------------------------------------
-  NLON = SIZE (SPCORR, 1)
-  NLAT = SIZE (SPCORR, 2)
-  Allocate (CRAN(NLON, NLAT), Stat=IERR)
-  If (IERR .Ne. 0) Call EXIT_SCRF (1, 'CRAN: PROBLEM ALLOCATING SPACE')
+  nlon = size (spcorr, 1)
+  nlat = size (spcorr, 2)
+  allocate (cran(nlon, nlat), stat=ierr)
+  if (ierr .ne. 0) call exit_scrf (1, 'CRAN: PROBLEM ALLOCATING SPACE')
   ! ----------------------------------------------------------------------------------------
   ! (1) GENERATE GRID OF RANDOM NUMBERS
   ! ----------------------------------------------------------------------------------------
   ! loop through the grid points
-  Do IGRD = 1, NLON * NLAT
+  do igrd = 1, nlon * nlat
   ! identify the (i,j) position of the igrd-th point
-    ILON = IORDER (IGRD)
-    ILAT = JORDER (IGRD)
+    ilon = iorder (igrd)
+    ilat = jorder (igrd)
   ! assign a random number to the first grid-point
-    If (IGRD .Eq. 1) Then
-      Call gasdev (ARAN)
-      CRAN (ILON, ILAT) = ARAN
+    if (igrd .eq. 1) then
+      call gasdev (aran)
+      cran (ilon, ilat) = aran
   ! process gridpoints 2,...,n
-    Else
+    else
     ! get the number of "previously generated points"
-      NPRV = SIZE (SPCORR(ILON, ILAT)%WGHT)
-      Allocate (VPRV(NPRV), Stat=IERR)
-      If (IERR .Ne. 0) Call EXIT_SCRF (1, 'problem allocating array [field_rand.f90]')
+      nprv = size (spcorr(ilon, ilat)%wght)
+      allocate (vprv(nprv), stat=ierr)
+      if (ierr .ne. 0) call exit_scrf (1, 'problem allocating array [field_rand.f90]')
     ! build a vector of previously generated points
-      Do IPREV = 1, NPRV
-        JLON => SPCORR(ILON, ILAT)%IPOS(IPREV)! i-position of previously generated point
-        JLAT => SPCORR(ILON, ILAT)%JPOS(IPREV)! j-position of previously generated point
-        VPRV (IPREV) = CRAN (JLON, JLAT)! (previously generated point)
-      End Do ! iprev
+      do iprev = 1, nprv
+        jlon => spcorr(ilon, ilat)%ipos(iprev)! i-position of previously generated point
+        jlat => spcorr(ilon, ilat)%jpos(iprev)! j-position of previously generated point
+        vprv (iprev) = cran (jlon, jlat)! (previously generated point)
+      end do ! iprev
     ! and generate the "current" point
-      Call gasdev (ARAN)
-      XBAR = DOT_PRODUCT (VPRV(1:NPRV), SPCORR(ILON, ILAT)%WGHT(1:NPRV))
-      CRAN (ILON, ILAT) = XBAR + SPCORR(ILON, ILAT)%SDEV * ARAN
+      call gasdev (aran)
+      xbar = dot_product (vprv(1:nprv), spcorr(ilon, ilat)%wght(1:nprv))
+      cran (ilon, ilat) = xbar + spcorr(ilon, ilat)%sdev * aran
     ! free up VPRV so that we can use it again for the next grid
-      Deallocate (VPRV, Stat=IERR)
-      If (IERR .Ne. 0) Call EXIT_SCRF (1, 'problem deallocating array [field_rand.f90]')
-    End If ! (if not the first point)
-  End Do ! igrd
- 
-  CFIELD = CRAN
- 
-  Return
- 
-End Subroutine FIELD_RAND
+      deallocate (vprv, stat=ierr)
+      if (ierr .ne. 0) call exit_scrf (1, 'problem deallocating array [field_rand.f90]')
+    end if ! (if not the first point)
+  end do ! igrd
+!
+  cfield = cran
+!
+  return
+!
+end subroutine field_rand

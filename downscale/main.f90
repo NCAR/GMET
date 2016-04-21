@@ -210,12 +210,6 @@ program gmet
  
   ! ========== code starts below ==============================
  
-  ! test configs
-  ! mode 1
-  !  config_file = "config_prcp.txt" 
-  ! mode 2
-  !  config_file = "config_pnw.txt"
-  
   ! get config_file filename from command line
   i = 0
   do

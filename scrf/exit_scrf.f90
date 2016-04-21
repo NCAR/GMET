@@ -1,4 +1,4 @@
-Subroutine EXIT_SCRF (EXIT_STATUS, OUTTXT)
+subroutine exit_scrf (exit_status, outtxt)
 ! ----------------------------------------------------------------------------------------
 ! Creator:
 !   Einar Örn Hreinsson, 2009
@@ -12,16 +12,16 @@ Subroutine EXIT_SCRF (EXIT_STATUS, OUTTXT)
 !   looking at the $? variable in the shell that the code was called from
 !
 ! ----------------------------------------------------------------------------------------
-  Use nrtype ! data types
-  Implicit None
-  Character (Len=*), Intent (In) :: OUTTXT ! exit text
-  Integer (I4B), Intent (In) :: EXIT_STATUS ! exit status
+  use nrtype ! data types
+  implicit none
+  character (len=*), intent (in) :: outtxt ! exit text
+  integer (i4b), intent (in) :: exit_status ! exit status
 ! ----------------------------------------------------------------------------------------
 ! print out the exit text
-  Print *, OUTTXT
+  print *, outtxt
 ! also put the exit text in the log file
-  Write (99,*) OUTTXT
+  write (99,*) outtxt
 ! exit with exit status
-  Call EXIT (EXIT_STATUS)
+  call exit (exit_status)
 ! ----------------------------------------------------------------------------------------
-End Subroutine EXIT_SCRF
+end subroutine exit_scrf

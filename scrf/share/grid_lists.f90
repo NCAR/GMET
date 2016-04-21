@@ -1,30 +1,30 @@
-Module grid_lists
-  Use nrtype
-  Implicit None
-  Save
+module grid_lists
+  use nrtype
+  implicit none
+  save
  ! --------------------------------------------------------------------------------------
  ! This structure is used in gridsubset (and routines that call gridsubset) to
  ! provide a convenient structure to hold output information.
  ! --------------------------------------------------------------------------------------
  ! structure of indices in a 2d array
-  Type INDX2D
-    Integer (I4B) :: I, J ! indices into a 2d array
-  End Type INDX2D
+  type indx2d
+    integer (i4b) :: i, j ! indices into a 2d array
+  end type indx2d
  ! structure for each link in the list
-  Type GRDLST
-    Type (INDX2D) :: INDX ! pair of indices
-    Real (DP) :: DIST ! distance to grid point
-    Type (GRDLST), Pointer :: NEXT ! pointer to next link in list
-  End Type GRDLST
+  type grdlst
+    type (indx2d) :: indx ! pair of indices
+    real (dp) :: dist ! distance to grid point
+    type (grdlst), pointer :: next ! pointer to next link in list
+  end type grdlst
  ! structure for the main array holding information about number of links in a
  ! list as well as a pointer to the first link
-  Type GRDARRAY
-    Integer (I4B) :: LNKNR ! number of links in list
-    Type (GRDLST), Pointer :: FIRST ! pointer to first link in list
-  End Type GRDARRAY
+  type grdarray
+    integer (i4b) :: lnknr ! number of links in list
+    type (grdlst), pointer :: first ! pointer to first link in list
+  end type grdarray
  ! --------------------------------------------------------------------------------------
  ! structure used in disaggrhum.f90 holding linkage information between
  ! temperature data grids and relative humidity grids
-  Type (GRDARRAY), Dimension (:, :), Pointer :: GL_RHTP
+  type (grdarray), dimension (:, :), pointer :: gl_rhtp
  ! --------------------------------------------------------------------------------------
-End Module grid_lists
+end module grid_lists

@@ -1,64 +1,64 @@
-Module inputdat2d
-  Use nrtype ! variable types (i4b, dp, etc.)
-  Use dat_2dgrid ! generic data structure for 2-d grid
-  Implicit None
-  Save
+module inputdat2d
+  use nrtype ! variable types (i4b, dp, etc.)
+  use dat_2dgrid ! generic data structure for 2-d grid
+  implicit none
+  save
  ! --------------------------------------------------------------------------------------
  ! data structures for forcing and (calibration, evaluation, assimilation) data
-  Type (GENDAT), Pointer :: APRECIP ! precipitation (kg m-2 dt-1)
-  Type (GENDAT), Pointer :: STAPREC ! station precipitation data (kg m-2 dt-1)
-  Type (GENDAT), Pointer :: AVGTEMP ! average temperature (K)
-  Type (GENDAT), Pointer :: REL_HUM ! relative humidity (%)
-  Type (GENDAT), Pointer :: SWRNDWN ! downwelling shortwave radiation (W m-2)
-  Type (GENDAT), Pointer :: LWRNDWN ! downwelling longwave radiation (W m-2)
-  Type (GENDAT), Pointer :: WINDSPD ! windspeed (m/s)
-  Type (GENDAT), Pointer :: AIRPRES ! air pressure (hPa)
-  Type (GENDAT), Pointer :: STREAMQ ! streamflow (m3 s-1)
-  Type (GENDAT), Pointer :: SNWSTOR ! snow water equivalent (mm)
-  Type (GENDAT), Pointer :: SNWAREA ! fractional snow covered area (-)
-  Type (GENDAT), Pointer :: CLDAREA ! percent of area classified as clouds
-  Type (GENDAT), Pointer :: SOILH2O ! soil moisture (mm)
-  Type (GENDAT), Pointer :: LAKSTAG ! lake stage (lake level) (m)
-  Type (GENDAT), Pointer :: LAKSTRQ ! lake outflow (for managed lakes) (m3 s-1)
-  Type (GENDAT), Pointer :: SRFRAIN ! mean precipitation surface (arbitrary units)
+  type (gendat), pointer :: aprecip ! precipitation (kg m-2 dt-1)
+  type (gendat), pointer :: staprec ! station precipitation data (kg m-2 dt-1)
+  type (gendat), pointer :: avgtemp ! average temperature (K)
+  type (gendat), pointer :: rel_hum ! relative humidity (%)
+  type (gendat), pointer :: swrndwn ! downwelling shortwave radiation (W m-2)
+  type (gendat), pointer :: lwrndwn ! downwelling longwave radiation (W m-2)
+  type (gendat), pointer :: windspd ! windspeed (m/s)
+  type (gendat), pointer :: airpres ! air pressure (hPa)
+  type (gendat), pointer :: streamq ! streamflow (m3 s-1)
+  type (gendat), pointer :: snwstor ! snow water equivalent (mm)
+  type (gendat), pointer :: snwarea ! fractional snow covered area (-)
+  type (gendat), pointer :: cldarea ! percent of area classified as clouds
+  type (gendat), pointer :: soilh2o ! soil moisture (mm)
+  type (gendat), pointer :: lakstag ! lake stage (lake level) (m)
+  type (gendat), pointer :: lakstrq ! lake outflow (for managed lakes) (m3 s-1)
+  type (gendat), pointer :: srfrain ! mean precipitation surface (arbitrary units)
  ! --------------------------------------------------------------------------------------
  ! additional metadata for streamflow
-  Type SFINFO
+  type sfinfo
   ! station attributes
-    Character (Len=120) :: STNNAME ! station name
-    Integer (I4B) :: TIDE_ID ! station IDs for flow stns
-    Integer (I4B) :: RCH_REC ! REC IDs for flow stns
-    Integer (I4B) :: RCH_IDX ! index for flow stns (in network topology)
-    Integer (I4B) :: RCH_IDV ! index for valid flow stns (in network topology)
+    character (len=120) :: stnname ! station name
+    integer (i4b) :: tide_id ! station IDs for flow stns
+    integer (i4b) :: rch_rec ! REC IDs for flow stns
+    integer (i4b) :: rch_idx ! index for flow stns (in network topology)
+    integer (i4b) :: rch_idv ! index for valid flow stns (in network topology)
   ! flow statistics
-    Real (DP) :: FLOWANN ! mean annual flood
-    Real (DP) :: FLOW100 ! 100-year flood
-    Real (DP) :: FLOWMAX ! maximum flow ever recorded
+    real (dp) :: flowann ! mean annual flood
+    real (dp) :: flow100 ! 100-year flood
+    real (dp) :: flowmax ! maximum flow ever recorded
   ! data assimilation control parameters
-    Logical (LGT) :: STN_USE ! assimilate data from station
-    Integer (I4B) :: NUM_AVG ! number of points to average
-    Real (DP) :: STN_ERR ! error in station obervations
+    logical (lgt) :: stn_use ! assimilate data from station
+    integer (i4b) :: num_avg ! number of points to average
+    real (dp) :: stn_err ! error in station obervations
   ! list of indices of basins upstream of each gauge
-    Integer (I4B), Dimension (:), Pointer :: RCH_UPS ! reaches upstream of each gauge
-  End Type SFINFO
+    integer (i4b), dimension (:), pointer :: rch_ups ! reaches upstream of each gauge
+  end type sfinfo
  ! allow space for multiple gauges in the basin/region
-  Type (SFINFO), Dimension (:), Pointer :: SFMETA
+  type (sfinfo), dimension (:), pointer :: sfmeta
  ! --------------------------------------------------------------------------------------
 ! additional metadata for lake level
-  Type LAKEINFO
+  type lakeinfo
   ! station attributes
-    Character (Len=120) :: STNNAME ! station name
-    Integer (I4B) :: TIDE_ID ! station IDs for lake observation locations
-    Integer (I4B) :: RCH_REC ! REC reach IDs for lake observation locations
-    Integer (I4B) :: RCH_IDX ! index for lake observation locations (in network topology)
-    Integer (I4B) :: LAKE_ID ! lake IDs for lake observation locations (in network topology)
-    Integer (I4B) :: LAKE_IX ! lake index for lake observation locations (in network topology)
+    character (len=120) :: stnname ! station name
+    integer (i4b) :: tide_id ! station IDs for lake observation locations
+    integer (i4b) :: rch_rec ! REC reach IDs for lake observation locations
+    integer (i4b) :: rch_idx ! index for lake observation locations (in network topology)
+    integer (i4b) :: lake_id ! lake IDs for lake observation locations (in network topology)
+    integer (i4b) :: lake_ix ! lake index for lake observation locations (in network topology)
 ! data assimilation control parameters
-    Logical (LGT) :: STN_USE ! assimilate data from station
-    Integer (I4B) :: NUM_AVG ! number of points to average
-    Real (DP) :: STN_ERR ! error in station obervations
-  End Type LAKEINFO
+    logical (lgt) :: stn_use ! assimilate data from station
+    integer (i4b) :: num_avg ! number of points to average
+    real (dp) :: stn_err ! error in station obervations
+  end type lakeinfo
  ! allow space for multiple gauges in the basin/region
-  Type (LAKEINFO), Dimension (:), Pointer :: LAKEMETA
+  type (lakeinfo), dimension (:), pointer :: lakemeta
  ! --------------------------------------------------------------------------------------
-End Module inputdat2d
+end module inputdat2d

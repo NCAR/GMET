@@ -5,7 +5,8 @@
 #  eg, ln -s ../num_rec/numrec.f
 
 #EXE = downscale.retro.exe
-EXE = downscale.spinup.exe
+#EXE = downscale.spinup.exe
+EXE = downscale.exe
 
 #FC = gfortran
 FC = pgf90

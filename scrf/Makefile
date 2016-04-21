@@ -1,37 +1,35 @@
 #========================================================================
-# Makefile to compile the SCRF Code from Martyn Clark
+# Makefile to compile the SCRF Code
 #========================================================================
-#  Original Makefile from Martyn's FUSE Model
+#  Original: Makefile from Martyn's FUSE Model
 #  Modified:
-#  Andy Newman
-#
+#    Andy Newman, 2013; A. Wood, 2016
 #
 #========================================================================
 # PART 0: Define directory paths
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = 
+F_MASTER = /home/andywood/proj/overtheloop/scripts/ens_forc/GMET
 
 # Core directory that contains source code
-F_KORE_DIR = $(F_MASTER)/scrf
+F_SRC_DIR = $(F_MASTER)/scrf
 
 # Location of the compiled modules
 MOD_PATH = $(F_MASTER)/scrf
 
 # Define the directory for the executables
-EXE_PATH = $(F_MASTER)/bin
+EXE_PATH = $(F_MASTER)/scrf
 #
 #========================================================================
 # PART 1: Assemble all of the various sub-routines
 #========================================================================
 
 # Define directories
-DRIVER_DIR = $(F_KORE_DIR)/driver
+DRIVER_DIR = $(F_SRC_DIR)/driver
 NUMREC_DIR = $(F_MASTER)/num_rec
-MOD_DIR    = $(F_KORE_DIR)/share
+MOD_DIR    = $(F_SRC_DIR)/share
 
-#
 # Numerical Recipes utilities
 SCRF_NRUTIL= \
 		nrtype.f90 \
@@ -58,14 +56,13 @@ SCRF_NRPROC= \
 		gasdev.f90
 NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(SCRF_NRPROC))
 
-
 # Data modules
 SCRF_DATAMS= \
 		gridweight.f90 \
 		linkstruct.f90 \
 		dat_2dgrid.f90 \
 		inputdat2d.f90 \
-		qpe_namelist.f90
+		namelist_module.f90
 DATAMS = $(patsubst %, $(MOD_DIR)/%, $(SCRF_DATAMS))
 
 # Routines taken from or modifed versions of Jason Craig's Prob QPE code
@@ -76,7 +73,7 @@ prob_qpe= \
 		save_vars.f90 \
 		read_nc_grid.f90 \
 		read_grid_list.f90
-qpe = $(patsubst %, $(F_KORE_DIR)/%, $(prob_qpe))
+qpe = $(patsubst %, $(F_SRC_DIR)/%, $(prob_qpe))
 
 # Define routines for SCRF code
 SCRF_GEN = \
@@ -85,8 +82,7 @@ SCRF_GEN = \
 		exit_scrf.f90 \
 		field_rand.f90 \
 		spcorr_grd.f90
-GEN = $(patsubst %, $(F_KORE_DIR)/%, $(SCRF_GEN))
-
+GEN = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_GEN))
 
 # ... and stitch it all together...
 SCRF_ALL = $(NRUTIL) $(NRPROC) $(DATAMS) $(qpe) $(GEN)
@@ -163,7 +159,8 @@ endif
 #.SUFFIXES: .f .o .f90
 
 # Compile
-all: compile_scrf link clean install
+#all: compile_scrf link clean install
+all: compile_scrf link clean 
 
 check:
 	echo test
@@ -186,8 +183,8 @@ clean:
 						rm -f *.mod
 #
 # Copy the executable to the bin directory
-install:
-		mv $(DRIVER__EX) $(EXE_PATH)
+#install:
+#		mv $(DRIVER__EX) $(EXE_PATH)
 
 
 
