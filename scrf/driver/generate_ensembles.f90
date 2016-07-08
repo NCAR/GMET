@@ -3,8 +3,8 @@ program generate_ensembles
 ! Creator(s):
 !   Andy Newman, 2013
 ! Modified:
-!   Andy Wood, 2016 -- adding namelist file as argument, not hardwired; cleaning up formatting; adding
-!                      documentation
+!   Andy Wood, 2016 -- adding namelist file as argument, no longer hardwired; clean formatting
+!                      adding documentation
 ! ----------------------------------------------------------------------------------------
 ! Purpose:
 !   Driver for spatially correlated random field code from Martyn Clark
@@ -96,8 +96,8 @@ program generate_ensembles
   integer (i4b) :: ierr, jerr !error variables for various error checks
   integer (i4b) :: nspl1 ! # points (1st spatial dimension)
   integer (i4b) :: nspl2 ! # points (2nd spatial dimension)
-  integer (i4b) :: isp1 !first grid dimension location
-  integer (i4b) :: isp2 !second grid dimension location
+  integer (i4b) :: isp1  ! first grid dimension location
+  integer (i4b) :: isp2  ! second grid dimension location
   real (dp), dimension (:, :), allocatable :: rho ! temporal correlation parameter
   real (dp), dimension (:, :), allocatable :: old_random ! previous correlated random field
   real (dp), dimension (:, :), allocatable :: pcp_random ! new correlated random field for pcp
@@ -171,12 +171,11 @@ program generate_ensembles
   integer (i4b) :: spl1_start, spl2_start !starting point of x,y grid
   integer (i4b) :: spl1_count, spl2_count !length of x,y grid
   integer (i4b) :: tot_times
- 
-  integer :: ncid, varid, error
+  integer       :: ncid, varid, error
  
   type (coords), pointer :: grid !coordinate structure for grid
- 
   type (splnum), dimension (:, :), pointer :: sp_pcp, sp_temp !structures of spatially correlated random field weights
+
   ! ========== code starts below ==============================
  
   ! AWW: get namelist filename from command line (no longer hardwired)
@@ -187,13 +186,15 @@ program generate_ensembles
     if (len_trim(arg) == 0) exit
     f = f + 1
   end do
+
+  ! set transform power, shouldn't be hard-coded, but it is right now...
+  transform = 4.0d0
  
   !read namelist in
   call read_namelist (namelist_filename)
  
   !set output file name from namelist
   out_name = out_name_base
- 
   error = 0
   ierr = 0
   jerr = 0
@@ -462,7 +463,7 @@ program generate_ensembles
   allocate (grid, stat=ierr)
   if (ierr .ne. 0) call exit_scrf (1, 'problem allocating structure grid')
  
-!place info into grid structure
+  ! place info into grid structure
   grid%idx%spl1_start = spl1_start
   grid%idx%spl2_start = spl2_start
   grid%idx%spl1_count = spl1_count
@@ -475,13 +476,10 @@ program generate_ensembles
   if (ierr .ne. 0 .or. jerr .ne. 0) call exit_scrf (1, ' problem allocating space for lat-lon-elv c&
  &oordinates ')
  
- 
   allocate (pcp_out(nx, ny, ntimes), tmean_out(nx, ny, ntimes), trange_out(nx, ny, ntimes), &
  & stat=ierr)
   if (ierr .ne. 0) call exit_scrf (1, 'problem allocating for 2-d output variables')
- 
- 
- 
+  
   pcp_out = 0.0
   tmean_out = 0.0
   trange_out = 0.0
@@ -494,17 +492,14 @@ program generate_ensembles
   grid%lon = lon
   grid%elv = hgt
  
- 
   print *, 'Generating weights for spatially correlated random field (SCRF)...'
  
   call spcorr_grd (nspl1, nspl2, grid)
- 
   sp_pcp = spcorr
  
   call field_rand (nspl1, nspl2, pcp_random)
  
- 
-!setup sp_corr structure for temperature with larger correlation length
+  ! setup sp_corr structure for temperature with larger correlation length
   clen = 800.0 !rough estimate based on observations
   call spcorr_grd (nspl1, nspl2, grid)
   sp_temp = spcorr
@@ -512,14 +507,10 @@ program generate_ensembles
   call field_rand (nspl1, nspl2, tmean_random)
   call field_rand (nspl1, nspl2, trange_random)
  
-  print *, 'Done generating weights'
+  print *, 'Done generating weights...'
   print *, 'Generating ensembles...'
  
-  !transform power, shouldn't be hard-coded, but it is right now...
-  transform = 4.0d0
- 
- 
-    ! loop through the ensemble members
+  ! ============ loop through the ensemble members ============
   do iens = 1, nens
  
       !Loop through time

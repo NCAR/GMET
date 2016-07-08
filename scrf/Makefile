@@ -3,7 +3,11 @@
 #========================================================================
 #  Original: Makefile from Martyn's FUSE Model
 #  Modified:
-#    Andy Newman, 2013; A. Wood, 2016
+#    Andy Newman, 2013
+#    A. Wood, 2016 -- updated random initialization procedures and
+#                     namelist usage
+#                     a modified version of NR ran_state.f90 moved to 
+#                     main directory
 #
 #========================================================================
 # PART 0: Define directory paths
@@ -76,12 +80,14 @@ prob_qpe= \
 qpe = $(patsubst %, $(F_SRC_DIR)/%, $(prob_qpe))
 
 # Define routines for SCRF code
+# A. Wood, added the rand seed initialization here (last one)
 SCRF_GEN = \
 		trig_degrees.f90 \
 		erfinv.f90 \
 		exit_scrf.f90 \
 		field_rand.f90 \
-		spcorr_grd.f90
+		spcorr_grd.f90 \
+                init_rand_seed_I4B.f90 
 GEN = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_GEN))
 
 # ... and stitch it all together...
@@ -131,6 +137,7 @@ endif
 ifeq "$(FC)" "pgf90"
  FLAGS_PROF = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time
  FLAGS = -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -rpath,/opt/netcdf4-pgi/lib
+ #FLAGS = -Mbackslash -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -rpath,/opt/netcdf4-pgi/lib
 endif
 
 #========================================================================
