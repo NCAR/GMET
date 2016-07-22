@@ -1,52 +1,52 @@
-Module utim
+module utim
  
-  Use strings
-  Implicit None
+  use strings
+  implicit none
  
-Contains
+contains
  
-  Subroutine parse_date (date, year, month, day, hour, Min, sec, error)
-    Character (Len=*), Intent (In) :: date
-    Integer, Intent (Out) :: sec, Min, hour, day, month, year
-    Integer, Intent (Out) :: error
+  subroutine parse_date (date, year, month, day, hour, min, sec, error)
+    character (len=*), intent (in) :: date
+    integer, intent (out) :: sec, min, hour, day, month, year
+    integer, intent (out) :: error
  
-    If (len_trim(date) /= 14 .And. len_trim(date) /= 8) Then
+    if (len_trim(date) /= 14 .and. len_trim(date) /= 8) then
       error = 1
-      Return
-    End If
-    Call value (date(7:8), day, error)
-    Call value (date(5:6), month, error)
-    Call value (date(1:4), year, error)
-    If (len_trim(date) == 8) Then
+      return
+    end if
+    call value (date(7:8), day, error)
+    call value (date(5:6), month, error)
+    call value (date(1:4), year, error)
+    if (len_trim(date) == 8) then
       sec = 0
-      Min = 0
+      min = 0
       hour = 0
-    Else
-      Call value (date(13:14), sec, error)
-      Call value (date(11:12), Min, error)
-      Call value (date(9:10), hour, error)
-    End If
-  End Subroutine parse_date
+    else
+      call value (date(13:14), sec, error)
+      call value (date(11:12), min, error)
+      call value (date(9:10), hour, error)
+    end if
+  end subroutine parse_date
  
  
-  Subroutine calendar_date (jdate, day, month, year)
- 
-    Integer, Intent (In) :: jdate
-    Integer, Intent (Out) :: day, month, year
-!   algorithm from Wikipedia: http://en.wikipedia.org/wiki/Julian_day
-!   originally from Richards, E. G. (2013). Calendars. In S. E. Urban & P. K. Seidelmann, eds.
-!                   Explanatory Supplement to the Astronomical Almanac, 3rd ed. (pp. 585–624).
-!                   Mill Valley, Calif.: University Science Books. ISBN 978-1-89138-985-6
-!                   p617-9
-    Integer :: y = 4716, j = 1401, m = 2, n = 12, r = 4, p = 1461
-    Integer :: v = 3, u = 5, s = 153, w = 2, B = 274277, C = - 38
-    Integer :: f, e, g, h
-    f = jdate + j + (((4*jdate+B)/146097)*3) / 4 + C
+  subroutine calendar_date (jdate, day, month, year)
+    !   algorithm from Wikipedia: http://en.wikipedia.org/wiki/Julian_day
+    !   originally from Richards, E. G. (2013). Calendars. In S. E. Urban & P. K. Seidelmann, eds.
+    !                   Explanatory Supplement to the Astronomical Almanac, 3rd ed. (pp. 585–624).
+    !                   Mill Valley, Calif.: University Science Books. ISBN 978-1-89138-985-6
+    !                   p617-9
+
+    integer, intent (in) :: jdate
+    integer, intent (out) :: day, month, year
+    integer :: y = 4716, j = 1401, m = 2, n = 12, r = 4, p = 1461
+    integer :: v = 3, u = 5, s = 153, w = 2, b = 274277, c = - 38
+    integer :: f, e, g, h
+    f = jdate + j + (((4*jdate+b)/146097)*3) / 4 + c
     e = r * f + v
-    g = Mod (e, p) / r
+    g = mod (e, p) / r
     h = u * g + w
-    day = Mod (h, s) / u + 1
-    month = Mod (h/s+m, n) + 1
+    day = mod (h, s) / u + 1
+    month = mod (h/s+m, n) + 1
     year = e / p - y + (n+m-month) / n
  
 !   integer :: a,b,c,d,e,z,alpha
@@ -77,91 +77,91 @@ Contains
 !      year = c - 4715
 !   endif
  
-  End Subroutine calendar_date
+  end subroutine calendar_date
  
  
-  Double Precision Function date_to_unix (date)
+  double precision function date_to_unix (date)
  
-    Character (Len=*), Intent (In) :: date
-    Double Precision :: u_day, i_day, days
-    Integer :: sec, Min, hour, day, month, year, error
+    character (len=*), intent (in) :: date
+    double precision :: u_day, i_day, days
+    integer :: sec, min, hour, day, month, year, error
  
-    Call parse_date (date, year, month, day, hour, Min, sec, error)
+    call parse_date (date, year, month, day, hour, min, sec, error)
  
-    If (error /= 0) Then
+    if (error /= 0) then
       date_to_unix = - 9999.99
-      Return
-    End If
+      return
+    end if
  
     u_day = julian_date (1, 1, 1970)
     i_day = julian_date (day, month, year)
     days = i_day - u_day
  
+    date_to_unix = (days*86400) + (hour*3600) + (min*60) + sec
+    !  print *,days, hour,sec,u_day,i_day,day,month,year,date_to_unix
+ 
+  end function date_to_unix
  
  
-    date_to_unix = (days*86400) + (hour*3600) + (Min*60) + sec
+  subroutine unix_to_date (itime, year, month, day, hour, min, sec)
  
-  End Function date_to_unix
- 
- 
-  Subroutine unix_to_date (itime, year, month, day, hour, Min, sec)
- 
-    Double Precision, Intent (In) :: itime
-    Integer, Intent (Out) :: sec, Min, hour, day, month, year
-    Integer :: u_day, i_day
+    double precision, intent (in) :: itime
+    integer, intent (out) :: sec, min, hour, day, month, year
+    integer :: u_day, i_day
  
     u_day = julian_date (1, 1, 1970)
-    i_day = Int (itime/86400)
-    If (i_day < 0) Then
+    i_day = int (itime/86400)
+    if (i_day < 0) then
       i_day = i_day - 1
-    End If
+    end if
     i_day = i_day + 1
  
-    Call calendar_date (u_day+i_day, day, month, year)
- 
-    i_day = Mod (itime, 86400.0)
-    If (i_day < 0) Then
+    call calendar_date (u_day+i_day, day, month, year)
+    !  print*, u_day+i_day,day,month,year
+    i_day = mod (itime, 86400.0)
+    if (i_day < 0) then
       i_day = i_day + 86400
-    End If
+    end if
  
     hour = i_day / 3600
-    Min = (i_day/60) - (hour*60)
-    sec = Mod (i_day, 60)
+    min = (i_day/60) - (hour*60)
+    sec = mod (i_day, 60)
  
-  End Subroutine unix_to_date
+  end subroutine unix_to_date
  
  
-  Integer Function julian_date (day, month, year)
+  integer function julian_date (day, month, year)
+    ! returns Julian Day (JD), where zero is noon on 1 Jan -4712 (eg 4713 BC)
  
-    Integer, Intent (In) :: day, month, year
-    Double Precision :: d, m, y
-    Integer :: a, B
-    Double Precision :: yr_corr = 0.0
+    integer, intent (in) :: day, month, year
+    double precision :: d, m, y
+    integer :: a, b
+    double precision :: yr_corr = 0.0
  
     d = day
     m = month
     y = year
     a = 0
-    B = 0
-  ! there is no year 0
-    If (year < 0) Then
+    b = 0
+    ! there is no year 0
+    if (year < 0) then
       y = y + 1
       yr_corr = 0.75
-    End If
+    end if
  
-    If (month <= 2) Then
+    if (month <= 2) then
       y = y - 1.0
       m = month + 12.0
-    End If
+    end if
  
-    If (y*10000.0+m*100.0+d >= 15821015.0) Then
+    if (y*10000.0+m*100.0+d >= 15821015.0) then
       a = year / 100
-      B = 2 - a + (a/4)
-    End If
+      b = 2 - a + (a/4)
+    end if
  
-    julian_date = Int (365.25*y-yr_corr) + Int (30.6001*(m+1)) + d + 1720994.0 + B
+    julian_date = int (365.25*y-yr_corr) + int (30.6001*(m+1)) + d + 1720994.0 + b
  
-  End Function julian_date
+  end function julian_date
  
-End Module utim
+end module utim
  

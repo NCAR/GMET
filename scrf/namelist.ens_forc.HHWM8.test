@@ -1,0 +1,9 @@
+&PARAMS
+start_time	= 1
+ntimes		= 3
+nens		= 3
+clen		= 150.0
+grid_name	= "/home/andywood/proj/overtheloop/scripts/ens_forc/info/grids/HHWM8.gridinfo.0625.nc"
+qpe_nc_name	= "/d3/hydrofcst/overtheloop/data/forcing/ens/HHWM8/regr/regress_ts.HHWM8.1980.nc"
+out_name_base	= "/d3/hydrofcst/overtheloop/data/forcing/ens/HHWM8/forctest4/ens_forc.HHWM8.1980.nc"
+/

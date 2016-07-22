@@ -18,12 +18,14 @@
 *.jpg
 *.png
 
-#not the bin directory
+#not the bin directory and executables
 bin/
+*.exe
 
 #others
 num_rec/
 downscale/numrec.f90
+run/
 
 #no text files
 *.txt
@@ -40,3 +42,9 @@ downscale/numrec.f90
 
 #bash scripts
 *.bash
+
+# notes files
+LASTNEXT
+NOTES
+
+

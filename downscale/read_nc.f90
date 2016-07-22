@@ -1,167 +1,174 @@
  
-Subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error)
-  Use netcdf
-  Use type
-  Implicit None
+subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error)
+  use netcdf
+  use type
+  implicit none
  
-  Character (Len=*), Intent (In) :: file_name
-  Character (Len=*), Intent (In) :: var_name
-  Real (DP), Intent (In) :: valid_time
-  Real (DP), Allocatable, Intent (Out) :: var (:, :, :)
-  Real (DP), Allocatable, Intent (Out) :: lats (:), lons (:)
-  Integer, Intent (Out) :: error
+  character (len=*), intent (in) :: file_name
+  character (len=*), intent (in) :: var_name
+  real (dp), intent (in) :: valid_time
+  real (dp), allocatable, intent (out) :: var (:, :, :)
+  real (dp), allocatable, intent (out) :: lats (:), lons (:)
+  integer, intent (out) :: error
  
-  Integer (I4B) :: nlats, nlons, ntimes
-  Integer (I4B) :: ncid, varid, latid, lonid, timeid
-  Integer (I4B) :: ndims, lon_dimid, lat_dimid, time_dimid
-  Character (Len=*), Parameter :: LAT_NAME = "latitude"
-  Character (Len=*), Parameter :: LON_NAME = "longitude"
-  Character (Len=*), Parameter :: TIME_NAME = "time"
+  integer (i4b) :: nlats, nlons, ntimes
+  integer (i4b) :: ncid, varid, latid, lonid, timeid
+  integer (i4b) :: ndims, lon_dimid, lat_dimid, time_dimid
+  character (len=*), parameter :: lat_name = "latitude"
+  character (len=*), parameter :: lon_name = "longitude"
+  character (len=*), parameter :: time_name = "time"
  
  
   ! We recommend that each variable carry a "units" attribute.
-  Character (Len=*), Parameter :: UNITS = "units"
-  Character (Len=*), Parameter :: LAT_UNITS = "degrees_north"
-  Character (Len=*), Parameter :: LON_UNITS = "degrees_east"
+  character (len=*), parameter :: units = "units"
+  character (len=*), parameter :: lat_units = "degrees_north"
+  character (len=*), parameter :: lon_units = "degrees_east"
  
-  Integer (I4B), Dimension (nf90_max_var_dims) :: dimIds
-  Real (DP), Allocatable :: times (:), fcst_times (:)
+  integer (i4b), dimension (nf90_max_var_dims) :: dimids
+  real (dp), allocatable :: times (:), fcst_times (:)!modified AJN 2/4/2014
  
   ! Loop indices
-  Integer (I4B) :: lvl, lat, lon, rec, i, time_index
+  integer (i4b) :: lvl, lat, lon, rec, i, time_index
  
   !indicies for aggregating variables between forecast times
-  Integer (I4B) :: start_index
+  integer (i4b) :: start_index
  
-  Integer (I4B) :: start (3), count (3)
+  integer (i4b) :: start (3), count (3)
  
   ! To check the units attributes.
-  Character * 80 pres_units_in, temp_units_in
-  Character * 80 lat_units_in, lon_units_in
+  character * 80 pres_units_in, temp_units_in
+  character * 80 lat_units_in, lon_units_in
  
-  Real (DP), Allocatable :: accum_var (:, :, :)
+!AJN
+  real (dp), allocatable :: accum_var (:, :, :)
  
   error = 0
   time_index = 0
  
   ! Open the file.
-  Call check (nf90_open(file_name, nf90_nowrite, ncid), "File open error", error)
-  If (error /= 0) Return
+  call check (nf90_open(file_name, nf90_nowrite, ncid), "File open error", error)
+  if (error /= 0) return
  
   ! Get the varids of the latitude and longitude coordinate variables.
-  Call check (nf90_inq_varid(ncid, LAT_NAME, latid), "Latitutde name error", error)
-  Call check (nf90_inquire_variable(ncid, latid, ndims=ndims, dimIds=dimIds), "Latitutde inq error", error)
-  If (error /= 0 .Or. ndims /= 1) Return
-  lat_dimid = dimIds (1)
+  call check (nf90_inq_varid(ncid, lat_name, latid), "Latitutde name error", error)
+  call check (nf90_inquire_variable(ncid, latid, ndims=ndims, dimids=dimids), "Latitutde inq error",&
+ &  error)
+  if (error /= 0 .or. ndims /= 1) return
+  lat_dimid = dimids (1)
  
-  Call check (nf90_inq_varid(ncid, LON_NAME, lonid), "Longitude name error", error)
-  Call check (nf90_inquire_variable(ncid, lonid, ndims=ndims, dimIds=dimIds), "Longitude inq error", error)
-  If (error /= 0 .Or. ndims /= 1) Return
-  lon_dimid = dimIds (1)
+  call check (nf90_inq_varid(ncid, lon_name, lonid), "Longitude name error", error)
+  call check (nf90_inquire_variable(ncid, lonid, ndims=ndims, dimids=dimids), "Longitude inq error",&
+ &  error)
+  if (error /= 0 .or. ndims /= 1) return
+  lon_dimid = dimids (1)
  
-  Call check (nf90_inq_varid(ncid, TIME_NAME, timeid), "Time name error", error)
-  Call check (nf90_inquire_variable(ncid, timeid, ndims=ndims, dimIds=dimIds), "Time inq error", error)
-  If (error /= 0 .Or. ndims /= 1) Return
+  call check (nf90_inq_varid(ncid, time_name, timeid), "Time name error", error)
+  call check (nf90_inquire_variable(ncid, timeid, ndims=ndims, dimids=dimids), "Time inq error", &
+ & error)
+  if (error /= 0 .or. ndims /= 1) return
  
-  Call check (nf90_inquire_dimension(ncid, lat_dimid, len=nlats), "Latitutde dim error", error)
-  Call check (nf90_inquire_dimension(ncid, lon_dimid, len=nlons), "Longitude dim error", error)
-  If (error /= 0) Return
+  call check (nf90_inquire_dimension(ncid, lat_dimid, len=nlats), "Latitutde dim error", error)
+  call check (nf90_inquire_dimension(ncid, lon_dimid, len=nlons), "Longitude dim error", error)
+  if (error /= 0) return
  
-  Allocate (lats(nlats), lons(nlons))
+  allocate (lats(nlats), lons(nlons))
   ! Read the latitude and longitude data.
-  Call check (nf90_get_var(ncid, latid, lats), "Latitutde read error", error)
-  Call check (nf90_get_var(ncid, lonid, lons), "Longitude read error", error)
+  call check (nf90_get_var(ncid, latid, lats), "Latitutde read error", error)
+  call check (nf90_get_var(ncid, lonid, lons), "Longitude read error", error)
  
  
-  Call check (nf90_inq_varid(ncid, var_name, varid), "Variable name error", error)
-  Call check (nf90_inquire_variable(ncid, varid, ndims=ndims, dimIds=dimIds), "Variable inq error", error)
+  call check (nf90_inq_varid(ncid, var_name, varid), "Variable name error", error)
+  call check (nf90_inquire_variable(ncid, varid, ndims=ndims, dimids=dimids), "Variable inq error", &
+ & error)
  
-  If (error == 0 .And. ndims == 3 .And. dimIds(2) == latid .And. dimIds(1) == lonid) Then
+  if (error == 0 .and. ndims == 3 .and. dimids(2) == latid .and. dimids(1) == lonid) then
  
-    time_dimid = dimIds (3)
+    time_dimid = dimids (3)
  
-    Call check (nf90_inquire_dimension(ncid, time_dimid, len=ntimes), "Time dim error", error)
+    call check (nf90_inquire_dimension(ncid, time_dimid, len=ntimes), "Time dim error", error)
  
-    Allocate (times(ntimes))
-    Allocate (fcst_times(ntimes))
+    allocate (times(ntimes))
+    allocate (fcst_times(ntimes))
  
-    Call check (nf90_get_var(ncid, timeid, times), "Time read error", error)
-    If (error /= 0) Return
+    call check (nf90_get_var(ncid, timeid, times), "Time read error", error)
+    if (error /= 0) return
  
     fcst_times = times
  
-    Do i = 1, ntimes, 1
-      If (times(i) == valid_time) time_index = i
-    End Do
-    Deallocate (times)
-    If (time_index == 0) Then
-      Print ("(AF11.0A))"), "Error: time (", valid_time, ") not found in this file. "
+    do i = 1, ntimes, 1
+      if (times(i) == valid_time) time_index = i
+    end do
+    deallocate (times)
+    if (time_index == 0) then
+      print ("(AF11.0A))"), "Error: time (", valid_time, ") not found in this file. "
       error = 1
-      Deallocate (lats)
-      Deallocate (lons)
-      Return
-    End If
+      deallocate (lats)
+      deallocate (lons)
+      return
+    end if
  
-    If (trim(var_name) == 'APCP_ens_mean_surface' .Or. trim(var_name) == 'DSWRF_ens_mean_surface') Then
+    if (trim(var_name) == 'APCP_ens_mean_surface' .or. trim(var_name) == 'DSWRF_ens_mean_surface') &
+   & then
        !find fcst_time that is ~24 hours prior
        !just find closest one that is either 24-hrs or less
  
-      Do i = 1, ntimes, 1
-        If (fcst_times(i) >= valid_time-86400) Then
+      do i = 1, ntimes, 1
+        if (fcst_times(i) >= valid_time-86400) then
           start_index = i
-          Exit
-        End If
-      End Do
+          print *, start_index, time_index
+          exit
+        end if
+      end do
  
       start = (/ 1, 1, start_index /)
       count = (/ nlons, nlats, 1 /)
-      Allocate (var(nlons, nlats, 1))
-      Allocate (accum_var(nlons, nlats, 1))
+      allocate (var(nlons, nlats, 1))
+      allocate (accum_var(nlons, nlats, 1))
       accum_var = 0.0
  
-      Do i = 1, (time_index-start_index), 1
+      do i = 1, (time_index-start_index), 1
         start = (/ 1, 1, start_index + i /)
-        Call check (nf90_get_var(ncid, varid, var, start, count), "Variable read error", error)
+        call check (nf90_get_var(ncid, varid, var, start, count), "Variable read error", error)
         accum_var = accum_var + var
-      End Do
+      end do
  
       var = accum_var
  
-      If (error /= 0) Then
-        Deallocate (accum_var)
-      End If
+      if (error /= 0) then
+        deallocate (accum_var)
+      end if
  
-    Else
+    else
  
       start = (/ 1, 1, time_index /)
       count = (/ nlons, nlats, 1 /)
-      Allocate (var(nlons, nlats, 1))
+      allocate (var(nlons, nlats, 1))
  
-      Call check (nf90_get_var(ncid, varid, var, start, count), "Variable read error", error)
+      call check (nf90_get_var(ncid, varid, var, start, count), "Variable read error", error)
  
-    End If
+    end if
  
-    If (error /= 0) Then
-      Deallocate (var)
-    End If
+    if (error /= 0) then
+      deallocate (var)
+    end if
  
-    Deallocate (fcst_times)
+    deallocate (fcst_times)
  
-  End If
+  end if
  
   ! Close the file.
   i = nf90_close (ncid)
  
-Contains
-  Subroutine check (status, info, error)
-    Integer, Intent (In) :: status
-    Character (Len=*), Intent (In) :: info
-    Integer, Intent (Out) :: error
+contains
+  subroutine check (status, info, error)
+    integer, intent (in) :: status
+    character (len=*), intent (in) :: info
+    integer, intent (out) :: error
  
-    If (status /= nf90_noerr) Then
-      Print *, trim (info) // ": " // trim (nf90_strerror(status))
+    if (status /= nf90_noerr) then
+      print *, trim (info) // ": " // trim (nf90_strerror(status))
       error = 1
-    End If
-  End Subroutine check
-End Subroutine read_nc_file
+    end if
+  end subroutine check
+end subroutine read_nc_file
  

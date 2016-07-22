@@ -1,0 +1,23 @@
+! TEMPLATE for year long runs of regression code (smaller basins)
+! sets mode in regression code  1 = analog downscaling, 2 = interpolation for ensemble forcing
+MODE = 2
+! start date of regression  YYYYMMDD
+START_DATE = 20160101
+! end date of regression  fmt YYYYMMDD   
+END_DATE = 20160206
+! The file containing the lists of sites to process (needs redoing! prog gets data path from this)
+SITE_LIST = /d6/hydrofcst/overtheloop/data/stn_obs/spinup_fill_aw/station_list_slope.ghcnIDs.HHWM8.v1.txt
+! give the primary variable (this needs redoing)
+SITE_VAR = prcp
+! The Variable string used within each station timeseries file that identifies precipitation
+STATION_VAR = prcp
+! Grid information, Used only in mode 2
+GRID_LIST = /home/andywood/proj/overtheloop/scripts/ens_forc/info/HHWM8.gridinfo.0625.nc
+! Initial Search Distance in km 
+MAX_DISTANCE = 200.0  
+! Output file name
+OUTPUT_FILE = /d6/hydrofcst/overtheloop/data/output/ens_forc/HHWM8/regr/regress_ts.HHWM8.2016.nc
+! Controls whether or not to check for temperature data?
+SITE_VAR_T = T
+! Location of input station or grid data (without trailing "/")
+DATA_DIRECTORY = /d6/hydrofcst/overtheloop/data/stn_obs/spinup_fill_aw

@@ -1,48 +1,48 @@
-Module linkstruct
+module linkstruct
 !
 !	Modified:
 !	Andy Newman, Aug 2013
 !
-  Use nrtype
-  Implicit None
-  Save
+  use nrtype
+  implicit none
+  save
  ! --------------------------------------------------------------------------------------
  ! structure to hold indices of desired data in the input files
-  Type DES_IX
-    Integer (I4B) :: SPL1_START ! start index (1st spatial dimension)
-    Integer (I4B) :: SPL1_COUNT ! start index (1st spatial dimension)
-    Integer (I4B) :: SPL2_START ! count (2nd spatial dimension)
-    Integer (I4B) :: SPL2_COUNT ! count (2nd spatial dimension)
-  End Type DES_IX
+  type des_ix
+    integer (i4b) :: spl1_start ! start index (1st spatial dimension)
+    integer (i4b) :: spl1_count ! start index (1st spatial dimension)
+    integer (i4b) :: spl2_start ! count (2nd spatial dimension)
+    integer (i4b) :: spl2_count ! count (2nd spatial dimension)
+  end type des_ix
  ! --------------------------------------------------------------------------------------
  ! coordinates of the "current" grid
-  Type COORDS
-    Type (DES_IX) :: IDX ! indices of data in input files
-    Real (DP), Dimension (:, :), Pointer :: LAT ! latitude
-    Real (DP), Dimension (:, :), Pointer :: LON ! longitude
-    Real (DP), Dimension (:, :), Pointer :: ELV ! elevation
-  End Type COORDS
+  type coords
+    type (des_ix) :: idx ! indices of data in input files
+    real (dp), dimension (:, :), pointer :: lat ! latitude
+    real (dp), dimension (:, :), pointer :: lon ! longitude
+    real (dp), dimension (:, :), pointer :: elv ! elevation
+  end type coords
  ! --------------------------------------------------------------------------------------
  ! (i,j) and (lat,lon) of individual grid points that are assigned to a given sub-basin
-  Type BASGRD
-    Integer (I4B) :: IPOS ! i-position
-    Integer (I4B) :: JPOS ! j-position
-    Real (DP) :: WGHT ! weight assigned to grid
-    Real (DP) :: CRAT ! mean annual precip (bas/sta)
-    Real (DP) :: CORR ! correction (precip/(1+corr))
-    Real (DP) :: ALAT ! latitude of i-j position
-    Real (DP) :: ALON ! longitude of i-j position
-  End Type BASGRD
+  type basgrd
+    integer (i4b) :: ipos ! i-position
+    integer (i4b) :: jpos ! j-position
+    real (dp) :: wght ! weight assigned to grid
+    real (dp) :: crat ! mean annual precip (bas/sta)
+    real (dp) :: corr ! correction (precip/(1+corr))
+    real (dp) :: alat ! latitude of i-j position
+    real (dp) :: alon ! longitude of i-j position
+  end type basgrd
  ! --------------------------------------------------------------------------------------
  ! collection of grid points that are assigned to a given sub-basin
-  Type INTERP
-    Type (BASGRD), Dimension (:), Pointer :: LINK
-  End Type INTERP
+  type interp
+    type (basgrd), dimension (:), pointer :: link
+  end type interp
  ! --------------------------------------------------------------------------------------
  ! structure to hold the grid-to-basin information
-  Type (INTERP), Dimension (:), Pointer :: GRID_CLOSE ! save temporary linkage information
+  type (interp), dimension (:), pointer :: grid_close ! save temporary linkage information
  ! --------------------------------------------------------------------------------------
  ! structure to hold the current grid
-  Type (COORDS), Pointer :: HOLDING ! "current" grid of lat-lon
+  type (coords), pointer :: holding ! "current" grid of lat-lon
  ! --------------------------------------------------------------------------------------
-End Module linkstruct
+end module linkstruct

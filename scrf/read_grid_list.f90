@@ -1,19 +1,19 @@
-Subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
-  Use strings
-  Use nrtype
-  Implicit None
- 
-  Character (Len=500), Intent (In) :: file_name
-  Real (DP), Allocatable, Intent (Out) :: lats (:), lons (:), alts (:), slp_n (:), slp_e (:)
-  Integer (I4B), Intent (Out) :: nx, ny
-  Integer, Intent (Out) :: error
- 
-  Character (Len=100) :: peices (5)
-  Integer :: ngrid, i, npeices, stat, err, ipos
-  Real (DP) :: dx, dy, startx, starty
-  Character (300) :: line
-  Logical fexist
- 
+subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
+  use strings
+  use nrtype
+  implicit none
+!
+  character (len=500), intent (in) :: file_name
+  real (dp), allocatable, intent (out) :: lats (:), lons (:), alts (:), slp_n (:), slp_e (:)
+  integer (i4b), intent (out) :: nx, ny
+  integer, intent (out) :: error
+!
+  character (len=100) :: peices (5)
+  integer :: ngrid, i, npeices, stat, err, ipos
+  real (dp) :: dx, dy, startx, starty
+  character (300) :: line
+  logical fexist
+!
   ngrid = 0
   nx = 0
   ny = 0
@@ -21,101 +21,101 @@ Subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, er
   dy = 0.0
   startx = 0.0
   starty = 0.0
- 
+!
   error = 0
-  Print *, "Reading grid file: ", trim (file_name)
- 
-  Inquire (File=file_name, Exist=fexist)
-  If ( .Not. fexist) Then
-    Print *, "Cannot find file: ", trim (file_name)
+  print *, "Reading grid file: ", trim (file_name)
+!
+  inquire (file=file_name, exist=fexist)
+  if ( .not. fexist) then
+    print *, "Cannot find file: ", trim (file_name)
     error = 1
-    Return
-  End If
- 
-  Open (13, File=file_name, Status='old')
- 
+    return
+  end if
+!
+  open (13, file=file_name, status='old')
+!
   i = 1
-  Do
-    Read (13, "(A)", IoStat=stat) line
-    If (stat < 0) Exit
+  do
+    read (13, "(A)", iostat=stat) line
+    if (stat < 0) exit
     line = adjustl (line)
-    If (line(1:1) .Ne. "#" .And. len(trim(line)) /= 0) Then
- 
+    if (line(1:1) .ne. "#" .and. len(trim(line)) /= 0) then
+!
       ipos = index (line, "NX")
-      If (ipos > 0) Then
+      if (ipos > 0) then
         ipos = ipos + 2
-        Call value (line(ipos:), nx, err)
-        If (nx > 0 .And. ny > 0) Then
+        call value (line(ipos:), nx, err)
+        if (nx > 0 .and. ny > 0) then
           ngrid = nx * ny
-          Allocate (lats(ngrid))
-          Allocate (lons(ngrid))
-          Allocate (alts(ngrid))
-          Allocate (slp_n(ngrid))
-          Allocate (slp_e(ngrid))
-        End If
-      End If
+          allocate (lats(ngrid))
+          allocate (lons(ngrid))
+          allocate (alts(ngrid))
+          allocate (slp_n(ngrid))
+          allocate (slp_e(ngrid))
+        end if
+      end if
       ipos = index (line, "NY")
-      If (ipos > 0) Then
+      if (ipos > 0) then
         ipos = ipos + 2
-        Call value (line(ipos:), ny, err)
-        If (nx > 0 .And. ny > 0) Then
+        call value (line(ipos:), ny, err)
+        if (nx > 0 .and. ny > 0) then
           ngrid = nx * ny
-          Allocate (lats(ngrid))
-          Allocate (lons(ngrid))
-          Allocate (alts(ngrid))
-          Allocate (slp_n(ngrid))
-          Allocate (slp_e(ngrid))
-        End If
-      End If
+          allocate (lats(ngrid))
+          allocate (lons(ngrid))
+          allocate (alts(ngrid))
+          allocate (slp_n(ngrid))
+          allocate (slp_e(ngrid))
+        end if
+      end if
       ipos = index (line, "DX")
-      If (ipos > 0) Then
+      if (ipos > 0) then
         ipos = ipos + 2
-        Call value (line(ipos:), dx, err)
-      End If
+        call value (line(ipos:), dx, err)
+      end if
       ipos = index (line, "DY")
-      If (ipos > 0) Then
+      if (ipos > 0) then
         ipos = ipos + 2
-        Call value (line(ipos:), dy, err)
-      End If
+        call value (line(ipos:), dy, err)
+      end if
       ipos = index (line, "STARTX")
-      If (ipos > 0) Then
+      if (ipos > 0) then
         ipos = ipos + 6
-        Call value (line(ipos:), startx, err)
-      End If
+        call value (line(ipos:), startx, err)
+      end if
       ipos = index (line, "STARTY")
-      If (ipos > 0) Then
+      if (ipos > 0) then
         ipos = ipos + 6
-        Call value (line(ipos:), starty, err)
-      End If
-    End If
- 
+        call value (line(ipos:), starty, err)
+      end if
+    end if
+!
     ipos = index (line, ',')
-    If (ipos > 0 .And. ngrid > 0) Then
-      Call parse (line, ",", peices, npeices)
-      If (npeices == 5) Then
-        Call value (peices(1), lats(i), err)
-        If (err /= 0) lats (i) = - 999.99
-        Call value (peices(2), lons(i), err)
-        If (err /= 0) lons (i) = - 999.99
-        Call value (peices(3), alts(i), err)
-        If (err /= 0) alts (i) = - 999.99
-        Call value (peices(4), slp_n(i), err)
-        If (err /= 0) slp_n (i) = - 999.99
-        Call value (peices(5), slp_e(i), err)
-        If (err /= 0) slp_e (i) = - 999.99
+    if (ipos > 0 .and. ngrid > 0) then
+      call parse (line, ",", peices, npeices)
+      if (npeices == 5) then
+        call value (peices(1), lats(i), err)
+        if (err /= 0) lats (i) = - 999.99
+        call value (peices(2), lons(i), err)
+        if (err /= 0) lons (i) = - 999.99
+        call value (peices(3), alts(i), err)
+        if (err /= 0) alts (i) = - 999.99
+        call value (peices(4), slp_n(i), err)
+        if (err /= 0) slp_n (i) = - 999.99
+        call value (peices(5), slp_e(i), err)
+        if (err /= 0) slp_e (i) = - 999.99
         i = i + 1
-      End If
-    End If
- 
-  End Do
-  If (ngrid == 0) Then
-    Print *, "Failed to find NX, NY in grid list: ", trim (file_name)
+      end if
+    end if
+!
+  end do
+  if (ngrid == 0) then
+    print *, "Failed to find NX, NY in grid list: ", trim (file_name)
     error = 1
-  Else
-    If (i /= ngrid+1) Then
-      Print *, "Found only ", i, " out of ", ngrid, " points from: ", trim (file_name)
+  else
+    if (i /= ngrid+1) then
+      print *, "Found only ", i, " out of ", ngrid, " points from: ", trim (file_name)
       error = 1
-    End If
-  End If
- 
-End Subroutine read_grid_list
+    end if
+  end if
+!
+end subroutine read_grid_list

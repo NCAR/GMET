@@ -1,479 +1,483 @@
-Module interblock
-  Implicit None
+module interblock
+  implicit none
  ! ---------------------------------------------------------------------------------------
  ! DEFINES EXPLICIT INTERFACES BETWEEN SUB-PROGRAMS
  ! ---------------------------------------------------------------------------------------
  ! interface for get_2dgrid -- used to get a generic 2-d grid
-  Interface
-    Subroutine GET_2DGRID (TSERIES_FILE, STANDARDNAME, CELL_METHODS, GEN_2DG, NENSM, NSPL1, NSPL2, NTIME, IDAT0, IDAT1, &
-   & ISIM0, ISIM1, UNITSTR, VEXIST, TEXIST, EEXIST)
-      Use nrtype ! variable types etc.
-      Use dat_2dgrid ! generic 2-d grid
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Character (Len=120), Intent (In) :: STANDARDNAME ! standard_name of data variable
-      Character (Len=120), Intent (In) :: CELL_METHODS ! cell methods for data variable
-      Type (GENDAT), Pointer :: GEN_2DG ! 2-d data structure
-      Integer (I4B), Intent (In) :: NENSM ! # ensemble members
-      Integer (I4B), Intent (Out) :: NSPL1 ! # points 1st spatial dimension
-      Integer (I4B), Intent (Out) :: NSPL2 ! # points 2nd spatial dimension
-      Integer (I4B), Intent (Out) :: NTIME ! number of time steps
-      Integer (I4B), Intent (Out) :: IDAT0 ! first index in data array (time vector)
-      Integer (I4B), Intent (Out) :: IDAT1 ! last index in data array (time vector)
-      Integer (I4B), Intent (Out) :: ISIM0 ! first index of simulation array
-      Integer (I4B), Intent (Out) :: ISIM1 ! last index of simulation array
-      Character (Len=50), Intent (Out) :: UNITSTR ! units of data variable
-      Logical (LGT), Intent (Out) :: VEXIST ! flag if the variable exists
-      Logical (LGT), Intent (Out) :: TEXIST ! flag if variable depends on time
-      Logical (LGT), Intent (Out) :: EEXIST ! flag if ensembles exist
-    End Subroutine GET_2DGRID
-  End Interface
+  interface
+    subroutine get_2dgrid (tseries_file, standardname, cell_methods, gen_2dg, nensm, nspl1, nspl2, &
+   & ntime, idat0, idat1, isim0, isim1, unitstr, vexist, texist, eexist)
+      use nrtype ! variable types etc.
+      use dat_2dgrid ! generic 2-d grid
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      character (len=120), intent (in) :: standardname ! standard_name of data variable
+      character (len=120), intent (in) :: cell_methods ! cell methods for data variable
+      type (gendat), pointer :: gen_2dg ! 2-d data structure
+      integer (i4b), intent (in) :: nensm ! # ensemble members
+      integer (i4b), intent (out) :: nspl1 ! # points 1st spatial dimension
+      integer (i4b), intent (out) :: nspl2 ! # points 2nd spatial dimension
+      integer (i4b), intent (out) :: ntime ! number of time steps
+      integer (i4b), intent (out) :: idat0 ! first index in data array (time vector)
+      integer (i4b), intent (out) :: idat1 ! last index in data array (time vector)
+      integer (i4b), intent (out) :: isim0 ! first index of simulation array
+      integer (i4b), intent (out) :: isim1 ! last index of simulation array
+      character (len=50), intent (out) :: unitstr ! units of data variable
+      logical (lgt), intent (out) :: vexist ! flag if the variable exists
+      logical (lgt), intent (out) :: texist ! flag if variable depends on time
+      logical (lgt), intent (out) :: eexist ! flag if ensembles exist
+    end subroutine get_2dgrid
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for xy_station -- used to get lat-lon from station data
-  Interface
-    Subroutine XY_STATION (TSERIES_FILE, YVAR_ID, XVAR_ID, XY_LAT, XY_LON, SPL1_START, SPL1_COUNT, SPL2_START, &
-   & SPL2_COUNT, VAR_ID)
-      Use nrtype ! variable types etc.
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Integer (I4B), Intent (In) :: YVAR_ID ! NetCDF ID for latitude
-      Integer (I4B), Intent (In) :: XVAR_ID ! NetCDF ID for longitude
-      Integer (I4B), Intent (In) :: VAR_ID ! NetCDF ID for variable
-      Real (DP), Dimension (:, :), Pointer :: XY_LAT ! 2-dimensional grid of latitudes
-      Real (DP), Dimension (:, :), Pointer :: XY_LON ! 2-dimensional grid of longitudes
-      Integer (I4B), Dimension (:), Pointer :: SPL1_START ! start index for 1st spatial dimension
-      Integer (I4B), Intent (Out) :: SPL1_COUNT ! count for 1st spatial dimension
-      Integer (I4B), Dimension (:), Pointer :: SPL2_START ! start index for 2nd spatial dimension
-      Integer (I4B), Intent (Out) :: SPL2_COUNT ! count for 2nd spatial dimension
-    End Subroutine XY_STATION
-  End Interface
+  interface
+    subroutine xy_station (tseries_file, yvar_id, xvar_id, xy_lat, xy_lon, spl1_start, spl1_count, &
+   & spl2_start, spl2_count, var_id)
+      use nrtype ! variable types etc.
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      integer (i4b), intent (in) :: yvar_id ! NetCDF ID for latitude
+      integer (i4b), intent (in) :: xvar_id ! NetCDF ID for longitude
+      integer (i4b), intent (in) :: var_id ! NetCDF ID for variable
+      real (dp), dimension (:, :), pointer :: xy_lat ! 2-dimensional grid of latitudes
+      real (dp), dimension (:, :), pointer :: xy_lon ! 2-dimensional grid of longitudes
+      integer (i4b), dimension (:), pointer :: spl1_start ! start index for 1st spatial dimension
+      integer (i4b), intent (out) :: spl1_count ! count for 1st spatial dimension
+      integer (i4b), dimension (:), pointer :: spl2_start ! start index for 2nd spatial dimension
+      integer (i4b), intent (out) :: spl2_count ! count for 2nd spatial dimension
+    end subroutine xy_station
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for xy_lat_lon -- used to get lat-lon from a regular grid
-  Interface
-    Subroutine XY_LAT_LON (TSERIES_FILE, YVAR_ID, XVAR_ID, XY_LAT, XY_LON, SPL1_START, SPL1_COUNT, SPL2_START, &
-   & SPL2_COUNT)
-      Use nrtype ! variable types etc.
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Integer (I4B), Intent (In) :: YVAR_ID ! NetCDF ID for latitude
-      Integer (I4B), Intent (In) :: XVAR_ID ! NetCDF ID for longitude
-      Real (DP), Dimension (:, :), Pointer :: XY_LAT ! 2-dimensional grid of latitudes
-      Real (DP), Dimension (:, :), Pointer :: XY_LON ! 2-dimensional grid of longitudes
-      Integer (I4B), Dimension (:), Pointer :: SPL1_START ! start index for 1st spatial dimension
-      Integer (I4B), Intent (Out) :: SPL1_COUNT ! count for 1st spatial dimension
-      Integer (I4B), Dimension (:), Pointer :: SPL2_START ! start index for 2nd spatial dimension
-      Integer (I4B), Intent (Out) :: SPL2_COUNT ! count for 2nd spatial dimension
-    End Subroutine XY_LAT_LON
-  End Interface
+  interface
+    subroutine xy_lat_lon (tseries_file, yvar_id, xvar_id, xy_lat, xy_lon, spl1_start, spl1_count, &
+   & spl2_start, spl2_count)
+      use nrtype ! variable types etc.
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      integer (i4b), intent (in) :: yvar_id ! NetCDF ID for latitude
+      integer (i4b), intent (in) :: xvar_id ! NetCDF ID for longitude
+      real (dp), dimension (:, :), pointer :: xy_lat ! 2-dimensional grid of latitudes
+      real (dp), dimension (:, :), pointer :: xy_lon ! 2-dimensional grid of longitudes
+      integer (i4b), dimension (:), pointer :: spl1_start ! start index for 1st spatial dimension
+      integer (i4b), intent (out) :: spl1_count ! count for 1st spatial dimension
+      integer (i4b), dimension (:), pointer :: spl2_start ! start index for 2nd spatial dimension
+      integer (i4b), intent (out) :: spl2_count ! count for 2nd spatial dimension
+    end subroutine xy_lat_lon
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for xy_rotated -- used to get lat-lon from a rotated grid
-  Interface
-    Subroutine XY_ROTATED (TSERIES_FILE, YVAR_ID, XVAR_ID, XY_LAT, XY_LON, SPL1_START, SPL1_COUNT, SPL2_START, &
-   & SPL2_COUNT)
-      Use nrtype ! variable types etc.
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Integer (I4B), Intent (In) :: YVAR_ID ! NetCDF ID for latitude
-      Integer (I4B), Intent (In) :: XVAR_ID ! NetCDF ID for longitude
-      Real (DP), Dimension (:, :), Pointer :: XY_LAT ! 2-dimensional grid of latitudes
-      Real (DP), Dimension (:, :), Pointer :: XY_LON ! 2-dimensional grid of longitudes
-      Integer (I4B), Dimension (:), Pointer :: SPL1_START ! start index for 1st spatial dimension
-      Integer (I4B), Intent (Out) :: SPL1_COUNT ! count for 1st spatial dimension
-      Integer (I4B), Dimension (:), Pointer :: SPL2_START ! start index for 2nd spatial dimension
-      Integer (I4B), Intent (Out) :: SPL2_COUNT ! count for 2nd spatial dimension
-    End Subroutine XY_ROTATED
-  End Interface
+  interface
+    subroutine xy_rotated (tseries_file, yvar_id, xvar_id, xy_lat, xy_lon, spl1_start, spl1_count, &
+   & spl2_start, spl2_count)
+      use nrtype ! variable types etc.
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      integer (i4b), intent (in) :: yvar_id ! NetCDF ID for latitude
+      integer (i4b), intent (in) :: xvar_id ! NetCDF ID for longitude
+      real (dp), dimension (:, :), pointer :: xy_lat ! 2-dimensional grid of latitudes
+      real (dp), dimension (:, :), pointer :: xy_lon ! 2-dimensional grid of longitudes
+      integer (i4b), dimension (:), pointer :: spl1_start ! start index for 1st spatial dimension
+      integer (i4b), intent (out) :: spl1_count ! count for 1st spatial dimension
+      integer (i4b), dimension (:), pointer :: spl2_start ! start index for 2nd spatial dimension
+      integer (i4b), intent (out) :: spl2_count ! count for 2nd spatial dimension
+    end subroutine xy_rotated
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for get_elevtn -- used to get elevation data
-  Interface
-    Subroutine GET_ELEVTN (TSERIES_FILE, CSYSTEM, XY_ELV, SPL1_START, SPL1_COUNT, SPL2_START, SPL2_COUNT)
-      Use nrtype ! variable types etc.
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Character (Len=12), Intent (In) :: CSYSTEM ! Coordinate system of raw data
-      Integer (I4B), Dimension (:), Pointer :: SPL1_START ! start index for 1st spatial dimension
-      Integer (I4B), Intent (In) :: SPL1_COUNT ! count for 1st spatial dimension
-      Integer (I4B), Dimension (:), Pointer :: SPL2_START ! start index for 2nd spatial dimension
-      Integer (I4B), Intent (In) :: SPL2_COUNT ! count for 2nd spatial dimension
-      Real (DP), Dimension (:, :), Pointer :: XY_ELV ! 2-dimensional grid of elevation
-    End Subroutine GET_ELEVTN
-  End Interface
+  interface
+    subroutine get_elevtn (tseries_file, csystem, xy_elv, spl1_start, spl1_count, spl2_start, &
+   & spl2_count)
+      use nrtype ! variable types etc.
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      character (len=12), intent (in) :: csystem ! Coordinate system of raw data
+      integer (i4b), dimension (:), pointer :: spl1_start ! start index for 1st spatial dimension
+      integer (i4b), intent (in) :: spl1_count ! count for 1st spatial dimension
+      integer (i4b), dimension (:), pointer :: spl2_start ! start index for 2nd spatial dimension
+      integer (i4b), intent (in) :: spl2_count ! count for 2nd spatial dimension
+      real (dp), dimension (:, :), pointer :: xy_elv ! 2-dimensional grid of elevation
+    end subroutine get_elevtn
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for get_timdat -- used to get full time arrays
-  Interface
-    Subroutine GET_TIMDAT (TSERIES_FILE, TVAR_ID, TB0, TB1, TIM, BEX, NTIM_DATA)
-      Use nrtype ! variable types etc.
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Integer (I4B), Intent (In) :: TVAR_ID ! NetCDF ID for time
-      Real (DP), Dimension (:), Pointer :: TB0 ! start of time interval (in data file)
-      Real (DP), Dimension (:), Pointer :: TB1 ! end of time interval (in data file)
-      Real (DP), Dimension (:), Pointer :: TIM ! time stamp (in data file)
-      Logical (LGT), Intent (Out) :: BEX ! .TRUE. if time bounds exist
-      Integer (I4B), Intent (Out) :: NTIM_DATA ! number of time intervals in the data file
-    End Subroutine GET_TIMDAT
-  End Interface
+  interface
+    subroutine get_timdat (tseries_file, tvar_id, tb0, tb1, tim, bex, ntim_data)
+      use nrtype ! variable types etc.
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      integer (i4b), intent (in) :: tvar_id ! NetCDF ID for time
+      real (dp), dimension (:), pointer :: tb0 ! start of time interval (in data file)
+      real (dp), dimension (:), pointer :: tb1 ! end of time interval (in data file)
+      real (dp), dimension (:), pointer :: tim ! time stamp (in data file)
+      logical (lgt), intent (out) :: bex ! .TRUE. if time bounds exist
+      integer (i4b), intent (out) :: ntim_data ! number of time intervals in the data file
+    end subroutine get_timdat
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for get_subtim -- used to get time subset
-  Interface
-    Subroutine GET_SUBTIM (TB0, TB1, TIM, BEX, NTIM, TIME_START, TIME_COUNT, ISIM0, ISIM1)
-      Use nrtype ! variable types etc.
-      Real (DP), Dimension (:), Pointer :: TB0 ! start of time interval (in data file)
-      Real (DP), Dimension (:), Pointer :: TB1 ! end of time interval (in data file)
-      Real (DP), Dimension (:), Pointer :: TIM ! time stamp (in data file)
-      Logical (LGT), Intent (In) :: BEX ! .TRUE. if time bounds exist
-      Integer (I4B), Intent (In) :: NTIM ! number of time intervals in data
-      Integer (I4B), Intent (Out) :: TIME_START ! start index for time
-      Integer (I4B), Intent (Out) :: TIME_COUNT ! count for time
-      Integer (I4B), Intent (Out) :: ISIM0 ! first index of simulation array
-      Integer (I4B), Intent (Out) :: ISIM1 ! last index of simulation array
-    End Subroutine GET_SUBTIM
-  End Interface
+  interface
+    subroutine get_subtim (tb0, tb1, tim, bex, ntim, time_start, time_count, isim0, isim1)
+      use nrtype ! variable types etc.
+      real (dp), dimension (:), pointer :: tb0 ! start of time interval (in data file)
+      real (dp), dimension (:), pointer :: tb1 ! end of time interval (in data file)
+      real (dp), dimension (:), pointer :: tim ! time stamp (in data file)
+      logical (lgt), intent (in) :: bex ! .TRUE. if time bounds exist
+      integer (i4b), intent (in) :: ntim ! number of time intervals in data
+      integer (i4b), intent (out) :: time_start ! start index for time
+      integer (i4b), intent (out) :: time_count ! count for time
+      integer (i4b), intent (out) :: isim0 ! first index of simulation array
+      integer (i4b), intent (out) :: isim1 ! last index of simulation array
+    end subroutine get_subtim
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for get_subset -- used to get data subset
-  Interface
-    Subroutine GET_SUBSET (TSERIES_FILE, CSYSTEM, VAR_ID, TDIM_IX, ZDIM_IX, YDIM_IX, XDIM_IX, EDIM_IX, TIME_START, &
-   & TIME_COUNT, SPL1_START, SPL1_COUNT, SPL2_START, SPL2_COUNT, VERT_START, VERT_COUNT, IENS_START, IENS_COUNT, &
-   & RAW_DAT, ENS_DAT, UNITSTR)
-      Use nrtype ! variable types etc.
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Character (Len=12), Intent (In) :: CSYSTEM ! Coordinate system of raw data
-      Integer (I4B), Intent (In) :: VAR_ID ! NetCDF ID for data variable
-      Integer (I4B), Intent (In) :: TDIM_IX ! NetCDF dimension index for time variable
-      Integer (I4B), Intent (In) :: ZDIM_IX ! NetCDF dimension index for (height, depth)
-      Integer (I4B), Intent (In) :: YDIM_IX ! NetCDF dimension index for latitude
-      Integer (I4B), Intent (In) :: XDIM_IX ! NetCDF dimension index for longitude
-      Integer (I4B), Intent (In) :: EDIM_IX ! NetCDF dimension index for ensemble
-      Integer (I4B), Intent (In) :: TIME_START ! start index for time
-      Integer (I4B), Intent (In) :: TIME_COUNT ! count for time
-      Integer (I4B), Dimension (:), Pointer :: SPL1_START ! start index for 1st spatial dimension
-      Integer (I4B), Intent (In) :: SPL1_COUNT ! count for 1st spatial dimension
-      Integer (I4B), Dimension (:), Pointer :: SPL2_START ! start index for 2nd spatial dimension
-      Integer (I4B), Intent (In) :: SPL2_COUNT ! count for 2nd spatial dimension
-      Integer (I4B), Intent (In) :: VERT_START ! start index for vertical dimension
-      Integer (I4B), Intent (In) :: VERT_COUNT ! count for vertical dimension
-      Integer (I4B), Intent (In) :: IENS_START ! start index for ensemble dimension
-      Integer (I4B), Intent (In) :: IENS_COUNT ! count for ensemble dimension
-      Real (DP), Dimension (:, :, :), Pointer :: RAW_DAT ! raw data array (NSPL1,NSPL2,NTIME)
-      Real (DP), Dimension (:, :, :, :), Pointer :: ENS_DAT ! ensemble data array (NENSM,NSPL1,NSPL2,NTIME)
-      Character (Len=50), Intent (Out) :: UNITSTR ! units of data variable
-    End Subroutine GET_SUBSET
-  End Interface
+  interface
+    subroutine get_subset (tseries_file, csystem, var_id, tdim_ix, zdim_ix, ydim_ix, xdim_ix, &
+   & edim_ix, time_start, time_count, spl1_start, spl1_count, spl2_start, spl2_count, vert_start, &
+   & vert_count, iens_start, iens_count, raw_dat, ens_dat, unitstr)
+      use nrtype ! variable types etc.
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      character (len=12), intent (in) :: csystem ! Coordinate system of raw data
+      integer (i4b), intent (in) :: var_id ! NetCDF ID for data variable
+      integer (i4b), intent (in) :: tdim_ix ! NetCDF dimension index for time variable
+      integer (i4b), intent (in) :: zdim_ix ! NetCDF dimension index for (height, depth)
+      integer (i4b), intent (in) :: ydim_ix ! NetCDF dimension index for latitude
+      integer (i4b), intent (in) :: xdim_ix ! NetCDF dimension index for longitude
+      integer (i4b), intent (in) :: edim_ix ! NetCDF dimension index for ensemble
+      integer (i4b), intent (in) :: time_start ! start index for time
+      integer (i4b), intent (in) :: time_count ! count for time
+      integer (i4b), dimension (:), pointer :: spl1_start ! start index for 1st spatial dimension
+      integer (i4b), intent (in) :: spl1_count ! count for 1st spatial dimension
+      integer (i4b), dimension (:), pointer :: spl2_start ! start index for 2nd spatial dimension
+      integer (i4b), intent (in) :: spl2_count ! count for 2nd spatial dimension
+      integer (i4b), intent (in) :: vert_start ! start index for vertical dimension
+      integer (i4b), intent (in) :: vert_count ! count for vertical dimension
+      integer (i4b), intent (in) :: iens_start ! start index for ensemble dimension
+      integer (i4b), intent (in) :: iens_count ! count for ensemble dimension
+      real (dp), dimension (:, :, :), pointer :: raw_dat ! raw data array (NSPL1,NSPL2,NTIME)
+      real (dp), dimension (:, :, :, :), pointer :: ens_dat ! ensemble data array (NENSM,NSPL1,NSPL2,NTIME)
+      character (len=50), intent (out) :: unitstr ! units of data variable
+    end subroutine get_subset
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for grid2basin -- used to get relationship between grids and basins
-  Interface
-    Subroutine GRID2BASIN (TSERIES_FILE, STANDARDNAME, CELL_METHODS, NSPL1, NSPL2, NRCH, DTYPE, GEN_2DG, GEN_SRF)
-      Use nrtype ! variable types (DP, I4B, etc.)
-      Use dat_2dgrid ! generic 2-d data structures
-      Character (Len=120), Intent (In) :: TSERIES_FILE ! name of time series file
-      Character (Len=120), Intent (In) :: STANDARDNAME ! standard_name of data variable
-      Character (Len=120), Intent (In) :: CELL_METHODS ! cell methods for data variable
-      Integer (I4B), Intent (In) :: NSPL1 ! number of x points
-      Integer (I4B), Intent (In) :: NSPL2 ! number of y points
-      Integer (I4B), Intent (In) :: NRCH ! number of sub-basins
-      Integer (I4B), Intent (In) :: DTYPE ! input data (1-7: p,t,rh,srad,lrad,wind,pressuse)
-      Type (GENDAT), Pointer :: GEN_2DG ! data structure for generic 2-d grid
-      Type (GENDAT), Pointer, Optional :: GEN_SRF ! generic 2-d grid -- mean surface
-    End Subroutine GRID2BASIN
-  End Interface
+  interface
+    subroutine grid2basin (tseries_file, standardname, cell_methods, nspl1, nspl2, nrch, dtype, &
+   & gen_2dg, gen_srf)
+      use nrtype ! variable types (DP, I4B, etc.)
+      use dat_2dgrid ! generic 2-d data structures
+      character (len=120), intent (in) :: tseries_file ! name of time series file
+      character (len=120), intent (in) :: standardname ! standard_name of data variable
+      character (len=120), intent (in) :: cell_methods ! cell methods for data variable
+      integer (i4b), intent (in) :: nspl1 ! number of x points
+      integer (i4b), intent (in) :: nspl2 ! number of y points
+      integer (i4b), intent (in) :: nrch ! number of sub-basins
+      integer (i4b), intent (in) :: dtype ! input data (1-7: p,t,rh,srad,lrad,wind,pressuse)
+      type (gendat), pointer :: gen_2dg ! data structure for generic 2-d grid
+      type (gendat), pointer, optional :: gen_srf ! generic 2-d grid -- mean surface
+    end subroutine grid2basin
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for grid2basin -- used to get relationship between grids and basins
-  Interface
-    Subroutine BASLINKAGE (NSPL1, NSPL2, NRCH, DTYPE, GEN_SRF)
-      Use nrtype
-      Use dat_2dgrid ! generic 2-d data structures
-      Integer (I4B), Intent (In) :: NSPL1 ! number of x points
-      Integer (I4B), Intent (In) :: NSPL2 ! number of y points
-      Integer (I4B), Intent (In) :: NRCH ! number of sub-basins
-      Integer (I4B), Intent (In) :: DTYPE ! input data (1-7: p,t,rh,srad,lrad,wind,pressure)
-      Type (GENDAT), Pointer, Optional :: GEN_SRF ! generic 2-d grid -- mean surface
-    End Subroutine BASLINKAGE
-  End Interface
+  interface
+    subroutine baslinkage (nspl1, nspl2, nrch, dtype, gen_srf)
+      use nrtype
+      use dat_2dgrid ! generic 2-d data structures
+      integer (i4b), intent (in) :: nspl1 ! number of x points
+      integer (i4b), intent (in) :: nspl2 ! number of y points
+      integer (i4b), intent (in) :: nrch ! number of sub-basins
+      integer (i4b), intent (in) :: dtype ! input data (1-7: p,t,rh,srad,lrad,wind,pressure)
+      type (gendat), pointer, optional :: gen_srf ! generic 2-d grid -- mean surface
+    end subroutine baslinkage
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for satfrc_bas -- used to get saturated areas
-  Interface
-    Subroutine SATFRC_BAS (IENS, IBAS, NBINS, UAREA, IAREA, IATNB, SAREA)
-      Use nrtype
-      Integer (I4B), Intent (In) :: IENS ! Ensemble memeber
-      Integer (I4B), Intent (In) :: IBAS ! Catchment ID
-      Integer (I4B), Intent (In) :: NBINS ! Number of a/tan(b) classes
-      Real (DP), Intent (Out) :: UAREA ! catchment area UNINFLUENCED
-      Real (DP), Dimension (NBINS), Intent (Out) :: IAREA ! catchment area INFLUENCED
-      Real (DP), Dimension (NBINS), Intent (Out) :: IATNB ! representative a/tan(b) values
-      Real (DP), Intent (Out) :: SAREA ! catchment area SATURATED
-    End Subroutine SATFRC_BAS
-  End Interface
+  interface
+    subroutine satfrc_bas (iens, ibas, nbins, uarea, iarea, iatnb, sarea)
+      use nrtype
+      integer (i4b), intent (in) :: iens ! Ensemble memeber
+      integer (i4b), intent (in) :: ibas ! Catchment ID
+      integer (i4b), intent (in) :: nbins ! Number of a/tan(b) classes
+      real (dp), intent (out) :: uarea ! catchment area UNINFLUENCED
+      real (dp), dimension (nbins), intent (out) :: iarea ! catchment area INFLUENCED
+      real (dp), dimension (nbins), intent (out) :: iatnb ! representative a/tan(b) values
+      real (dp), intent (out) :: sarea ! catchment area SATURATED
+    end subroutine satfrc_bas
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for getusq_rch -- used to retrieve routed flow particles from u/s reaches and
  !                             non-routed flow particles from the current reach
-  Interface
-    Subroutine GETUSQ_RCH (IENS, JRCH, Q_JRCH, TENTRY, T_EXIT, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: IENS ! ensemble member
-      Integer (I4B), Intent (In) :: JRCH ! reach to process
-      Real (DP), Dimension (:), Pointer :: Q_JRCH ! merged (non-routed) flow in JRCH
-      Real (DP), Dimension (:), Pointer :: TENTRY ! time flow particles entered JRCH
-      Real (DP), Dimension (:), Pointer :: T_EXIT ! time flow expected to exit JRCH
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step offset
-    End Subroutine GETUSQ_RCH
-  End Interface
+  interface
+    subroutine getusq_rch (iens, jrch, q_jrch, tentry, t_exit, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: iens ! ensemble member
+      integer (i4b), intent (in) :: jrch ! reach to process
+      real (dp), dimension (:), pointer :: q_jrch ! merged (non-routed) flow in JRCH
+      real (dp), dimension (:), pointer :: tentry ! time flow particles entered JRCH
+      real (dp), dimension (:), pointer :: t_exit ! time flow expected to exit JRCH
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step offset
+    end subroutine getusq_rch
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for qexmul_rch -- used to extract flow from multiple u/s reaches
-  Interface
-    Subroutine QEXMUL_RCH (IENS, JRCH, ND, QD, TD, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: IENS ! ensemble member
-      Integer (I4B), Intent (In) :: JRCH ! reach to process
-      Integer (I4B), Intent (Out) :: ND ! number of routed particles
-      Real (DP), Dimension (:), Pointer :: QD ! flow particles just enetered JRCH
-      Real (DP), Dimension (:), Pointer :: TD ! time flow particles entered JRCH
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step offset
-    End Subroutine QEXMUL_RCH
-  End Interface
+  interface
+    subroutine qexmul_rch (iens, jrch, nd, qd, td, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: iens ! ensemble member
+      integer (i4b), intent (in) :: jrch ! reach to process
+      integer (i4b), intent (out) :: nd ! number of routed particles
+      real (dp), dimension (:), pointer :: qd ! flow particles just enetered JRCH
+      real (dp), dimension (:), pointer :: td ! time flow particles entered JRCH
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step offset
+    end subroutine qexmul_rch
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for extract_from_reach -- used to extract flow from multiple u/s reaches
-  Interface
-    Subroutine EXTRACT_FROM_RCH (IENS, JRCH, NR, Q_JRCH, T_EXIT, T_END, TNEW)
-      Use nrtype
-      Integer (I4B), Intent (In) :: IENS ! ensemble member
-      Integer (I4B), Intent (In) :: JRCH ! reach to process
-      Integer (I4B), Intent (In) :: NR ! number of routed particles
-      Real (DP), Dimension (:), Pointer :: Q_JRCH ! flow in downstream reach JRCH
-      Real (DP), Dimension (:), Pointer :: T_EXIT ! time particle expected exit JRCH
-      Real (DP) :: T_END ! end of time step
-      Real (DP), Dimension (2) :: TNEW ! start/end of time step
-    End Subroutine EXTRACT_FROM_RCH
-  End Interface
+  interface
+    subroutine extract_from_rch (iens, jrch, nr, q_jrch, t_exit, t_end, tnew)
+      use nrtype
+      integer (i4b), intent (in) :: iens ! ensemble member
+      integer (i4b), intent (in) :: jrch ! reach to process
+      integer (i4b), intent (in) :: nr ! number of routed particles
+      real (dp), dimension (:), pointer :: q_jrch ! flow in downstream reach JRCH
+      real (dp), dimension (:), pointer :: t_exit ! time particle expected exit JRCH
+      real (dp) :: t_end ! end of time step
+      real (dp), dimension (2) :: tnew ! start/end of time step
+    end subroutine extract_from_rch
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for remove_rch -- used to extract flow from multiple u/s reaches
-  Interface
-    Subroutine REMOVE_RCH (Q_JRCH, TENTRY, T_EXIT)
-      Use nrtype
-      Real (DP), Dimension (:), Pointer :: Q_JRCH ! merged (non-routed) flow in JRCH
-      Real (DP), Dimension (:), Pointer :: TENTRY ! time flow particles entered JRCH
-      Real (DP), Dimension (:), Pointer :: T_EXIT ! time flow particles exited JRCH
-    End Subroutine REMOVE_RCH
-  End Interface
+  interface
+    subroutine remove_rch (q_jrch, tentry, t_exit)
+      use nrtype
+      real (dp), dimension (:), pointer :: q_jrch ! merged (non-routed) flow in JRCH
+      real (dp), dimension (:), pointer :: tentry ! time flow particles entered JRCH
+      real (dp), dimension (:), pointer :: t_exit ! time flow particles exited JRCH
+    end subroutine remove_rch
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for kinwav_rch -- used to propogate flow particles thru single river segment
-  Interface
-    Subroutine KINWAV_RCH (JRCH, T_START, T_END, Q_JRCH, TENTRY, FROUTE, T_EXIT, NQ2)! output
-      Use nrtype
-      Integer (I4B), Intent (In) :: JRCH ! Reach to process
-      Real (DP), Intent (In) :: T_START ! start of the time step
-      Real (DP), Intent (In) :: T_END ! end of the time step
-      Real (DP), Dimension (:), Intent (Inout) :: Q_JRCH ! flow to be routed
-      Real (DP), Dimension (:), Intent (Inout) :: TENTRY ! time to be routed
-      Logical (LGT), Dimension (:), Intent (Inout) :: FROUTE ! routing flag, T=routed
-      Real (DP), Dimension (:), Intent (Inout) :: T_EXIT ! time pts expected exit segment
-      Integer (I4B), Intent (Out) :: NQ2 ! # particles (<= input b/c merge)
-    End Subroutine KINWAV_RCH
-  End Interface
+  interface
+    subroutine kinwav_rch (jrch, t_start, t_end, q_jrch, tentry, froute, t_exit, nq2)! output
+      use nrtype
+      integer (i4b), intent (in) :: jrch ! Reach to process
+      real (dp), intent (in) :: t_start ! start of the time step
+      real (dp), intent (in) :: t_end ! end of the time step
+      real (dp), dimension (:), intent (inout) :: q_jrch ! flow to be routed
+      real (dp), dimension (:), intent (inout) :: tentry ! time to be routed
+      logical (lgt), dimension (:), intent (inout) :: froute ! routing flag, T=routed
+      real (dp), dimension (:), intent (inout) :: t_exit ! time pts expected exit segment
+      integer (i4b), intent (out) :: nq2 ! # particles (<= input b/c merge)
+    end subroutine kinwav_rch
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for interp_rch -- used to compute time step average flow
-  Interface
-    Subroutine INTERP_RCH (TOLD, QOLD, TNEW, QNEW, IERR)
-      Use nrtype
-      Real (DP), Dimension (:), Intent (In) :: TOLD ! input time array
-      Real (DP), Dimension (:), Intent (In) :: QOLD ! input flow array
-      Real (DP), Dimension (:), Intent (In) :: TNEW ! desired output times
-      Real (DP), Dimension (:), Intent (Out) :: QNEW ! flow averaged for desired times
-      Integer (I4B), Intent (Out) :: IERR ! error, 1= bad bounds
-    End Subroutine INTERP_RCH
-  End Interface
+  interface
+    subroutine interp_rch (told, qold, tnew, qnew, ierr)
+      use nrtype
+      real (dp), dimension (:), intent (in) :: told ! input time array
+      real (dp), dimension (:), intent (in) :: qold ! input flow array
+      real (dp), dimension (:), intent (in) :: tnew ! desired output times
+      real (dp), dimension (:), intent (out) :: qnew ! flow averaged for desired times
+      integer (i4b), intent (out) :: ierr ! error, 1= bad bounds
+    end subroutine interp_rch
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for linearcorr -- used to compute the linear correlation coefficient
-  Interface
-    Subroutine LINEARCORR (X, Y, R)
-      Use nrtype
-      Real (DP), Intent (Out) :: R ! correlation coefficient
-      Real (DP), Dimension (:), Intent (In) :: X, Y ! input vectors
-    End Subroutine LINEARCORR
-  End Interface
+  interface
+    subroutine linearcorr (x, y, r)
+      use nrtype
+      real (dp), intent (out) :: r ! correlation coefficient
+      real (dp), dimension (:), intent (in) :: x, y ! input vectors
+    end subroutine linearcorr
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for sqrtmatrix -- used to compute the square root of a matrix
-  Interface
-    Subroutine SQRTMATRIX (A, B, N)
-      Use nrtype
-      Real (DP), Dimension (:, :), Intent (In) :: A ! input matrix
-      Real (DP), Dimension (:, :), Intent (Out) :: B ! square root of A (A=B*B)
-      Integer (I4B), Intent (In) :: N ! number of elements of A
-    End Subroutine SQRTMATRIX
-  End Interface
+  interface
+    subroutine sqrtmatrix (a, b, n)
+      use nrtype
+      real (dp), dimension (:, :), intent (in) :: a ! input matrix
+      real (dp), dimension (:, :), intent (out) :: b ! square root of A (A=B*B)
+      integer (i4b), intent (in) :: n ! number of elements of A
+    end subroutine sqrtmatrix
+  end interface
  ! ---------------------------------------------------------------------------------------
  ! interface for inv_matrix -- used to invert a matrix
-  Interface
-    Subroutine INV_MATRIX (A, B, N)
-      Use nrtype
-      Real (DP), Dimension (:, :), Intent (In) :: A ! input matrix
-      Real (DP), Dimension (:, :), Intent (Out) :: B ! inverse of A (B = A**-1)
-      Integer (I4B), Intent (In) :: N ! number of elements of A
-    End Subroutine INV_MATRIX
-  End Interface
+  interface
+    subroutine inv_matrix (a, b, n)
+      use nrtype
+      real (dp), dimension (:, :), intent (in) :: a ! input matrix
+      real (dp), dimension (:, :), intent (out) :: b ! inverse of A (B = A**-1)
+      integer (i4b), intent (in) :: n ! number of elements of A
+    end subroutine inv_matrix
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for raindisagg
-  Interface
-    Subroutine RAINDISAGG (NUM_DIS, RAIN, NLEVELS, TIMINT)
-      Use nrtype
-      Integer (I4B), Intent (In) :: NUM_DIS ! Number of disaggregated elements
-      Real (DP), Dimension (NUM_DIS), Intent (Inout) :: RAIN ! Rainfall array
-      Integer (I4B), Intent (In) :: NLEVELS ! Number of the levels in the cascade
-      Real (DP), Intent (In) :: TIMINT ! time interval of data (seconds)
-    End Subroutine RAINDISAGG
-  End Interface
+  interface
+    subroutine raindisagg (num_dis, rain, nlevels, timint)
+      use nrtype
+      integer (i4b), intent (in) :: num_dis ! Number of disaggregated elements
+      real (dp), dimension (num_dis), intent (inout) :: rain ! Rainfall array
+      integer (i4b), intent (in) :: nlevels ! Number of the levels in the cascade
+      real (dp), intent (in) :: timint ! time interval of data (seconds)
+    end subroutine raindisagg
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for gridsubset
-  Interface ! required because of the pointer arguments in the subroutine
-    Subroutine GRIDSUBSET (LON2D_A, LAT2D_A, LON2D_B, LAT2D_B, THRSHLD, OFFSET, METHOD, MASK, MISSING, GRIDLIST)
-      Use nrtype ! variable types (DP, I4B, etc.)
-      Use grid_lists ! structure for grid selection lists
-      Real (DP), Dimension (:, :), Pointer :: LON2D_A ! 2d array of lon for basic grid
-      Real (DP), Dimension (:, :), Pointer :: LAT2D_A ! 2d array of lat for basic grid
-      Real (DP), Dimension (:, :), Pointer :: LON2D_B ! 2d array of lon for input grid
-      Real (DP), Dimension (:, :), Pointer :: LAT2D_B ! 2d array of lat for input grid
-      Real (DP), Intent (In) :: THRSHLD ! threshold distance
-      Real (DP), Intent (In) :: OFFSET ! offset from initial search area
-      Integer (I4B), Intent (In) :: METHOD ! method used to select input grid points
-      Logical (LGT), Dimension (:, :), Pointer :: MASK ! input data grid points to consider
-      Logical (LGT), Intent (In) :: MISSING ! if true missing points allowed
-      Type (GRDARRAY), Dimension (:, :), Pointer :: GRIDLIST ! structure for output
-    End Subroutine GRIDSUBSET
-  End Interface
+  interface ! required because of the pointer arguments in the subroutine
+    subroutine gridsubset (lon2d_a, lat2d_a, lon2d_b, lat2d_b, thrshld, offset, method, mask, &
+   & missing, gridlist)
+      use nrtype ! variable types (DP, I4B, etc.)
+      use grid_lists ! structure for grid selection lists
+      real (dp), dimension (:, :), pointer :: lon2d_a ! 2d array of lon for basic grid
+      real (dp), dimension (:, :), pointer :: lat2d_a ! 2d array of lat for basic grid
+      real (dp), dimension (:, :), pointer :: lon2d_b ! 2d array of lon for input grid
+      real (dp), dimension (:, :), pointer :: lat2d_b ! 2d array of lat for input grid
+      real (dp), intent (in) :: thrshld ! threshold distance
+      real (dp), intent (in) :: offset ! offset from initial search area
+      integer (i4b), intent (in) :: method ! method used to select input grid points
+      logical (lgt), dimension (:, :), pointer :: mask ! input data grid points to consider
+      logical (lgt), intent (in) :: missing ! if true missing points allowed
+      type (grdarray), dimension (:, :), pointer :: gridlist ! structure for output
+    end subroutine gridsubset
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for model1step
-  Interface ! required because of the optional argument
-    Subroutine MODEL1STEP (NENS, NRCH, MRCH, NHYD, NLAK, NOBL, IOFFSET, ISTEP, IFORCE0, IFORCE1, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: NENS ! number of ensemble members
-      Integer (I4B), Intent (In) :: NRCH ! number of basins
-      Integer (I4B), Intent (In) :: MRCH ! number of basins selected for output
-      Integer (I4B), Intent (In) :: NHYD ! number of water level recorders
-      Integer (I4B), Intent (In) :: NOBL ! number of lake level observation locations
-      Integer (I4B), Intent (In) :: NLAK ! number of lakes
-      Integer (I4B), Intent (In) :: IOFFSET ! timestep offset from start of record
-      Integer (I4B), Intent (In) :: ISTEP ! loop through time steps
-      Integer (I4B), Intent (In) :: IFORCE0 ! starting index for data
-      Integer (I4B), Intent (In) :: IFORCE1 ! end index for data
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step offset
-    End Subroutine MODEL1STEP
-  End Interface
+  interface ! required because of the optional argument
+    subroutine model1step (nens, nrch, mrch, nhyd, nlak, nobl, ioffset, istep, iforce0, iforce1, &
+   & rstep)
+      use nrtype
+      integer (i4b), intent (in) :: nens ! number of ensemble members
+      integer (i4b), intent (in) :: nrch ! number of basins
+      integer (i4b), intent (in) :: mrch ! number of basins selected for output
+      integer (i4b), intent (in) :: nhyd ! number of water level recorders
+      integer (i4b), intent (in) :: nobl ! number of lake level observation locations
+      integer (i4b), intent (in) :: nlak ! number of lakes
+      integer (i4b), intent (in) :: ioffset ! timestep offset from start of record
+      integer (i4b), intent (in) :: istep ! loop through time steps
+      integer (i4b), intent (in) :: iforce0 ! starting index for data
+      integer (i4b), intent (in) :: iforce1 ! end index for data
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step offset
+    end subroutine model1step
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for q_rch_lake
-  Interface ! required because of the optional argument
-    Subroutine Q_RCH_LAKE (IENS, JRCH, NOBL, NHYD, ISTEP, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: IENS ! loop through ensemble members
-      Integer (I4B), Intent (In) :: JRCH ! loop through the stream segments
-      Integer (I4B), Intent (In) :: NOBL ! number of lake level observation locations
-      Integer (I4B), Intent (In) :: NHYD ! number of streamq observation locations
-      Integer (I4B), Intent (In) :: ISTEP ! loop through time steps
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step offset
-    End Subroutine Q_RCH_LAKE
-  End Interface
+  interface ! required because of the optional argument
+    subroutine q_rch_lake (iens, jrch, nobl, nhyd, istep, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: iens ! loop through ensemble members
+      integer (i4b), intent (in) :: jrch ! loop through the stream segments
+      integer (i4b), intent (in) :: nobl ! number of lake level observation locations
+      integer (i4b), intent (in) :: nhyd ! number of streamq observation locations
+      integer (i4b), intent (in) :: istep ! loop through time steps
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step offset
+    end subroutine q_rch_lake
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for qroute_rch
-  Interface ! required because of the optional argument
-    Subroutine QROUTE_RCH (IENS, JRCH, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: IENS ! ensemble member
-      Integer (I4B), Intent (In) :: JRCH ! reach to process
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step offset
-    End Subroutine QROUTE_RCH
-  End Interface
+  interface ! required because of the optional argument
+    subroutine qroute_rch (iens, jrch, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: iens ! ensemble member
+      integer (i4b), intent (in) :: jrch ! reach to process
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step offset
+    end subroutine qroute_rch
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface to write_ts_sp
-  Interface ! required because of the optional argument
-    Subroutine WRITE_TS_SP (ISTEP, NENS, MRCH, NRCH, NHYD, NPCP, NLAK, NOBL, SECTION, RSTEP)
-      Use nrtype
+  interface ! required because of the optional argument
+    subroutine write_ts_sp (istep, nens, mrch, nrch, nhyd, npcp, nlak, nobl, section, rstep)
+      use nrtype
     ! input variables
-      Integer (I4B), Intent (In) :: ISTEP ! loop through time steps
-      Integer (I4B), Intent (In) :: NENS ! number of ensemble members
-      Integer (I4B), Intent (In) :: MRCH ! number of basins selected for output
-      Integer (I4B), Intent (In) :: NRCH ! number of basins
-      Integer (I4B), Intent (In) :: NHYD ! number of water level recorders
-      Integer (I4B), Intent (In) :: NPCP ! number of precipitation stations
-      Integer (I4B), Intent (In) :: NLAK ! number of lakes
-      Integer (I4B), Intent (In) :: NOBL ! number of lake level observation locations
-      Integer (I4B), Intent (In), Optional :: SECTION ! section of data to output
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step offset
-    End Subroutine WRITE_TS_SP
-  End Interface
+      integer (i4b), intent (in) :: istep ! loop through time steps
+      integer (i4b), intent (in) :: nens ! number of ensemble members
+      integer (i4b), intent (in) :: mrch ! number of basins selected for output
+      integer (i4b), intent (in) :: nrch ! number of basins
+      integer (i4b), intent (in) :: nhyd ! number of water level recorders
+      integer (i4b), intent (in) :: npcp ! number of precipitation stations
+      integer (i4b), intent (in) :: nlak ! number of lakes
+      integer (i4b), intent (in) :: nobl ! number of lake level observation locations
+      integer (i4b), intent (in), optional :: section ! section of data to output
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step offset
+    end subroutine write_ts_sp
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface to err_calc
-  Interface ! required because of the optional argument
-    Subroutine ERR_CALC (ISTEP, IOFFSET, NENS, MRCH, NRCH, NHYD, JRUN, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: ISTEP ! loop through time steps
-      Integer (I4B), Intent (In) :: IOFFSET ! timestep offset from start of record
-      Integer (I4B), Intent (In) :: NENS ! number of ensemble members
-      Integer (I4B), Intent (In) :: MRCH ! number of basins selected for output
-      Integer (I4B), Intent (In) :: NRCH ! number of basins
-      Integer (I4B), Intent (In) :: NHYD ! number of water level recorders
-      Integer (I4B), Intent (In) :: JRUN ! index of the model error parameter set used
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step offset
-    End Subroutine ERR_CALC
-  End Interface
+  interface ! required because of the optional argument
+    subroutine err_calc (istep, ioffset, nens, mrch, nrch, nhyd, jrun, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: istep ! loop through time steps
+      integer (i4b), intent (in) :: ioffset ! timestep offset from start of record
+      integer (i4b), intent (in) :: nens ! number of ensemble members
+      integer (i4b), intent (in) :: mrch ! number of basins selected for output
+      integer (i4b), intent (in) :: nrch ! number of basins
+      integer (i4b), intent (in) :: nhyd ! number of water level recorders
+      integer (i4b), intent (in) :: jrun ! index of the model error parameter set used
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step offset
+    end subroutine err_calc
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for sp_out_put
-  Interface ! required because of the optional argument
-    Subroutine SP_OUT_PUT (ISTEP, ITIM, NENS, NRCH, NHYD, SECTION, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: ISTEP ! Model time step
-      Integer (I4B), Intent (In) :: ITIM ! Index of spatial data on snow covered area
-      Integer (I4B), Intent (In) :: NENS ! Number of ensemble members
-      Integer (I4B), Intent (In) :: NRCH ! Number of basins
-      Integer (I4B), Intent (In) :: NHYD ! Number of gages
-      Integer (I4B), Intent (In) :: SECTION ! Section of variables to write out
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step
-    End Subroutine SP_OUT_PUT
-  End Interface
+  interface ! required because of the optional argument
+    subroutine sp_out_put (istep, itim, nens, nrch, nhyd, section, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: istep ! Model time step
+      integer (i4b), intent (in) :: itim ! Index of spatial data on snow covered area
+      integer (i4b), intent (in) :: nens ! Number of ensemble members
+      integer (i4b), intent (in) :: nrch ! Number of basins
+      integer (i4b), intent (in) :: nhyd ! Number of gages
+      integer (i4b), intent (in) :: section ! Section of variables to write out
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step
+    end subroutine sp_out_put
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for ts_out_put
-  Interface ! required because of the optional argument
-    Subroutine TS_OUT_PUT (ISTEP, NENS, MRCH, NRCH, NHYD, NPCP, NLAK, NOBL, SECTION, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: ISTEP ! Model time step
-      Integer (I4B), Intent (In) :: NENS ! Number of ensemble members
-      Integer (I4B), Intent (In) :: MRCH ! Number of selected basins
-      Integer (I4B), Intent (In) :: NRCH ! Number of basins
-      Integer (I4B), Intent (In) :: NHYD ! Number of water level recorders
-      Integer (I4B), Intent (In) :: NOBL ! Number of lake level observation locations
-      Integer (I4B), Intent (In) :: NPCP ! Number of precipitation stations
-      Integer (I4B), Intent (In) :: NLAK ! Number of lakes
-      Integer (I4B), Intent (In) :: SECTION ! Section of variables to write out
-      Integer (I4B), Intent (In), Optional :: RSTEP ! retrospective time step
-    End Subroutine TS_OUT_PUT
-  End Interface
+  interface ! required because of the optional argument
+    subroutine ts_out_put (istep, nens, mrch, nrch, nhyd, npcp, nlak, nobl, section, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: istep ! Model time step
+      integer (i4b), intent (in) :: nens ! Number of ensemble members
+      integer (i4b), intent (in) :: mrch ! Number of selected basins
+      integer (i4b), intent (in) :: nrch ! Number of basins
+      integer (i4b), intent (in) :: nhyd ! Number of water level recorders
+      integer (i4b), intent (in) :: nobl ! Number of lake level observation locations
+      integer (i4b), intent (in) :: npcp ! Number of precipitation stations
+      integer (i4b), intent (in) :: nlak ! Number of lakes
+      integer (i4b), intent (in) :: section ! Section of variables to write out
+      integer (i4b), intent (in), optional :: rstep ! retrospective time step
+    end subroutine ts_out_put
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for prberr_put
-  Interface ! required because of the optional argument
-    Subroutine PRBERR_PUT (IOFFSET, ISTEP, JRUN, NHYD, RSTEP)
-      Use nrtype
-      Integer (I4B), Intent (In) :: IOFFSET ! Offset for data write statement
-      Integer (I4B), Intent (In) :: ISTEP ! Model time step
-      Integer (I4B), Intent (In) :: JRUN ! Index of model error parameter set
-      Integer (I4B), Intent (In) :: NHYD ! Number of gages
-      Integer (I4B), Intent (In), Optional :: RSTEP ! Retrospective time step
-    End Subroutine PRBERR_PUT
-  End Interface
+  interface ! required because of the optional argument
+    subroutine prberr_put (ioffset, istep, jrun, nhyd, rstep)
+      use nrtype
+      integer (i4b), intent (in) :: ioffset ! Offset for data write statement
+      integer (i4b), intent (in) :: istep ! Model time step
+      integer (i4b), intent (in) :: jrun ! Index of model error parameter set
+      integer (i4b), intent (in) :: nhyd ! Number of gages
+      integer (i4b), intent (in), optional :: rstep ! Retrospective time step
+    end subroutine prberr_put
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for rstart_get
-  Interface ! required because of the optional argument
-    Subroutine RSTART_GET (NENS, NRCH, NLAK, DTIME, LEXIST, FEXIST)
-      Use nrtype
-      Integer (I4B), Intent (In) :: NENS ! Number of ensemble members
-      Integer (I4B), Intent (In) :: NRCH ! Number of basins
-      Integer (I4B), Intent (In) :: NLAK ! Number of lakes
-      Real (DP), Intent (In) :: DTIME ! Time difference between restart file and model reference time
-      Logical (LGT), Intent (Out) :: LEXIST ! .TRUE. if re-start file exists
-      Logical (LGT), Intent (In), Optional :: FEXIST ! if .TRUE., only check for file existance
-    End Subroutine RSTART_GET
-  End Interface
+  interface ! required because of the optional argument
+    subroutine rstart_get (nens, nrch, nlak, dtime, lexist, fexist)
+      use nrtype
+      integer (i4b), intent (in) :: nens ! Number of ensemble members
+      integer (i4b), intent (in) :: nrch ! Number of basins
+      integer (i4b), intent (in) :: nlak ! Number of lakes
+      real (dp), intent (in) :: dtime ! Time difference between restart file and model reference time
+      logical (lgt), intent (out) :: lexist ! .TRUE. if re-start file exists
+      logical (lgt), intent (in), optional :: fexist ! if .TRUE., only check for file existance
+    end subroutine rstart_get
+  end interface
  ! ----------------------------------------------------------------------------------------
  ! interface for moddat_get
-  Interface ! required because of the optional argument
-    Subroutine MODDAT_GET (NENS, NRCH, DTIME, LEXIST, FEXIST)
-      Use nrtype
-      Integer (I4B), Intent (In) :: NENS ! Number of ensemble members
-      Integer (I4B), Intent (In) :: NRCH ! Number of basins
-      Real (DP), Intent (In) :: DTIME ! Time difference between data_save file and model reference time
-      Logical (LGT), Intent (Out) :: LEXIST ! .TRUE. if re-start file exists
-      Logical (LGT), Intent (In), Optional :: FEXIST ! if .TRUE., only check for file existance
-    End Subroutine MODDAT_GET
-  End Interface
+  interface ! required because of the optional argument
+    subroutine moddat_get (nens, nrch, dtime, lexist, fexist)
+      use nrtype
+      integer (i4b), intent (in) :: nens ! Number of ensemble members
+      integer (i4b), intent (in) :: nrch ! Number of basins
+      real (dp), intent (in) :: dtime ! Time difference between data_save file and model reference time
+      logical (lgt), intent (out) :: lexist ! .TRUE. if re-start file exists
+      logical (lgt), intent (in), optional :: fexist ! if .TRUE., only check for file existance
+    end subroutine moddat_get
+  end interface
 ! ----------------------------------------------------------------------------------------
-End Module interblock
+end module interblock

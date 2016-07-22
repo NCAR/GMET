@@ -1,4 +1,4 @@
-Module trig_degrees
+module trig_degrees
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   ! Einar Örn Hreinsson, Nov 2007 (einarhre@gmail.com)
   ! The family of functions sind, cosd and tand
@@ -6,106 +6,106 @@ Module trig_degrees
   ! are implemented here in terms of the instrinsic functions sin,
   ! cos and tan.
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  Use nrtype
-  Implicit None
-  Interface SIND
-    Module Procedure SIND_R, SIND_D
-  End Interface
-  Interface COSD
-    Module Procedure COSD_R, COSD_D
-  End Interface
-  Interface TAND
-    Module Procedure TAND_R, TAND_D
-  End Interface
-Contains
-  Function SIND_R (DEGREE)
+  use nrtype
+  implicit none
+  interface sind
+    module procedure sind_r, sind_d
+  end interface
+  interface cosd
+    module procedure cosd_r, cosd_d
+  end interface
+  interface tand
+    module procedure tand_r, tand_d
+  end interface
+contains
+  function sind_r (degree)
   ! Input argument to sin in degrees
-    Real (SP), Intent (In) :: DEGREE ! argument to sind in degrees
+    real (sp), intent (in) :: degree ! argument to sind in degrees
   ! Internal variable
-    Real (SP) :: CRAD ! conversion from degrees to radians
-    Real (SP) :: DEGREE_RAD ! argument to sin in radians
+    real (sp) :: crad ! conversion from degrees to radians
+    real (sp) :: degree_rad ! argument to sin in radians
   ! Output
-    Real (SP) :: SIND_R ! the value of sin function
+    real (sp) :: sind_r ! the value of sin function
    ! Convert degrees to radians (2*pi rad = 360 deg)
-    CRAD = PI / 180.0_SP
-    DEGREE_RAD = DEGREE * CRAD
+    crad = pi / 180.0_sp
+    degree_rad = degree * crad
    ! Value of SIND is equal to value of SIN when the argument is given
    ! in radians
-    SIND_R = Sin (DEGREE_RAD)
-  End Function SIND_R
-  Function SIND_D (DEGREE)
+    sind_r = sin (degree_rad)
+  end function sind_r
+  function sind_d (degree)
   ! Input argument to sin in degrees
-    Real (DP), Intent (In) :: DEGREE ! argument to sind in degrees
+    real (dp), intent (in) :: degree ! argument to sind in degrees
   ! Internal variable
-    Real (DP) :: CRAD ! conversion from degrees to radians
-    Real (DP) :: DEGREE_RAD ! argument to sin in radians
+    real (dp) :: crad ! conversion from degrees to radians
+    real (dp) :: degree_rad ! argument to sin in radians
   ! Output
-    Real (DP) :: SIND_D ! the value of sin function
+    real (dp) :: sind_d ! the value of sin function
    ! Convert degrees to radians (2*pi rad = 360 deg)
-    CRAD = PI_D / 180.0_DP
-    DEGREE_RAD = DEGREE * CRAD
+    crad = pi_d / 180.0_dp
+    degree_rad = degree * crad
    ! Value of SIND is equal to value of SIN when the argument is given
    ! in radians
-    SIND_D = Sin (DEGREE_RAD)
-  End Function SIND_D
-  Function COSD_R (DEGREE)
+    sind_d = sin (degree_rad)
+  end function sind_d
+  function cosd_r (degree)
   ! Input argument to cosd in degrees
-    Real (SP), Intent (In) :: DEGREE ! argument to cosd in degrees
+    real (sp), intent (in) :: degree ! argument to cosd in degrees
   ! Internal variable
-    Real (SP) :: CRAD ! conversion from degrees to radians
-    Real (SP) :: DEGREE_RAD ! argument to cos in radians
+    real (sp) :: crad ! conversion from degrees to radians
+    real (sp) :: degree_rad ! argument to cos in radians
   ! Output
-    Real (SP) :: COSD_R ! the value of cos function
+    real (sp) :: cosd_r ! the value of cos function
    ! Convert degrees to radians (2*pi rad = 360 deg)
-    CRAD = PI / 180.0_SP
-    DEGREE_RAD = DEGREE * CRAD
+    crad = pi / 180.0_sp
+    degree_rad = degree * crad
    ! Value of COSD is equal to value of COS when the argument is given
    ! in radians
-    COSD_R = Cos (DEGREE_RAD)
-  End Function COSD_R
-  Function COSD_D (DEGREE)
+    cosd_r = cos (degree_rad)
+  end function cosd_r
+  function cosd_d (degree)
   ! Input argument to cosd in degrees
-    Real (DP), Intent (In) :: DEGREE ! argument to cosd in degrees
+    real (dp), intent (in) :: degree ! argument to cosd in degrees
   ! Internal variable
-    Real (DP) :: CRAD ! conversion from degrees to radians
-    Real (DP) :: DEGREE_RAD ! argument to cos in radians
+    real (dp) :: crad ! conversion from degrees to radians
+    real (dp) :: degree_rad ! argument to cos in radians
   ! Output
-    Real (DP) :: COSD_D ! the value of cos function
+    real (dp) :: cosd_d ! the value of cos function
    ! Convert degrees to radians (2*pi rad = 360 deg)
-    CRAD = PI_D / 180.0_DP
-    DEGREE_RAD = DEGREE * CRAD
+    crad = pi_d / 180.0_dp
+    degree_rad = degree * crad
    ! Value of COSD is equal to value of COS when the argument is given
    ! in radians
-    COSD_D = Cos (DEGREE_RAD)
-  End Function COSD_D
-  Function TAND_R (DEGREE)
+    cosd_d = cos (degree_rad)
+  end function cosd_d
+  function tand_r (degree)
   ! Input argument to tand in degrees
-    Real (SP), Intent (In) :: DEGREE ! argument to tand in degrees
+    real (sp), intent (in) :: degree ! argument to tand in degrees
   ! Internal variable
-    Real (SP) :: CRAD ! conversion from degrees to radians
-    Real (SP) :: DEGREE_RAD ! argument to tan in radians
+    real (sp) :: crad ! conversion from degrees to radians
+    real (sp) :: degree_rad ! argument to tan in radians
   ! Output
-    Real (SP) :: TAND_R ! the value of tan function
+    real (sp) :: tand_r ! the value of tan function
    ! Convert degrees to radians (2*pi rad = 360 deg)
-    CRAD = PI / 180.0_SP
-    DEGREE_RAD = DEGREE * CRAD
+    crad = pi / 180.0_sp
+    degree_rad = degree * crad
    ! Value of tand is equal to value of tan when the argument is given
    ! in radians
-    TAND_R = Tan (DEGREE_RAD)
-  End Function TAND_R
-  Function TAND_D (DEGREE)
+    tand_r = tan (degree_rad)
+  end function tand_r
+  function tand_d (degree)
   ! Input argument to tand in degrees
-    Real (DP), Intent (In) :: DEGREE ! argument to tand in degrees
+    real (dp), intent (in) :: degree ! argument to tand in degrees
   ! Internal variable
-    Real (DP) :: CRAD ! conversion from degrees to radians
-    Real (DP) :: DEGREE_RAD ! argument to tan in radians
+    real (dp) :: crad ! conversion from degrees to radians
+    real (dp) :: degree_rad ! argument to tan in radians
   ! Output
-    Real (DP) :: TAND_D ! the value of tan function
+    real (dp) :: tand_d ! the value of tan function
    ! Convert degrees to radians (2*pi rad = 360 deg)
-    CRAD = PI_D / 180.0_DP
-    DEGREE_RAD = DEGREE * CRAD
+    crad = pi_d / 180.0_dp
+    degree_rad = degree * crad
    ! Value of tand is equal to value of tan when the argument is given
    ! in radians
-    TAND_D = Tan (DEGREE_RAD)
-  End Function TAND_D
-End Module trig_degrees
+    tand_d = tan (degree_rad)
+  end function tand_d
+end module trig_degrees
