@@ -1,16 +1,18 @@
 program generate_ensembles
-! ----------------------------------------------------------------------------------------
+! -----------------------------------------------------------------------------
 ! Creator(s):
 !   Andy Newman, 2013
 ! Modified:
-!   Andy Wood, 2016 -- adding namelist file as argument, no longer hardwired; clean formatting
-!                      adding documentation
-! ----------------------------------------------------------------------------------------
+!   Andy Wood, 2016 -- adding namelist file as argument
+!                   -- no longer hardwired; clean formatting
+!                   -- adding documentation
+!                   -- altered namelist args to specify ens range
+! -----------------------------------------------------------------------------
 ! Purpose:
 !   Driver for spatially correlated random field code from Martyn Clark
 !   Generates ensebles of precipitation and temperature from regression step
-!   For version 0 of CONUS ensemble product.  See Newman et al. 2015 J. Hydromet.
-! ----------------------------------------------------------------------------------------
+!   For version 0 of CONUS ensemble product.  See Newman et al. 2015 JHM
+! -----------------------------------------------------------------------------
  
   use netcdf !netcdf
   use nrtype ! Numerical recipies types
@@ -18,8 +20,9 @@ program generate_ensembles
   use gridweight !grid structure used by spcorr
   use nr, only: erf, erfcc ! Numerical Recipies error function
   use namelist_module, only: read_namelist !namelist module
-  use namelist_module, only: nens, ntimes, start_time
-  use namelist_module, only: out_name_base, qpe_nc_name, grid_name, clen
+  ! use namelist_module, only: nens, ntimes, start_time AW edited
+  use namelist_module, only: start_ens, stop_ens, ntimes, start_time
+  use namelist_module, only: out_forc_name_base, in_regr_name, grid_name, clen
  
   implicit none
  
@@ -85,13 +88,13 @@ program generate_ensembles
       integer (i4b), intent (out) :: nx, ny
       integer, intent (out) :: error
     end subroutine read_nc_grid
- 
- 
+  
   end interface
- 
+  ! ================== END of INTERFACES ===============
  
   ! Local variables
   integer (i4b) :: i, j, k, igrd, istep, iens !counter variables
+  integer (i4b) :: nens  ! AW number of ensemble members to generate
   integer (i4b), dimension (1:2) :: order1 = (/ 2, 1 /)!order for reshape array
   integer (i4b) :: ierr, jerr !error variables for various error checks
   integer (i4b) :: nspl1 ! # points (1st spatial dimension)
@@ -101,8 +104,8 @@ program generate_ensembles
   real (dp), dimension (:, :), allocatable :: rho ! temporal correlation parameter
   real (dp), dimension (:, :), allocatable :: old_random ! previous correlated random field
   real (dp), dimension (:, :), allocatable :: pcp_random ! new correlated random field for pcp
-  real (dp), dimension (:, :), allocatable :: tmean_random ! new correlated random field for tmean
-  real (dp), dimension (:, :), allocatable :: trange_random ! new correlated random field for trange
+  real (dp), dimension (:, :), allocatable :: tmean_random ! new correlated rand field, tmean
+  real (dp), dimension (:, :), allocatable :: trange_random ! new correlated rand field, trange
  
   real (sp) :: acorr !value from scrf
   real (sp) :: aprob !probability from scrf
@@ -159,11 +162,11 @@ program generate_ensembles
   real (dp), allocatable :: times (:)!time vector from qpe code
   real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation vector from qpe code
   real (dp), allocatable :: tpc_corr (:)!temp-precip correlation vector from qpe code
-  real (dp), allocatable :: y_mean (:, :, :)!mean of transformed non-zero precip (at each timestep)
-  real (dp), allocatable :: y_std (:, :, :)!std dev of transformed non-zero precip (at each timestep)
-  real (dp), allocatable :: y_std_all (:, :, :)!std dev of transformed non-zero precip (at each timestep)
-  real (dp), allocatable :: y_min (:, :, :)!min of normalized transformed non-zero precip (at each timestep)
-  real (dp), allocatable :: y_max (:, :, :)!max of normalized transformed non-zero precip (at each timestep)
+  real (dp), allocatable :: y_mean (:, :, :) !mean of transformed non-0 pcp (at each timestep)
+  real (dp), allocatable :: y_std (:, :, :) !stdev of transformed non-0 pcpp (at each t-step)
+  real (dp), allocatable :: y_std_all (:, :, :) !stddev of transf. non-0 pcp (at each tstep)
+  real (dp), allocatable :: y_min (:, :, :) !min of normalized transf. non-0 pcp (each tstep)
+  real (dp), allocatable :: y_max (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
   real (sp), allocatable :: pcp_out (:, :, :)!
   real (sp), allocatable :: tmean_out (:, :, :)!
   real (sp), allocatable :: trange_out (:, :, :)!
@@ -174,7 +177,7 @@ program generate_ensembles
   integer       :: ncid, varid, error
  
   type (coords), pointer :: grid !coordinate structure for grid
-  type (splnum), dimension (:, :), pointer :: sp_pcp, sp_temp !structures of spatially correlated random field weights
+  type (splnum), dimension (:, :), pointer :: sp_pcp, sp_temp ! structures of spatially correlated random field weights
 
   ! ========== code starts below ==============================
  
@@ -187,17 +190,25 @@ program generate_ensembles
     f = f + 1
   end do
 
-  ! set transform power, shouldn't be hard-coded, but it is right now...
+  ! set transform power, shouldn't be hard-coded, but it is for now...
   transform = 4.0d0
  
-  !read namelist in
+  ! read namelist in
   call read_namelist (namelist_filename)
  
-  !set output file name from namelist
-  out_name = out_name_base
+  ! set output file name from namelist
+  out_name = out_forc_name_base
   error = 0
   ierr = 0
   jerr = 0
+
+  ! AW set number of ensembles to generate
+  nens = stop_ens - start_ens + 1
+  if(nens <= 0) call exit_scrf (1, 'number of ensembles to generate is 0 or less')
+  print*, 'Generating ',nens,' ensembles from ',start_ens,' to ',stop_ens
+  nens = stop_ens - start_ens + 1
+  if(stop_ens <= start_ens) call exit_scrf (1, 'stop_ens equal or before start_ens')
+  print*, 'Generating ',nens,' ensembles from ',start_ens,' to ',stop_ens
  
   !read in netcdf grid file
   call read_nc_grid (grid_name, lat, lon, hgt, slp_n, slp_e, mask, nx, ny, error)
@@ -236,7 +247,7 @@ program generate_ensembles
  
   print *, 'Reading in Regression data, this will take a bit...'
  
-  error = nf90_open (trim(qpe_nc_name), nf90_nowrite, ncid)
+  error = nf90_open (trim(in_regr_name), nf90_nowrite, ncid)
   if (ierr /= 0) return
  
   var_name = 'time'
@@ -263,16 +274,14 @@ program generate_ensembles
   error = nf90_get_var (ncid, varid, pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
   if (ierr /= 0) return
- 
- 
+  
   var_name = 'pcp_2'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) return
   error = nf90_get_var (ncid, varid, pcp_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
   if (ierr /= 0) return
- 
- 
+
   var_name = 'pop'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) return
@@ -286,7 +295,6 @@ program generate_ensembles
   error = nf90_get_var (ncid, varid, pop_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
   if (ierr /= 0) return
- 
  
   var_name = 'pcp_error'
   error = nf90_inq_varid (ncid, var_name, varid)
@@ -302,7 +310,6 @@ program generate_ensembles
  & ntimes /))
   if (ierr /= 0) return
  
- 
   var_name = 'tmean'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) return
@@ -316,7 +323,6 @@ program generate_ensembles
   error = nf90_get_var (ncid, varid, tmean_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
   if (ierr /= 0) return
- 
  
   var_name = 'tmean_error'
   error = nf90_inq_varid (ncid, var_name, varid)
@@ -332,7 +338,6 @@ program generate_ensembles
  & ny, ntimes /))
   if (ierr /= 0) return
  
- 
   var_name = 'trange'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) return
@@ -347,7 +352,6 @@ program generate_ensembles
  & ntimes /))
   if (ierr /= 0) return
  
- 
   var_name = 'trange_error'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) return
@@ -361,7 +365,6 @@ program generate_ensembles
   error = nf90_get_var (ncid, varid, trange_error_2, start= (/ 1, 1, start_time /), count= (/ nx, &
  & ny, ntimes /))
   if (ierr /= 0) return
- 
  
   var_name = 'ymean'
   error = nf90_inq_varid (ncid, var_name, varid)
@@ -398,20 +401,18 @@ program generate_ensembles
  & /))
   if (ierr /= 0) return
  
- 
   error = nf90_close (ncid)
   if (ierr /= 0) return
  
-!setup a few variables for spcorr structure
+  ! set up a few variables for spcorr structure
   nspl1 = nx
   nspl2 = ny
- 
   spl1_start = 1
   spl2_start = 1
   spl1_count = nx
   spl2_count = ny
  
-!allocate space for scrfs
+  ! allocate space for scrfs
   allocate (sp_pcp(nspl1, nspl2), stat=ierr)
   if (ierr .ne. 0) then
     call exit_scrf (1, 'problem deallocating space for sp_pcp ')
@@ -421,7 +422,6 @@ program generate_ensembles
   if (ierr .ne. 0) then
     call exit_scrf (1, 'problem deallocating space for sp_temp ')
   end if
- 
  
   if (allocated(rho)) then
     deallocate (rho, stat=ierr)
@@ -473,8 +473,8 @@ program generate_ensembles
   ! allocate space for spatial arrays in grid structure
   allocate (grid%lat(spl1_count, spl2_count), grid%lon(spl1_count, spl2_count), &
  & grid%elv(spl1_count, spl2_count), stat=jerr)
-  if (ierr .ne. 0 .or. jerr .ne. 0) call exit_scrf (1, ' problem allocating space for lat-lon-elv c&
- &oordinates ')
+  if (ierr .ne. 0 .or. jerr .ne. 0) call exit_scrf (1, ' problem allocating space for&
+ & lat-lon-elev coordinates ')
  
   allocate (pcp_out(nx, ny, ntimes), tmean_out(nx, ny, ntimes), trange_out(nx, ny, ntimes), &
  & stat=ierr)
@@ -511,52 +511,55 @@ program generate_ensembles
   print *, 'Generating ensembles...'
  
   ! ============ loop through the ensemble members ============
-  do iens = 1, nens
+  ! do iens = 1, nens
+  do iens = start_ens, stop_ens
  
-      !Loop through time
+    ! Loop through time
     do istep = 1, ntimes
  
       do igrd = 1, nspl1 * nspl2
  
-     ! identify the (i,j) position of the igrd-th point
+        ! identify the (i,j) position of the igrd-th point
         isp1 = iorder (igrd)
         isp2 = jorder (igrd)
  
-     !only compute values for valid grid points
+        ! only compute values for valid grid points
         if (grid%elv(isp1, isp2) .gt.-300.0) then
  
-   !find cumulative probability
+          ! find cumulative probability
           acorr = real (pcp_random(isp1, isp2), kind(sp)) / sqrt (2._sp)
           aprob = erfcc (acorr)
           cprob = (2.d0-real(aprob, kind(dp))) / 2.d0
  
-     ! check thresholds of slope fields to see which regression to use
-     !For precipitation only
+          ! check thresholds of slope fields to see which regression to use
+
+          ! For precipitation only
           if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then
             pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
             pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
             pcp_error (isp1, isp2, istep) = pcp_error_2 (isp1, isp2, istep)
           end if
  
-   !for temperature don't use regression that included slope, only lat,lon,elevation based regression
+          ! For temperature don't use regression that included slope --
+          !   only lat,lon,elevation based regression
           tmean (isp1, isp2, istep) = tmean_2 (isp1, isp2, istep)
           tmean_error (isp1, isp2, istep) = tmean_error_2 (isp1, isp2, istep)
           trange (isp1, isp2, istep) = trange_2 (isp1, isp2, istep)
           trange_error (isp1, isp2, istep) = trange_error_2 (isp1, isp2, istep)
  
-          if (cprob .lt. (1.0_dp-real(pop(isp1, isp2, istep), kind(dp)))) then !Don't generate precip
- 
+          if (cprob .lt. (1.0_dp-real(pop(isp1, isp2, istep), kind(dp)))) then 
+            ! Don't generate precip
             pcp_out (isp1, isp2, istep) = 0.0d0
  
+          else 
+            ! generate a precip amount
  
-          else !generate a precip amount
- 
-   !scale cumulative probability by regression pop
+            ! scale cumulative probability by regression pop
             cs = (cprob-(1.0_dp-real(pop(isp1, isp2, istep), kind(dp)))) / real (pop(isp1, isp2, &
            & istep), kind(dp))
  
-   !convert cs to a z-score from standard normal
-   !use erfinv
+            ! convert cs to a z-score from standard normal
+            ! use erfinv
             if (cs .le. 3e-5) then
               rn = - 3.99
             else if (cs .ge. 0.99997) then
@@ -577,7 +580,7 @@ program generate_ensembles
             end if
  
  
-      !limit max value to y_max + pcp_error (max station value plus some portion of error)
+            ! limit max value to y_max + pcp_error (max station value + some portion of error)
             if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
            & istep), kind(dp)))**transform) then
               ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
@@ -588,32 +591,35 @@ program generate_ensembles
             pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
  
  
-          end if !end if statement for precip generation
+          end if 
+          ! end IF statement for precip generation
  
  
-     !tmean
+          ! tmean
           ra = real (tmean(isp1, isp2, istep), kind(dp)) + real (tmean_random(isp1, isp2), &
          & kind(dp)) * real (tmean_error(isp1, isp2, istep)/3.0, kind(dp))
           tmean_out (isp1, isp2, istep) = real (ra, kind(sp))
  
-     !trange
+          ! trange
           ra = real (trange(isp1, isp2, istep), kind(dp)) + real (trange_random(isp1, isp2), &
          & kind(dp)) * real (trange_error(isp1, isp2, istep)/3.0, kind(dp))
           trange_out (isp1, isp2, istep) = real (ra, kind(sp))
  
-   !using +/- 3 std dev of uncertainty for temp gives unrealistic min and max exnsemble membner temps and diurnal ranges
-   !ad hoc fix is to limit temp ensemble to roughly +/- 1 uncertainty range.  needs to be looked at further in future releases but
-   !this at least gives reasonable temp results and covers the daymet, nldas, maurer spread for basins we've looked at
+          ! using +/- 3 std dev of uncertainty for temp gives unrealistic min and max ensemble 
+          ! member temps and diurnal ranges
+          ! ad hoc fix is to limit temp ensemble to roughly +/- 1 uncertainty range.  
+          ! needs to be looked at further in future releases but
+          ! this at least gives reasonable temp results and covers the daymet, 
+          ! nldas, maurer spread for basins we've looked at
  
- 
-   !check for unrealistic and non-physical trange values
+          ! check for unrealistic and non-physical trange values
           if (trange_out(isp1, isp2, istep) .gt. 40.0) then
             trange_out (isp1, isp2, istep) = 40.0
           else if (trange_out(isp1, isp2, istep) .lt. 2.0) then
             trange_out (isp1, isp2, istep) = 2.0
           end if
  
-   !check for unrealistic tmean values
+          ! check for unrealistic tmean values
           if (tmean_out(isp1, isp2, istep) .gt. 35.0) then
             tmean_out (isp1, isp2, istep) = 35.0
           else if (tmean_out(isp1, isp2, istep) .lt.-35.0) then
@@ -625,54 +631,48 @@ program generate_ensembles
  
       end do !end loop for grid pts
  
-    !Generate new SCRFs
-    !generate new random numbers for tmean
+      ! Generate new SCRFs
+      ! generate new random numbers for tmean
       spcorr = sp_temp
       old_random = tmean_random
       call field_rand (nspl1, nspl2, tmean_random)
  
-      !want to condition random numbers in the following way:
-      !use the temp auto correlation to condition the tmean and trange
+      ! want to condition random numbers in the following way:
+      ! use the temp auto correlation to condition the tmean and trange
       tmean_random = old_random * auto_corr (1) + sqrt (1-auto_corr(1)*auto_corr(1)) * tmean_random
- 
-      !generate new random numbers for trange
+      ! generate new random numbers for trange
       old_random = trange_random
       call field_rand (nspl1, nspl2, trange_random)
       trange_random = old_random * auto_corr (1) + sqrt (1-auto_corr(1)*auto_corr(1)) * &
      & trange_random
  
- 
-      !then use t-p correlation and trange_random to condition the precip random numbers
-      !generate new random numbers for precip
+      ! then use t-p correlation and trange_random to condition the precip random numbers
+      ! generate new random numbers for precip
       spcorr = sp_pcp
       call field_rand (nspl1, nspl2, pcp_random)
       pcp_random = trange_random * tpc_corr (1) + sqrt (1-tpc_corr(1)*tpc_corr(1)) * pcp_random
  
     end do !end time step loop
  
- 
+    ! ============ now WRITE out the data file ============
     print *, 'Done with ensemble member: ', iens
     write (suffix, '(I3.3)') iens
+    ! print *, 'Done with ensemble member: ', iens + start_ens - 1
+    ! write (suffix, '(I3.3)') iens + start_ens - 1
  
- 
- 
-    !setup output name
+    ! setup output name
     out_name = trim (out_name) // '_' // trim (suffix)
     print *, trim (out_name)
  
- 
- 
-    !save to netcdf file
+    ! save to netcdf file
     call save_vars (pcp_out, tmean_out, trange_out, nx, ny, lat_out, lon_out, hgt_out, &
    & times(start_time:start_time+ntimes-1), out_name, ierr)
- 
- 
+  
     if (ierr /= 0) return
  
-    !reset out_name
-    out_name = out_name_base
+    ! reset out_name
+    out_name = out_forc_name_base
  
   end do !end ensemble member loop
- 
  
 end program generate_ensembles

@@ -2,16 +2,18 @@ module namelist_module
   use nrtype
   implicit none
  
-  integer (i4b) :: nens !number of ensemble members to generate
+  ! integer (i4b) :: nens !number of ensemble members to generate
+  integer (i4b) :: start_ens, stop_ens ! start and stop numbers of ens. members to make
   integer (i4b) :: ntimes !number of times in timeseries to generate ensemble fields for
   integer (i4b) :: start_time !time step to start at
   real (dp) :: clen !correlation length for scrf
   character (len=1024) :: grid_name !name of ascii grid file used in jason's code
-  character (len=1024) :: out_name_base !base output name for netcdf files
-  character (len=1024) :: qpe_nc_name !name of netcdf output file from jason's code
+  character (len=1024) :: out_forc_name_base !base output name for netcdf forcing ens file
+  character (len=1024) :: in_regr_name ! name of netcdf regression file -- input
  
-  !define namelist required variables
-  namelist / params / nens, ntimes, grid_name, out_name_base, qpe_nc_name, clen, start_time
+  ! define namelist required variables
+  ! namelist / params / nens, ntimes, grid_name, out_name_base, qpe_nc_name, clen, start_time
+  namelist / params / start_ens, stop_ens, ntimes, grid_name, out_forc_name_base, in_regr_name, clen, start_time
  
   save
 contains

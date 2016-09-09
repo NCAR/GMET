@@ -1,7 +1,6 @@
 #========================================================================
 # Makefile to compile the SCRF Code
 #========================================================================
-#  Original: Makefile from Martyn's FUSE Model
 #  Modified:
 #    Andy Newman, 2013
 #    A. Wood, 2016 -- updated random initialization procedures and
@@ -31,7 +30,7 @@ EXE_PATH = $(F_MASTER)/scrf
 
 # Define directories
 DRIVER_DIR = $(F_SRC_DIR)/driver
-NUMREC_DIR = $(F_MASTER)/num_rec
+NUMREC_DIR = $(F_MASTER)/from_NR
 MOD_DIR    = $(F_SRC_DIR)/share
 
 # Numerical Recipes utilities
@@ -39,10 +38,11 @@ SCRF_NRUTIL= \
 		nrtype.f90 \
 		nrutil.f90 \
 		nr.f90 \
-		ran_state.f90
+		ran_state_modified_NR.f90
+#		ran_state.f90
+
 NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(SCRF_NRUTIL))
 
-#
 # Numerical recipes procedures
 SCRF_NRPROC= \
 		ran1.f90 \
@@ -69,7 +69,7 @@ SCRF_DATAMS= \
 		namelist_module.f90
 DATAMS = $(patsubst %, $(MOD_DIR)/%, $(SCRF_DATAMS))
 
-# Routines taken from or modifed versions of Jason Craig's Prob QPE code
+# Routines taken from or modifed versions of Jason Craig's old Prob QPE code
 prob_qpe= \
 		precmod.f90 \
 		stringmod.f90 \
@@ -81,13 +81,15 @@ qpe = $(patsubst %, $(F_SRC_DIR)/%, $(prob_qpe))
 
 # Define routines for SCRF code
 # A. Wood, added the rand seed initialization here (last one)
+#     called by  a modified version of a num_rec code, ran_state
 SCRF_GEN = \
 		trig_degrees.f90 \
 		erfinv.f90 \
 		exit_scrf.f90 \
 		field_rand.f90 \
 		spcorr_grd.f90 \
-                init_rand_seed_I4B.f90 
+                init_rand_seed_I4B.f90
+
 GEN = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_GEN))
 
 # ... and stitch it all together...

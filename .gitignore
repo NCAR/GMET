@@ -22,13 +22,13 @@
 bin/
 *.exe
 
-#others
-num_rec/
+# others
+from_NR/*.f90
 downscale/numrec.f90
 run/
 
-#no text files
-*.txt
+# no text files (OK)
+# *.txt
 
 #no archives
 *.tar
@@ -40,11 +40,8 @@ run/
 #no local makefiles
 *local
 
-#bash scripts
-*.bash
+# bash scripts (OK)
+# *.bash
 
-# notes files
+# misc notes files
 LASTNEXT
-NOTES
-
-
