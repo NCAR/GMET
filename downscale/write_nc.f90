@@ -695,7 +695,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
         trec = file_ntimes + 1
       else ! at least some overlap
         do i = 1, file_ntimes, 1
-          if (file_times(1) == times(1)) then
+          if (file_times(i) == times(1)) then
             trec = i
           end if
         end do

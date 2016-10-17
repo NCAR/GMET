@@ -12,7 +12,8 @@ FC = pgf90
 # flags for debugging or for maximum performance, comment as necessary
 
 ifeq ($(FC),pgf90)
-	FCFLAGS = -Mbackslash -fPIC
+	FCFLAGS = -Mbackslash -fPIC  
+
 #	FCFLAGS = -g -Mbackslash -fPIC
 #	FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
 #	FCFLAGS = -O2 -Mbackslash -fPIC
