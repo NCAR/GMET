@@ -13,7 +13,7 @@
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = /home/andywood/proj/overtheloop/scripts/ens_forc/GMET
+F_MASTER = /home/hydrofcst/overtheloop/methods/GMET
 
 # Core directory that contains source code
 F_SRC_DIR = $(F_MASTER)/scrf
