@@ -661,7 +661,7 @@ program generate_ensembles
     ! write (suffix, '(I3.3)') iens + start_ens - 1
  
     ! setup output name
-    out_name = trim (out_name) // '_' // trim (suffix)
+    out_name = trim (out_name) // '.' // trim (suffix) // '.nc'
     print *, trim (out_name)
  
     ! save to netcdf file
