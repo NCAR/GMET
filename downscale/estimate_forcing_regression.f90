@@ -343,6 +343,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
  
     ! check for values outside of -1 to 1
     ! stations with incomplete data are set to -999
+    print *, 'station id & auto_corr'
+    print *, stnid(i), auto_corr(i)
     if (auto_corr(i) .ge.-1.0 .and. auto_corr(i) .le. 1.0) then
       auto_corr_sum = auto_corr_sum + auto_corr (i)
       auto_cnt = auto_cnt + 1
