@@ -1,7 +1,7 @@
 # ============= Makefile for downscaling program ======================
 # AWW-2016:  split mega-file coefficients.f90 into several smaller ones
 
-# NOTE: first link one numrec.f file needed into this directory if not present
+# NOTE: first link (or copy) one numrec.f file needed into this directory if not present
 #  eg, ln -s ../from_NR/numrec.f
 
 EXE = downscale.exe
