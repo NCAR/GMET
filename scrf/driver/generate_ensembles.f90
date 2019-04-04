@@ -82,7 +82,7 @@ program generate_ensembles
       use netcdf
       use nrtype
  
-      character (len=500), intent (in) :: file_name
+      character (len=*), intent (in) :: file_name
       real (dp), allocatable, intent (out) :: lat (:, :), lon (:, :), elev (:, :), grad_n (:, :), &
      & grad_e (:, :), mask (:, :)
       integer (i4b), intent (out) :: nx, ny
@@ -248,161 +248,161 @@ program generate_ensembles
   print *, 'Reading in Regression data, this will take a bit...'
  
   error = nf90_open (trim(in_regr_name), nf90_nowrite, ncid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'time'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, times, start= (/ start_time /), count= (/ ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'auto_corr'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, auto_corr, start= (/ start_time /), count= (/ ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'tp_corr'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, tpc_corr, start= (/ start_time /), count= (/ ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'pcp'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   
   var_name = 'pcp_2'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, pcp_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
 
   var_name = 'pop'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, pop, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'pop_2'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, pop_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'pcp_error'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, pcp_error, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'pcp_error_2'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, pcp_error_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'tmean'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, tmean, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'tmean_2'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, tmean_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'tmean_error'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, tmean_error, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'tmean_error_2'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, tmean_error_2, start= (/ 1, 1, start_time /), count= (/ nx, &
  & ny, ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'trange'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, trange, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'trange_2'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, trange_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'trange_error'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, trange_error, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'trange_error_2'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, trange_error_2, start= (/ 1, 1, start_time /), count= (/ nx, &
  & ny, ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'ymean'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, y_mean, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'ystd'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, y_std, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'ystd_all'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, y_std_all, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'ymin'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, y_min, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   var_name = 'ymax'
   error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, y_max, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   error = nf90_close (ncid)
-  if (ierr /= 0) return
+  if (ierr /= 0) stop
  
   ! set up a few variables for spcorr structure
   nspl1 = nx
@@ -668,7 +668,7 @@ program generate_ensembles
     call save_vars (pcp_out, tmean_out, trange_out, nx, ny, lat_out, lon_out, hgt_out, &
    & times(start_time:start_time+ntimes-1), out_name, ierr)
   
-    if (ierr /= 0) return
+    if (ierr /= 0) stop
  
     ! reset out_name
     out_name = out_forc_name_base

@@ -1,4 +1,4 @@
-module strings
+module string_mod
  
   use precision
  
@@ -57,6 +57,7 @@ contains
     character (len=*) :: str, delims
     character (len=len_trim(str)) :: strsav
     character (len=*), dimension (:) :: args
+    integer :: i, k, na, nargs, lenstr
  
     strsav = str
     call compact (str)
@@ -89,6 +90,7 @@ contains
     character (len=*) :: str
     character (len=1) :: ch
     character (len=len_trim(str)) :: outstr
+    integer :: i, k, lenstr, isp, ich
  
     str = adjustl (str)
     lenstr = len_trim (str)
@@ -131,6 +133,7 @@ contains
     character (len=*) :: str
     character (len=1) :: ch
     character (len=len_trim(str)) :: outstr
+    integer i, k, lenstr, ich
  
     str = adjustl (str)
     lenstr = len_trim (str)
@@ -161,7 +164,7 @@ contains
  
     character (len=*) :: str
     real (kr8) :: rnum
-    integer :: ios
+    integer :: ios, ilen, ipos
  
     ilen = len_trim (str)
     ipos = scan (str, 'Ee')
@@ -182,6 +185,7 @@ contains
     character (len=*) :: str
     real (kr4) :: rnum
     real (kr8) :: rnumd
+    integer :: ios
  
     call value_dr (str, rnumd, ios)
     if (abs(rnumd) > huge(rnum)) then
@@ -202,7 +206,8 @@ contains
     character (len=*) :: str
     integer (ki8) :: inum
     real (kr8) :: rnum
- 
+    integer :: ios
+
     call value_dr (str, rnum, ios)
     if (abs(rnum) > huge(inum)) then
       ios = 15
@@ -221,6 +226,7 @@ contains
     character (len=*) :: str
     integer (ki4) :: inum
     real (kr8) :: rnum
+    integer :: ios
  
     call value_dr (str, rnum, ios)
     if (abs(rnum) > huge(inum)) then
@@ -241,6 +247,7 @@ contains
 ! are replaced by spaces.
  
     character (len=*) :: str
+    integer :: lenstr, n, nabs
  
     lenstr = len (str)
     nabs = iabs (n)
@@ -265,6 +272,7 @@ contains
  
     character (len=*) :: str, strins
     character (len=len(str)) :: tempstr
+    integer :: lenstrins, loc
  
     lenstrins = len_trim (strins)
     tempstr = str (loc:)
@@ -284,6 +292,7 @@ contains
 ! not considered part of 'substr'.
  
     character (len=*) :: str, substr
+    integer :: ipos, lensubstr
  
     lensubstr = len_trim (substr)
     ipos = index (str, substr)
@@ -305,6 +314,7 @@ contains
 ! shifts characters left to fill holes.
  
     character (len=*) :: str, substr
+    integer :: ipos, lensubstr
  
     lensubstr = len_trim (substr)
     do
@@ -328,6 +338,7 @@ contains
  
     character (len=*) :: str
     character (len=len_trim(str)) :: ucstr
+    integer :: ilen, ioffset, iquote, i, iqc, iav
  
     ilen = len_trim (str)
     ioffset = iachar ('A') - iachar ('a')
@@ -363,6 +374,7 @@ contains
  
     character (len=*) :: str
     character (len=len_trim(str)) :: lcstr
+    integer :: ilen, ioffset, iquote, i, iqc, iav
  
     ilen = len_trim (str)
     ioffset = iachar ('A') - iachar ('a')
@@ -398,6 +410,7 @@ contains
 ! and deleting comments beginning with an exclamation point(!)
  
     character (len=*) :: line
+    integer :: ios, ipos, nunitr
  
     do
       read (nunitr, '(a)', iostat=ios) line ! read input line
@@ -421,6 +434,7 @@ contains
  
     character (len=*) :: str
     character :: delim1, delim2, ch
+    integer :: lenstr, istart, iend, inc, ipos, isum, imatch, idelim2, i
  
     lenstr = len_trim (str)
     delim1 = str (ipos:ipos)
@@ -547,6 +561,7 @@ contains
     character (len=*) :: str
     character :: ch
     character (len=10) :: exp
+    integer :: ipos, i, lstr
  
     ipos = scan (str, 'eE')
     if (ipos > 0) then
@@ -613,6 +628,7 @@ contains
     integer :: unit
     character (len=*) :: namestr, fmt
     character (len=32) :: tempstr
+
     call writenum (ivalue, tempstr, fmt)
     call trimzero (tempstr)
     write (unit,*) trim (namestr) // ' = ' // trim (tempstr)
@@ -629,6 +645,7 @@ contains
     integer :: unit
     character (len=*) :: namestr, fmt
     character (len=32) :: tempstr
+
     call writenum (ivalue, tempstr, fmt)
     call trimzero (tempstr)
     write (unit,*) trim (namestr) // ' = ' // trim (tempstr)
@@ -689,6 +706,7 @@ contains
     character, optional :: sep
     logical :: pres
     character :: ch, cha
+    integer :: ibsl, i, k, lenstr, iposa, ipos
  
     pres = present (sep)
     str = adjustl (str)
@@ -751,6 +769,7 @@ contains
     character (len=*) :: str
     character (len=1) :: ch
     character (len=len_trim(str)) :: outstr
+    integer :: ibsl, i, k, lenstr
  
     str = adjustl (str)
     lenstr = len_trim (str)
@@ -780,6 +799,6 @@ contains
  
 !**********************************************************************
  
-end module strings
+end module string_mod
  
  

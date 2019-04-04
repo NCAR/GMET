@@ -13,7 +13,7 @@
 #========================================================================
 
 # Define core directory below which everything resides
-F_MASTER = /home/hydrofcst/SHARP/methods/GMET
+F_MASTER = /home/hydrofcst/otl_support/forcings/GMET
 
 # Core directory that contains source code
 F_SRC_DIR = $(F_MASTER)/scrf
@@ -101,7 +101,8 @@ SCRF_ALL = $(NRUTIL) $(NRPROC) $(DATAMS) $(qpe) $(GEN)
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = pgf90
+#FC  = pgf90
+FC = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
@@ -109,9 +110,9 @@ ifeq "$(FC)" "gfortran"
  INCNETCDF = -I/opt/netcdf-4.1.3/gcc-4.4.5/include
 endif
 ifeq "$(FC)" "ifort"
- NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
+ NCDF_PATH = /usr/local/netcdf4-intel/
  LOCL_PATH = /usr/local
- LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(LOCL_PATH)/lib -lsz -lz
+ LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(LOCL_PATH)/lib -lz
  INCNETCDF = -I$(NCDF_PATH)/include
 endif
 ifeq "$(FC)" "pgf90"
@@ -134,7 +135,11 @@ ifeq "$(FC)" "gfortran"
  FLAGS = -static -Wall -g -ffree-line-length-none
 endif
 ifeq "$(FC)" "ifort"
- FLAGS = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+# FLAGS = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+#for debugging
+ FLAGS = -heap_arrays -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
+#for fast running
+ FLAGS = -warn all -FR -O2 -auto -WB -fltconsistency -fpe0 -heap_arrays
 endif
 ifeq "$(FC)" "pgf90"
  FLAGS_PROF = -Bstatic -Mbackslash -g -Mchkptr -Mchkstk -Mpgicoff -Minform=inform -Ktrap=divz,inv -Mprof=lines,time

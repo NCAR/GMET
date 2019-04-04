@@ -1,16 +1,16 @@
 ! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
-subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, st_rec, end_rec, &
-& stnid, stnvar, site_var, site_var_t, site_list, directory, pcp, pop, pcperr, tmean, tmean_err, &
-& trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
-& pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+  & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
+  & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
+  & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
-  ! ===============================================================================================
+  ! ==============================================================================================
   ! This routine is called during MODE 2 usage:  creates gridded ensembles from station/point data
-  ! ===============================================================================================
+  ! ==============================================================================================
  
-  use strings
+  use string_mod
   use utim
   use type
   implicit none
@@ -24,16 +24,13 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
       real (dp), allocatable, intent (out) :: texp (:)
     end subroutine read_transform_exp
  
-    ! subroutine read_station(stnvar, stnid, site_list, vals, tair_vals, vals_miss, vals_miss_t, error)
-    subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end_rec, vals, tair_vals, &
+    subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_vals, &
    & vals_miss, vals_miss_t, error)
       use type
       character (len=100), intent (in) :: stnvar
       character (len=100), intent (in) :: stnid
-      character (len=500), intent (in) :: site_list
-      character (len=500), intent (in) :: directory !AWW
-      real (dp), intent (in) :: times (:)!AWW
-      integer (i4b), intent (in) :: st_rec, end_rec ! AWW
+      character (len=500), intent (in) :: directory
+      integer (i4b), intent (in) :: st_rec, end_rec
       real (dp), allocatable, intent (out) :: vals (:), tair_vals (:, :)
       logical, allocatable, intent (out) :: vals_miss (:), vals_miss_t (:)
       integer, intent (out) :: error
@@ -62,14 +59,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
       real (dp), intent (in) :: texp !transform exponent
       real (dp), intent (inout) :: y (:)
     end subroutine normalize_y
- 
-    subroutine calc_weights (times, tt, x, w)
-      use type
-      real (dp), intent (in) :: times (:)
-      integer (i4b), intent (in) :: tt
-      real (dp), intent (in) :: x (:, :)
-      real (dp), allocatable, intent (out) :: w (:, :)
-    end subroutine calc_weights
  
     subroutine least_squares (x, y, tx, b)
       use type
@@ -117,17 +106,17 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   end interface
   ! =========== end interfaces, start code =============
  
-  real (dp), intent (in) :: x (:, :), z (:, :)!station and grid point description arrays
-  real (dp), intent (in) :: maxdistance !max distance for weight function
-  integer (i4b), intent (in) :: nsta, ngrid !nuber of input stations and grid points
+  real (dp), intent (in) :: x (:, :), z (:, :)  ! station and grid point description arrays
+  real (dp), intent (in) :: maxdistance         ! max distance for weight function
+  integer (i4b), intent (in) :: ngrid           ! number of grid points
   real (dp), intent (in) :: times (:)!time step array
- 
-  integer (i4b), intent (in) :: st_rec, end_rec ! AWW
+
+  ! AWW added next 
+  integer (i4b), intent (in) :: st_rec, end_rec
  
   character (len=100), intent (in) :: stnid (:)!station id array
-  character (len=100), intent (in) :: stnvar, site_var, site_var_t !control file variables
-  character (len=500), intent (in) :: site_list !file name of station list
-  character (len=500), intent (in) :: directory !AWw feb-2016
+  character (len=100), intent (in) :: stnvar !control file variables
+  character (len=500), intent (in) :: directory
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
@@ -146,7 +135,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   real (dp), intent (out) :: y_std_all (:, :)!std of time step precip including stations with zero precip
   real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min & max  of normalized time step precipitation
  
-  real (dp), allocatable :: y (:), twx (:, :), b (:), tx (:, :)
+  real (dp), allocatable :: y (:), b (:)
+  !real (dp), allocatable :: twx (:, :), tx (:, :) ! not used
  
   real (dp), allocatable :: y_red (:)! reduced matrix for ...
   real (dp), allocatable :: x_red (:, :)! reduced matrix for ...
@@ -165,26 +155,24 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   real (dp), allocatable :: y_tmean (:), y_trange (:)!transformed station data arrays
   real (dp), allocatable :: y_tmean_red (:), y_trange_red (:)!transformed station data arrays
   real (dp), allocatable :: stn_prcp (:), prcp_data (:, :), tair_data (:, :, :), stn_tair (:, :)! orig stn data arrays
-  real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation for stations over entire time period used
-  real (dp), allocatable :: t_p_corr (:)!correlation between temp and precip
-  integer (i4b), allocatable :: yp (:)!binary for logistic regression
-  integer (i4b), allocatable :: yp_red (:)!reduced binary for logistic regression
+  real (dp), allocatable :: auto_corr (:)   ! lag-1 autocorrelation for stations over entire time period used
+  real (dp), allocatable :: t_p_corr (:)    ! correlation between temp and precip
+  integer (i4b), allocatable :: yp (:)      ! binary for logistic regression
+  integer (i4b), allocatable :: yp_red (:)  ! reduced binary for logistic regression
  
-  logical, allocatable :: stn_miss (:), stn_miss_t (:)!missing value logical arrays
+  logical, allocatable :: stn_miss (:), stn_miss_t (:) ! missing value logical arrays
  
-  real (dp) :: m_tmean, m_trange !used to fill missing values in stations
-  real (dp) :: errsum, wgtsum, p, sta_pcp, sta_temp
+  real (dp) :: errsum, wgtsum, sta_temp
   real (dp) :: auto_corr_sum, tp_corr_sum
-  real (dp) :: step_mean, step_std, step_std_all, step_min, step_max !timestep statistics
-  real (dp) :: rsqr, ss_tot, ss_res, vif !r-squared and variance correction
+  real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
+  real (dp) :: ss_tot, ss_res ! r-squared and variance correction
  
   integer (i4b) :: xsize !size of second dimension of input X array
   integer (i4b) :: ntimes, nstns
   integer (i4b) :: t, i, g, ndata, nodata
   integer (i4b) :: ndata_t, nodata_t
-  integer (i4b) :: lag, window, tc, trc
+  integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
-  integer (i4b) :: stn_count
  
   ! variables for tracking closest N stations for precipitation
   integer (i4b) :: out_loc
@@ -205,7 +193,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   real (dp), allocatable :: close_meta_t (:, :, :)
   real (dp) :: min_weight_t
   real (dp) :: max_distance_t
-  real (dp) :: tmp_pcp
   real (dp) :: tmp_weight
  
   integer (i4b) :: slope_flag_pcp
@@ -291,7 +278,6 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   pop = 0.0d0
   pcperr = 0.0d0
   auto_corr = 0.0d0
-  stn_count = 1
  
   tmean = 0.0d0
   trange = 0.0d0
@@ -317,12 +303,15 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   ! and computes autocorrelation on the anomalies
  
   do i = 1, nstns, 1
-    !print *,'station read'
-    !print *,stnvar,stnid(i),site_var,site_var_t,site_list,Times  !AWW modified
-    call read_station (stnvar, stnid(i), site_list, directory, times, st_rec, end_rec, stn_prcp, stn_tair, &
+
+    call read_station (stnvar, stnid(i), directory, st_rec, end_rec, stn_prcp, stn_tair, &
    & stn_miss, stn_miss_t, error)
  
-    stn_count = stn_count + 1 !AWW doesn't appear to be used
+    print*, "first value check: "
+    print*, "   prcp(1): ",stn_prcp(1)
+    print*, "   tavg(1): ",stn_tair(1,1)
+    print*, "   trng(1): ",stn_tair(2,1)
+    print*
  
     prcp_data (i, :) = stn_prcp
     tair_data (1, i, :) = stn_tair (1, :)
@@ -374,6 +363,8 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   mean_autocorr = auto_corr_sum / real (auto_cnt, kind(dp))
   mean_tp_corr = tp_corr_sum / real (tp_cnt, kind(dp))
  
+  print *, ' '
+  print *, '===================================================='
   print *, 'Temp lag-1 autocorrelation: ', mean_autocorr (1)
   print *, 'Temp-precip correlation: ', mean_tp_corr (1)
   print *, '===================================================='
@@ -472,9 +463,9 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
  
   ! AWW-Feb2016:  just allocate grids once time, and re-use in code below
-  allocate (twx_red(6, sta_limit))! these have dim1 = 6
+  allocate (twx_red(6, sta_limit))    ! these have dim1 = 6
   allocate (tx_red(6, sta_limit))
-  allocate (twx_red_2(4, sta_limit))! these are for no slope calcs, have dim1 = 4
+  allocate (twx_red_2(4, sta_limit))  ! these are for no slope calcs, have dim1 = 4
   allocate (tx_red_2(4, sta_limit))
  
   ! =========== now LOOP through all TIME steps and populate grids ===============
@@ -491,7 +482,7 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
     end do
  
     ! do power transformation on precip vector (AWW: consider alternate transforms)
-    call normalize_y (4.0d0, y)
+    call normalize_y (4.0d0, y)    ! SHOULD NOT BE HARDWIRED
  
     ! -------- loop through all grid cells for a given time step --------
     do g = 1, ngrid, 1
@@ -683,9 +674,15 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
               ! --- regression with slope ---
               tx_red = transpose (x_red)
               twx_red = matmul (tx_red, w_pcp_red)
-              call logistic_regression (x_red, y_red, twx_red, yp_red, b)!AJN
-              pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
- 
+              call logistic_regression (x_red, y_red, twx_red, yp_red, b) ! AJN
+
+              !pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
+              if(-dot_product(Z(g,:),B) < 25.) then
+                pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
+              else
+                POP(g,t) = 0.0
+              endif
+
               deallocate (b)
             end if
  
@@ -700,7 +697,13 @@ subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, s
             tx_red_2 = transpose(x_red(:, 1:4))
             twx_red_2 = matmul(tx_red_2, w_pcp_red)
             call logistic_regression (x_red(:, 1:4), y_red, twx_red_2, yp_red, b)!AJN
-            pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
+
+            !pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
+            if(-dot_product(Z(g,:),B) < 25.) then
+              pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
+            else
+              POP(g,t) = 0.0
+            endif
  
             deallocate (b)! B must get allocated in logistic reg.; could this also be allocated just once?
           end if

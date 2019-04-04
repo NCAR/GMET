@@ -1,6 +1,6 @@
 module utim
  
-  use strings
+  use string_mod
   implicit none
  
 contains

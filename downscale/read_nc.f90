@@ -1,4 +1,3 @@
- 
 subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error)
   use netcdf
   use type
@@ -18,28 +17,18 @@ subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error
   character (len=*), parameter :: lon_name = "longitude"
   character (len=*), parameter :: time_name = "time"
  
- 
-  ! We recommend that each variable carry a "units" attribute.
-  character (len=*), parameter :: units = "units"
-  character (len=*), parameter :: lat_units = "degrees_north"
-  character (len=*), parameter :: lon_units = "degrees_east"
- 
   integer (i4b), dimension (nf90_max_var_dims) :: dimids
-  real (dp), allocatable :: times (:), fcst_times (:)!modified AJN 2/4/2014
+  real (dp), allocatable :: times (:), fcst_times (:)  ! modified AJN 2/4/2014
  
   ! Loop indices
-  integer (i4b) :: lvl, lat, lon, rec, i, time_index
+  integer (i4b) :: i, time_index
  
   !indicies for aggregating variables between forecast times
   integer (i4b) :: start_index
  
   integer (i4b) :: start (3), count (3)
  
-  ! To check the units attributes.
-  character * 80 pres_units_in, temp_units_in
-  character * 80 lat_units_in, lon_units_in
- 
-!AJN
+  !AJN
   real (dp), allocatable :: accum_var (:, :, :)
  
   error = 0
@@ -100,7 +89,7 @@ subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error
     end do
     deallocate (times)
     if (time_index == 0) then
-      print ("(AF11.0A))"), "Error: time (", valid_time, ") not found in this file. "
+      print ("(A,F11.0,A)"), "Error: time (", valid_time, ") not found in this file. "
       error = 1
       deallocate (lats)
       deallocate (lons)

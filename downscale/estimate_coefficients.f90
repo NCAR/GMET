@@ -1,6 +1,8 @@
+!subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
+!& stnlon, stnalt, stnvar, site_var, site_list, directory, c, poc, error) !AWW added directory
+
 subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
-& stnlon, stnalt, stnvar, site_var, site_list, directory, c, poc, error) !AWW added directory
-!& stnlon, stnalt, stnvar, site_var, site_list, c, poc, error) 
+  & stnlon, stnvar,  directory, c, poc, error) !AWW added directory
 
   ! ==================================================================================================
   ! This routine called in MODE 1 usage:  downscaling gridded data to create station/point ensembles
@@ -13,17 +15,13 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
   ! ==== interfaces ======
   interface
  
-    ! subroutine read_station(stnvar, stnid, site_list, vals, tair_vals, vals_miss,&
-    ! AWW - added back Times
-    subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end_rec, vals, tair_vals, &
+    subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_vals, &
    & vals_miss, vals_miss_t, error)
       use type
       use utim ! AWW
       character (len=100), intent (in) :: stnvar
       character (len=100), intent (in) :: stnid
-      character (len=500), intent (in) :: site_list
       character (len=500), intent (in) :: directory ! AWW
-      real (dp), intent (in) :: times (:)! AWW
       integer (i4b), intent (in) :: st_rec, end_rec ! AWW
       real (dp), allocatable, intent (out) :: vals (:), tair_vals (:, :)
       logical, allocatable, intent (out) :: vals_miss (:), vals_miss_t (:)
@@ -41,9 +39,8 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
       real (dp), intent (inout) :: y (:)
     end subroutine normalize_y
  
-    subroutine calc_weights (times, tt, x, w)
+    subroutine calc_weights (tt, x, w)
       use type
-      real (dp), intent (in) :: times (:)
       integer (i4b), intent (in) :: tt
       real (dp), intent (in) :: x (:, :)
       real (dp), allocatable, intent (out) :: w (:, :)
@@ -75,17 +72,15 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
  
   integer (i4b), intent (in) :: nvars
   character (len=100), intent (in) :: stnid (:)
-  real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
+  real (dp), intent (in) :: stnlat (:), stnlon (:)
   character (len=100), intent (in) :: stnvar
-  character (len=100), intent (in) :: site_var
-  character (len=500), intent (in) :: site_list
   character (len=500), intent (in) :: directory ! AWW-feb2016 added for data location
   real (dp), allocatable, intent (out) :: c (:, :, :), poc (:, :, :)
   integer, intent (out) :: error
  
   !  real(DP), allocatable :: X(:,:), Y(:), XS(:,:), TWXS(:,:), YS(:), W(:,:), B(:),tair_vals(:,:)
-  real (dp), allocatable :: x(:, :), y(:), xs(:, :), xp (:, :), twxs(:, :), ys(:), w(:, :), b &
- & (:), tair_vals (:, :)
+  real (dp), allocatable :: x(:, :), y(:), xs(:, :), xp (:, :), twxs(:, :), ys(:), w(:, :)
+  real (dp), allocatable :: b(:), tair_vals (:, :)
  
   real (dp), allocatable :: ts(:)
   logical, allocatable :: y_miss(:), y_miss_t(:) ! modified AJN Sept 2013
@@ -93,9 +88,8 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
   integer (i4b) :: i, j, k, t, v, tt
   real (dp) :: minlondis, minlatdis
   integer (i4b) :: minlatk, minlonj, gridindex
-  integer (i4b) :: vshape(2)
-  character (len=100) :: site_var_t !modified AJN Sept 2013
-  real (dp) :: transform_exp !precip. transform variable, the exp. of transform norm_pcp = pcp^(1/transform_exp)
+  real (dp) :: transform_exp  ! precip. transform variable, the exponent of 
+                              !   transform norm_pcp = pcp^(1/transform_exp)
  
   print *, "allocated memory in estimate_coefficients"
   error = 0
@@ -162,9 +156,8 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
         !        print *, "VAR NUM:", v, X(:,v+1)
     end do
  
-    ! call read_station(stnvar, stnid(i), site_list, Y, tair_vals, &
-    ! AWW added Times, directory, st_rec, end_rec
-    call read_station (stnvar, stnid(i), site_list, directory, times, st_rec, end_rec, y, tair_vals, y_miss, &
+    ! AWW added directory, st_rec, end_rec
+    call read_station (stnvar, stnid(i), directory, st_rec, end_rec, y, tair_vals, y_miss, &
    & y_miss_t, error)
     !     print *, "Y:", Y
  
@@ -203,7 +196,7 @@ subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, 
         print *, t, ntimes, y_miss (t)
         ! AJN original version
  
-        call calc_weights (ts, tt, xs, w)
+        call calc_weights (tt, xs, w)
         ! call calc_weights(TS, tt, XP, W)
  
         ! AJN original version

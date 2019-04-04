@@ -7,8 +7,7 @@
 EXE = downscale.exe
 
 #FC = gfortran
-#FC = pgf90
-FC = ifort
+FC = pgf90
 
 # flags for debugging or for maximum performance, comment as necessary
 
@@ -42,40 +41,11 @@ ifeq ($(FC),gfortran)
 
         # flags forall (e.g. look for system .mod files, required in gfortran)
 #	FCFLAGS += -I/usr/local.net/netcdf-4.3.0/gcc-4.7.2/include
-        FCFLAGS += -I/opt/netcdf4-gcc/include
-
 
         # libraries needed for linking, unused in the examples
         LDLOCAL = -Wl,-rpath,/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib
-#     LDFLAGS = $(LDLOCAL) -L/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib -lnetcdf -lnetcdff
-	LDFLAGS = $(LDLOCAL) -L/opt/netcdf4-gnu/lib -lnetcdf -lnetcdff
+	LDFLAGS = $(LDLOCAL) -L/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib -lnetcdf -lnetcdff
         #LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
-endif
-
-ifeq ($(FC),ifort)
-#        FCFLAGS = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0 -heap_arrays
-        FCFLAGS = -O2 -warn all -FR -auto -WB -fltconsistency -fpe1 -heap_arrays
-        
-
-#       FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
-        #FCFLAGS = -O2 -Mbackslash -fPIC
-
-        # flags forall (e.g. look for system .mod files, required in gfortran)
-#       FCFLAGS += -I/usr/local/netcdf4-pgi/include
-#       FCFLAGS += -I/opt/netcdf4-ifort/include
-
-        NCDF_PATH = /opt/netcdf4
-#        NCDF_PATH = /opt/netcdf4-intel
-#        NCDF_PATH = /opt/netcdf4-4.3.3.1
-        LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf  -L/opt/hdf5/lib 
-        INCNETCDF = -I$(NCDF_PATH)/include
-
-        # libraries needed for linking, unused in the examples
-#       LDLOCAL = -rpath,/usr/local/netcdf-4.1.1/pgi-v11-7/lib
-#       LDFLAGS = $(LDLOCAL) -L/usr/local/netcdf4-pgi/lib -lnetcdff -lnetcdf
-
-        LDFLAGS = $(LIBNETCDF) $(INCNETCDF) 
-
 endif
 
 
@@ -101,7 +71,7 @@ $(EXE):	type.o \
 	$(FC) $(FCFLAGS) $(LDFLAGS) -o $@ $^ 
 
 %.o: %.f90
-	$(FC) $(FCFLAGS) $(LDFLAGS) -c $<
+	$(FC) $(FCFLAGS) -c $<
 
 clean:
 	rm -f *.o *.mod *.MOD

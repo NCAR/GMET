@@ -45,3 +45,9 @@ from_NR.tgz
 
 # misc notes files
 LASTNEXT
+
+# not the run directory
+run/
+
+# not a devel code dir
+downscale/alt/
