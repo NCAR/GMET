@@ -38,6 +38,8 @@ subroutine read_config (fname, n, config_names, values)
   config_names(16) = "DATA_DIRECTORY" ! AWW-feb2016, free data dir from site list path
   config_names(17) = "STN_START_DATE" ! AWW-apr2016, add station period limits
   config_names(18) = "STN_END_DATE"   !  
+  config_names(19) = "GEN_STA_WEIGHTS"   !  
+  config_names(20) = "STA_WEIGHT_NAME"   !  
 
  
   do i = 1, n, 1
