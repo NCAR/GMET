@@ -1,7 +1,7 @@
 ! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
-subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
@@ -35,6 +35,49 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
       logical, allocatable, intent (out) :: vals_miss (:), vals_miss_t (:)
       integer, intent (out) :: error
     end subroutine read_station
+
+    subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &
+                                   sta_limit,sta_data,tair_data, &
+                                   close_meta,close_meta_t,close_loc,close_loc_t, &
+                                   close_count,close_count_t,close_weights,close_weights_t)
+      use type
+      !inputs
+      character(len=500),intent(in) :: sta_weight_name   !name of station weight binary file
+      integer(I4B), intent(in)      :: ngrid               !number of grid points
+      integer(I4B), intent(in)      :: nstns               !number of stations
+      real(DP), intent(in)          :: Z(:,:)              !grid metadata array
+      real(DP), intent(in)          :: X(:,:)              !station metadata array
+      real(DP), intent(in)          :: search_distance     !default station search distance
+      integer(I4B), intent(in)      :: sta_limit           !maximum number of stations for a grid point
+      real(DP), intent(in)          :: sta_data(:,:)       !station data values for precipitation
+      real(DP), intent(in)          :: tair_data(:,:,:)    !station air temperature data
+      !in/out
+      real(DP), intent(inout)     :: close_meta(:,:,:)
+      real(DP), intent(inout)     :: close_meta_t(:,:,:)
+      integer(I4B), intent(inout) :: close_loc(:,:)
+      integer(I4B), intent(inout) :: close_loc_t(:,:)
+      integer(I4B), intent(inout) :: close_count(:)
+      integer(I4B), intent(inout) :: close_count_t(:)
+      real(DP), intent(inout)     :: close_weights(:,:)
+      real(DP), intent(inout)     :: close_weights_t(:,:) 
+    end subroutine compute_station_weights
+
+    subroutine read_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
+                                close_weights_t,close_count,close_count_t) !output
+      use type
+      !input
+      character(len=500), intent(in)    :: sta_weight_name
+      !output
+      real(DP), intent(out)      :: close_meta(:,:,:)
+      real(DP), intent(out)      :: close_meta_t(:,:,:)
+      integer(I4B), intent(out)  :: close_loc(:,:)
+      integer(I4B), intent(out)  :: close_loc_t(:,:)
+      real(DP), intent(out)      :: close_weights(:,:)
+      real(DP), intent(out)      :: close_weights_t(:,:)
+      integer(I4B), intent(out)  :: close_count(:)
+      integer(I4B), intent(out)  :: close_count_t(:)
+    end subroutine read_station_weights
 
     subroutine normalize_x (x)
       use type
@@ -117,6 +160,8 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
   character (len=100), intent (in) :: stnid (:)!station id array
   character (len=100), intent (in) :: stnvar !control file variables
   character (len=500), intent (in) :: directory
+  character (len = 500),intent(in) :: gen_sta_weights     ! flag for generating station weight file
+  character (len = 500),intent(in) :: sta_weight_name     ! station weight file name
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
@@ -374,6 +419,18 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
 
   ! ========= LOOP OVER GRID CELLS ==================
   print *, 'Generating base weight matrix and finding nearest stations for each gridpoint'
+  if(gen_sta_weights .eq. "TRUE" .or. gen_sta_weights .eq. "true") then
+    call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, & !input
+                                 sta_limit,prcp_data,tair_data, & !input
+                                 close_meta,close_meta_t,close_loc,close_loc_t, &  !output
+                                 close_count,close_count_t,close_weights,close_weights_t) !output
+
+
+  else
+    call read_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
+                                close_weights_t,close_count,close_count_t) !output
+  endif
   ! AJN 01/15/2014 -- pulled this weight generation step out of time loop, which is now down below
 
   do g = 1, ngrid, 1
