@@ -1,7 +1,7 @@
 subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &
                                    sta_limit,sta_data,tair_data, &
                                    close_meta,close_meta_t,close_loc,close_loc_t, &
-                                   close_count,close_count_t,close_weights,close_weights_t)
+                                   close_count,close_count_t,close_weights,close_weights_t,error)
 
   use type
 
@@ -19,8 +19,6 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
   real(DP), intent(in)          :: sta_data(:,:)       !station data values for precipitation
   real(DP), intent(in)          :: tair_data(:,:,:)    !station air temperature data
 
-  !outputs
-  
   !in/out
   real(DP), intent(inout)     :: close_meta(:,:,:)
   real(DP), intent(inout)     :: close_meta_t(:,:,:)
@@ -30,13 +28,12 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
   integer(I4B), intent(inout) :: close_count_t(:)
   real(DP), intent(inout)     :: close_weights(:,:)
   real(DP), intent(inout)     :: close_weights_t(:,:)
+  integer(I4B), intent(inout) :: error
   
-
   !local variables
   real(DP)                    :: min_weight_t
   real(DP)                    :: min_weight
   real(DP), allocatable       :: w_base(:,:)
-  integer(I4B)                :: error
   integer(I4B)                :: out_loc
   integer(I4B)                :: out_loc_t
   integer(I4B)                :: i,g        ! counter variables

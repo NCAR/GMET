@@ -39,7 +39,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &
                                    sta_limit,sta_data,tair_data, &
                                    close_meta,close_meta_t,close_loc,close_loc_t, &
-                                   close_count,close_count_t,close_weights,close_weights_t)
+                                   close_count,close_count_t,close_weights,close_weights_t,error)
       use type
       !inputs
       character(len=500),intent(in) :: sta_weight_name   !name of station weight binary file
@@ -60,11 +60,12 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       integer(I4B), intent(inout) :: close_count_t(:)
       real(DP), intent(inout)     :: close_weights(:,:)
       real(DP), intent(inout)     :: close_weights_t(:,:) 
+      integer(I4B),intent(inout)  :: error
     end subroutine compute_station_weights
 
     subroutine read_station_weights(sta_weight_name, & !input
                                 close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
-                                close_weights_t,close_count,close_count_t) !output
+                                close_weights_t,close_count,close_count_t,error) !output
       use type
       !input
       character(len=500), intent(in)    :: sta_weight_name
@@ -77,6 +78,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       real(DP), intent(out)      :: close_weights_t(:,:)
       integer(I4B), intent(out)  :: close_count(:)
       integer(I4B), intent(out)  :: close_count_t(:)
+      integer(I4B), intent(inout):: error
     end subroutine read_station_weights
 
     subroutine normalize_x (x)
@@ -423,13 +425,18 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, & !input
                                  sta_limit,prcp_data,tair_data, & !input
                                  close_meta,close_meta_t,close_loc,close_loc_t, &  !output
-                                 close_count,close_count_t,close_weights,close_weights_t) !output
+                                 close_count,close_count_t,close_weights,close_weights_t,error) !output
 
-
+    if(error /= 0) then
+       return
+    endif
   else
     call read_station_weights(sta_weight_name, & !input
                                 close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
-                                close_weights_t,close_count,close_count_t) !output
+                                close_weights_t,close_count,close_count_t,error) !output
+    if(error /= 0) then
+       return
+    endif
   endif
   ! AJN 01/15/2014 -- pulled this weight generation step out of time loop, which is now down below
 

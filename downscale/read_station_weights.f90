@@ -1,6 +1,6 @@
 subroutine read_station_weights(sta_weight_name, & !input
                                 close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
-                                close_weights_t,close_count,close_count_t) !output
+                                close_weights_t,close_count,close_count_t,error) !output
 
   use type
   implicit none
@@ -18,8 +18,8 @@ subroutine read_station_weights(sta_weight_name, & !input
   integer(I4B), intent(out)  :: close_count(:)
   integer(I4B), intent(out)  :: close_count_t(:)
 
-  !local variables
-  integer(I4B)      :: error
+  !in/out
+  integer(I4B), intent(inout):: error
 
   !code starts below
 
