@@ -22,12 +22,22 @@ CONTAINS
 	IMPLICIT NONE
 	INTEGER(K4B), INTENT(IN) :: length
 	INTEGER(K4B) :: new,j,hgt
+	INTEGER(K4B) :: tmp_i4
 
 	if (length < lenran) RETURN
 	hgt=hg
 	if (hg /= 2147483647) call nrerror('ran_init: arith assump 1 fails')
 	if (hgng >= 0)        call nrerror('ran_init: arith assump 2 fails')
-	if (hgt+1 /= hgng)    call nrerror('ran_init: arith assump 3 fails')
+	! replaced following
+! 	!if (hgt+1 /= hgng)    call nrerror('ran_init: arith assump 3 fails')
+ 	!if (hgt+1 /= hgng) then
+        !   print*,'hgt and hgng = ', hgt, hgng
+        !   call nrerror('ran_init: arith assump 3 fails')
+        !end if 
+        tmp_i4 = (hgt+1)-hgng
+        if (tmp_i4 /= 0)    call nrerror('ran_init: arith assump 3 fails')
+
+
 	if (not(hg) >= 0)     call nrerror('ran_init: arith assump 4 fails')
 	if (not(hgng) < 0)    call nrerror('ran_init: arith assump 5 fails')
 	if (hg+hgng >= 0)     call nrerror('ran_init: arith assump 6 fails')

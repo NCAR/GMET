@@ -48,6 +48,7 @@ LASTNEXT
 
 # not the run directory
 run/
+scripts/
 
 # not a devel code dir
 downscale/alt/
