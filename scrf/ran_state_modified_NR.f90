@@ -1,5 +1,6 @@
 ! A. Wood, 2016, added call to routine to use a new seed on each run
 !   requires subroutine 'init_rand_seed_I4B.f90'
+! AWW-20190910:  altered arith check #3
 
 MODULE ran_state
 	USE nrtype
@@ -22,22 +23,15 @@ CONTAINS
 	IMPLICIT NONE
 	INTEGER(K4B), INTENT(IN) :: length
 	INTEGER(K4B) :: new,j,hgt
-	INTEGER(K4B) :: tmp_i4
+	INTEGER(K4B) :: tmp_i4  ! AW add to assist in check 3 below
 
 	if (length < lenran) RETURN
 	hgt=hg
 	if (hg /= 2147483647) call nrerror('ran_init: arith assump 1 fails')
 	if (hgng >= 0)        call nrerror('ran_init: arith assump 2 fails')
-	! replaced following
-! 	!if (hgt+1 /= hgng)    call nrerror('ran_init: arith assump 3 fails')
- 	!if (hgt+1 /= hgng) then
-        !   print*,'hgt and hgng = ', hgt, hgng
-        !   call nrerror('ran_init: arith assump 3 fails')
-        !end if 
+	!if (hgt+1 /= hgng)    call nrerror('ran_init: arith assump 3 fails')  ! AW replace w/ next 2 lines
         tmp_i4 = (hgt+1)-hgng
-        if (tmp_i4 /= 0)    call nrerror('ran_init: arith assump 3 fails')
-
-
+	if (tmp_i4 /= 0)    call nrerror('ran_init: arith assump 3 fails')
 	if (not(hg) >= 0)     call nrerror('ran_init: arith assump 4 fails')
 	if (not(hgng) < 0)    call nrerror('ran_init: arith assump 5 fails')
 	if (hg+hgng >= 0)     call nrerror('ran_init: arith assump 6 fails')
