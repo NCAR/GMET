@@ -32,7 +32,7 @@ from_NR.tgz
 
 #no archives
 *.tar
-*.tgz
+#*.tgz -- allowing the example to exist as an archive
 *.gz
 *.zip
 *.Z
