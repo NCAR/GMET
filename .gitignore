@@ -33,7 +33,7 @@ from_NR.tgz
 
 #no archives
 *.tar
-*.tgz
+#*.tgz -- allowing the example to exist as an archive
 *.gz
 *.zip
 *.Z
@@ -49,6 +49,7 @@ LASTNEXT
 
 # not the run directory
 run/
+scripts/
 
 # not a devel code dir
 downscale/alt/

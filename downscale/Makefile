@@ -6,14 +6,14 @@
 
 EXE = downscale.exe
 
-#FC = gfortran
+FC = gfortran
 #FC = pgf90
-FC = ifort
+#FC = ifort
 
 # flags for debugging or for maximum performance, comment as necessary
 
 ifeq ($(FC),pgf90)
-#	FCFLAGS = -Mbackslash -fPIC  
+#	FCFLAGS = -Mbackslash -fPIC
 
 	FCFLAGS = -g -Mbackslash -fPIC -Mlarge_arrays
 #	FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
@@ -42,11 +42,11 @@ ifeq ($(FC),gfortran)
 
         # flags forall (e.g. look for system .mod files, required in gfortran)
 #	FCFLAGS += -I/usr/local.net/netcdf-4.3.0/gcc-4.7.2/include
-        FCFLAGS += -I/opt/netcdf4-gcc/include
+        FCFLAGS += -I/opt/netcdf4-gnu/include
 
 
         # libraries needed for linking, unused in the examples
-        LDLOCAL = -Wl,-rpath,/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib
+        LDLOCAL = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib
 #     LDFLAGS = $(LDLOCAL) -L/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib -lnetcdf -lnetcdff
 	LDFLAGS = $(LDLOCAL) -L/opt/netcdf4-gnu/lib -lnetcdf -lnetcdff
         #LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
