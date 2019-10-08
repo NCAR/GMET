@@ -222,23 +222,19 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   integer (i4b) :: auto_cnt, tp_cnt
 
   ! variables for tracking closest N stations for precipitation
-  integer (i4b) :: out_loc
   integer (i4b), parameter :: sta_limit = 30
   integer (i4b), allocatable :: close_loc (:, :)
   integer (i4b), allocatable :: close_count (:)
   real (dp), allocatable :: close_weights (:, :)
   real (dp), allocatable :: close_meta (:, :, :)
-  real (dp) :: min_weight
   real (dp) :: max_distance
   real (dp), parameter :: search_distance = 1000.0
 
   ! variables for tracking closest N stations for temperature
-  integer (i4b) :: out_loc_t
   integer (i4b), allocatable :: close_loc_t (:, :)
   integer (i4b), allocatable :: close_count_t (:)
   real (dp), allocatable :: close_weights_t (:, :)
   real (dp), allocatable :: close_meta_t (:, :, :)
-  real (dp) :: min_weight_t
   real (dp) :: max_distance_t
   real (dp) :: tmp_weight
 
@@ -420,6 +416,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   call system_clock (t1, count_rate)
 
   ! ========= LOOP OVER GRID CELLS ==================
+  !Create station-grid cell weight matrices before time stepping
   print *, 'Generating base weight matrix and finding nearest stations for each gridpoint'
   if(gen_sta_weights .eq. "TRUE" .or. gen_sta_weights .eq. "true") then
     call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, & !input
@@ -438,90 +435,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
        return
     endif
   endif
-  ! AJN 01/15/2014 -- pulled this weight generation step out of time loop, which is now down below
-
-  do g = 1, ngrid, 1
-
-    ! AJN
-    close_count (g) = 1   ! these are for precip
-    min_weight = 0.0d0
-    close_weights (g, :) = 0.0d0  ! close station weights
-
-    close_count_t (g) = 1  ! these are for temp
-    min_weight_t = 0.0d0
-    close_weights_t (g, :) = 0.0d0
-
-    ! for current grid cell, loop through stations, find distance
-    do i = 1, nstns, 1
-      ! setup distinct weight matrices for precip and temperature
-      ! x() are station lonlat; z() are grid lonlat; returns weight (w_base) for grd-to-stn
-      call calc_distance_weight (search_distance, x(i, 2), x(i, 3), z(g, 2), z(g, 3), w_base(g, i))
-
-      ! original call
-      ! call calc_distance_weight(maxDistance, X(i,2), X(i,3), Z(g,2), Z(g,3), w_temp(i,i))
-
-      ! also set some logic to limit the number of stations to the N closest
-      min_weight = 0.0d0
-
-      ! THIS uses the first value in the timeseries to decide if a variable is present for the stn
-      if (w_base(g, i) .gt. min_weight .and. prcp_data(i, 1) .gt.-100.0d0) then
-
-        if (close_count(g) .le. sta_limit) then
-          close_weights (g, close_count(g)) = w_base (g, i)
-          close_loc (g, close_count(g)) = i
-          close_meta (1, g, close_count(g)) = x (i, 2)
-          close_meta (2, g, close_count(g)) = x (i, 3)
-          close_meta (3, g, close_count(g)) = z (g, 2)
-          close_meta (4, g, close_count(g)) = z (g, 3)
-          call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta(5, g, close_count(g)))
-          close_count (g) = close_count (g) + 1
-        else
-          min_weight = minval (close_weights(g, :), 1)
-          if (w_base(g, i) .gt. min_weight) then
-            out_loc = minloc (close_weights(g, :), 1)
-            close_weights (g, out_loc) = w_base (g, i)
-            close_loc (g, out_loc) = i
-            close_meta (1, g, out_loc) = x (i, 2)
-            close_meta (2, g, out_loc) = x (i, 3)
-            close_meta (3, g, out_loc) = z (g, 2)
-            close_meta (4, g, out_loc) = z (g, 3)
-            call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta(5, g, out_loc))
-          end if
-        end if
-      end if
-
-      ! need to repeat above for temperature since that data is independent of precipitation
-      min_weight_t = 0.0d0
-
-      if (w_base(g, i) .gt. min_weight_t .and. tair_data(1, i, 1) .gt.-200.0d0) then
-        if (close_count_t(g) .le. sta_limit) then
-          close_weights_t (g, close_count_t(g)) = w_base (g, i)
-          close_loc_t (g, close_count_t(g)) = i
-          close_meta_t (1, g, close_count_t(g)) = x (i, 2)
-          close_meta_t (2, g, close_count_t(g)) = x (i, 3)
-          close_meta_t (3, g, close_count_t(g)) = z (g, 2)
-          close_meta_t (4, g, close_count_t(g)) = z (g, 3)
-          call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta_t(5, g, &
-         & close_count_t(g)))
-          close_count_t (g) = close_count_t (g) + 1
-        else
-          min_weight_t = minval (close_weights(g, :), 1)
-          if (w_base(g, i) .gt. min_weight) then
-            out_loc_t = minloc (close_weights_t(g, :), 1)
-            close_weights_t (g, out_loc_t) = w_base (g, i)
-            close_loc_t (g, out_loc_t) = i
-            close_meta_t (1, g, out_loc_t) = x (i, 2)
-            close_meta_t (2, g, out_loc_t) = x (i, 3)
-            close_meta_t (3, g, out_loc_t) = z (g, 2)
-            close_meta_t (4, g, out_loc_t) = z (g, 3)
-            call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta(5, g, out_loc_t))
-          end if
-        end if
-      end if
-
-    end do ! end station loop
-  end do
-  ! ============== end grid point loop to find nearest stations ==============
 
   call system_clock (t2, count_rate)
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
