@@ -441,8 +441,8 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
          & close_count_t(g)))
           close_count_t (g) = close_count_t (g) + 1
         else
-          min_weight_t = minval (close_weights(g, :), 1)
-          if (w_base(g, i) .gt. min_weight) then
+          min_weight_t = minval (close_weights_t(g, :), 1)
+          if (w_base(g, i) .gt. min_weight_t) then
             out_loc_t = minloc (close_weights_t(g, :), 1)
             close_weights_t (g, out_loc_t) = w_base (g, i)
             close_loc_t (g, out_loc_t) = i
@@ -450,7 +450,7 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
             close_meta_t (2, g, out_loc_t) = x (i, 3)
             close_meta_t (3, g, out_loc_t) = z (g, 2)
             close_meta_t (4, g, out_loc_t) = z (g, 3)
-            call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta(5, g, out_loc_t))
+            call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta_t(5, g, out_loc_t))
           end if
         end if
       end if
