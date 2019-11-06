@@ -23,7 +23,7 @@ subroutine read_station_weights(sta_weight_name, & !input
 
   !code starts below
 
-  open(unit=34,file=trim(sta_weight_name),form='unformatted',iostat=error)
+  open(unit=34,file=trim(sta_weight_name),form='unformatted',status='old',iostat=error)
 
   if(error .ne. 0) then; print *, 'Error opening station weight file ', trim(sta_weight_name), ' ', error; return; end if
 

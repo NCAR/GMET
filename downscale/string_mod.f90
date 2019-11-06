@@ -73,6 +73,10 @@ contains
     do
       if (len_trim(str) == 0) exit
       nargs = nargs + 1
+      if(nargs .gt. size(args)) then
+        print *,'Number of predictors larger than expected, check nPredict'
+        stop
+      end if
       call split (str, delims, args(nargs))
       call removebksl (args(nargs))
     end do

@@ -89,14 +89,19 @@ program gmet
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
 
-    subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+    subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+   & n_nwp, nwp_vars, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
       use type
-      character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
-      character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
-      real (dp), intent (in) :: x (:, :), z (:, :)
+      character (len=500), intent(in)   :: gen_sta_weights        ! station weight generation flag
+      character (len = 500), intent(in) :: sta_weight_name        ! station weight file name
+      character (len = 2000),intent(in) :: nwp_input_list         ! name of file containint list of NWP input files
+      character (len=100), intent(in)   :: nwp_vars(:)            !list of nwp predictor variables
+      integer(i4b), intent(in)             :: nPredict            ! number of total predictors
+      integer(i4b), intent(in)             :: n_nwp               ! number of NWP predictors
+      real (dp), intent (inout) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
       integer (i4b), intent (in) :: ngrid
       real (dp), intent (in) :: times (:)
@@ -147,7 +152,7 @@ program gmet
   ! === end of interface, start the program ====
  
   character (len=100) :: config_file
-  integer, parameter  :: nconfigs = 20 
+  integer, parameter  :: nconfigs = 23
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
@@ -157,6 +162,7 @@ program gmet
   character (len=20)  :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
   character (len=100) :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
+  character (len=100), allocatable :: nwp_vars(:)    !list of nwp predictor variables
   character (len=100), allocatable :: stnid (:), stnname (:)
   character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
 
@@ -166,6 +172,7 @@ program gmet
   character (len=2000) :: arg !command line arg for configuration file
   character (len=2000) :: output_file_tmp !temporary output file name
   character (len=2000) :: sys_str !string for system commands
+  character (len=2000) :: nwp_input_list !name of file containint list of NWP input files
 
   integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
   integer :: nstations, lenfile
@@ -196,7 +203,8 @@ program gmet
   integer :: ngrid
  
   integer (i4b) :: nx, ny, ntimes
- 
+  integer (i4b) :: nPredict           ! total number of predictors for spatial regression
+  integer (i4b) :: n_nwp           ! number of NWP predictors for spatial regression
   integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec ! AWW
  
   real (dp) :: maxdistance
@@ -248,6 +256,12 @@ program gmet
   stn_enddate    = config_values(18)
   gen_sta_weights= config_values(19)
   sta_weight_name= config_values(20)
+
+  call value(config_values(21),nPredict,error)
+  if (error /= 0) then
+    print *, "ERROR: Failed to read npredict from config file."
+    stop
+  end if
 
   !check to see if output file path is valid
   !create the output file and see if an error occurs
@@ -403,11 +417,21 @@ program gmet
     print*, "Max Distance =", maxdistance
     if (error /= 0) then
       !maxdistance = -1   ! AWW why not just stop (orig code)?
-      print*, "Max Distance not correctly read ... quitting"
+      print*, "Max Distance not correctly read ... quitting", error
       stop
     end if
     maxdistance = maxdistance * 0.539957   ! AWW...why?
  
+    n_nwp = nPredict-6
+    allocate(nwp_vars(n_nwp))
+    call parse (config_values(22), ",", nwp_vars, nfile_var)
+    if(nfile_var /= n_nwp) then
+      print *,"Failed to read in NWP variable list or nPredict does not equal 6 + number of NWP predictors:", nfile_var
+      stop
+    end if
+
+    nwp_input_list = config_values(23)
+
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
    & stn_slp_e, nstations, error, vars) ! AWW added vars
     if (error /= 0) then
@@ -446,8 +470,11 @@ program gmet
     mask_1d   = reshape (mask, (/ nx*ny /))
  
     ngrid = nx * ny
-    allocate (x(nstations, 6))   ! x arrays for station variables
-    allocate (z(ngrid, 6))
+
+    allocate (x(nstations, nPredict))   ! x arrays for station variables
+    allocate (z(ngrid, nPredict))
+
+    !define first six predictors as geophysical predictors
     x(:, 1) = 1.0
     x(:, 2) = stnlat (:)
     x(:, 3) = stnlon (:)
@@ -485,7 +512,8 @@ program gmet
     allocate (y_max(ngrid, ntimes))
     allocate (y_min(ngrid, ntimes))
  
-    call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+    call estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+   & n_nwp, nwp_vars, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
    & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)

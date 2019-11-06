@@ -1,7 +1,8 @@
 ! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
-subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+  & n_nwp, nwp_vars, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
@@ -81,6 +82,32 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       integer(I4B), intent(inout):: error
     end subroutine read_station_weights
 
+
+    subroutine read_nwp(currentTime,nwp_timestep_file,nPredict,n_nwp,nwp_vars,station_grid,x,z,error)
+      use string_mod
+      use utim
+      use type
+      character (len=2000), intent (in) :: nwp_timestep_file
+      character (len=100), intent (in)  :: nwp_vars(:)
+      integer(i4b), intent(in)          :: nPredict     !total number of predictors
+      integer(i4b), intent(in)          :: n_nwp        !number of NWP predictors
+      integer(i4b), intent(in)          :: station_grid(:)        !nearest grid point for every station location
+      real(dp), intent(in)          :: currentTime  !current timestep unix time
+      real (dp), intent (inout) :: x(:,:), z(:,:) !station and grid predictor matrices
+      integer, intent (inout) :: error !error integer
+    end subroutine read_nwp
+
+    subroutine station_grid_correspondence(close_weights,close_weights_t,close_loc,close_loc_t,nSta,nearestGridpoint)
+      use type
+
+      real(dp), intent(in)        :: close_weights(:,:)
+      real(dp), intent(in)        :: close_weights_t(:,:)
+      integer(I4B), intent(in)    :: close_loc(:,:)
+      integer(I4B), intent(in)    :: close_loc_t(:,:)
+      integer(I4B), intent(in)    :: nSta
+      integer(I4B), intent(out)   :: nearestGridpoint(:)
+    end subroutine station_grid_correspondence
+
     subroutine normalize_x (x)
       use type
       real (dp), intent (inout) :: x (:, :)
@@ -151,7 +178,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   end interface
   ! =========== end interfaces, start code =============
 
-  real (dp), intent (in) :: x (:, :), z (:, :)  ! station and grid point description arrays
+  real (dp), intent (inout) :: x (:, :), z (:, :)  ! station and grid point description arrays
   real (dp), intent (in) :: maxdistance         ! max distance for weight function
   integer (i4b), intent (in) :: ngrid           ! number of grid points
   real (dp), intent (in) :: times (:)!time step array
@@ -159,11 +186,18 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   ! AWW added next
   integer (i4b), intent (in) :: st_rec, end_rec
 
-  character (len=100), intent (in) :: stnid (:)!station id array
-  character (len=100), intent (in) :: stnvar !control file variables
-  character (len=500), intent (in) :: directory
-  character (len = 500),intent(in) :: gen_sta_weights     ! flag for generating station weight file
-  character (len = 500),intent(in) :: sta_weight_name     ! station weight file name
+  character (len=100), intent (in)  :: stnid (:)!station id array
+  character (len=100), intent (in)  :: stnvar !control file variables
+  character (len=500), intent (in)  :: directory
+  character (len = 500),intent(in)  :: gen_sta_weights     ! flag for generating station weight file
+  character (len = 500),intent(in)  :: sta_weight_name     ! station weight file name
+  character (len = 2000),intent(in) :: nwp_input_list      !file containing list of NWP predictor input files
+  character (len=100), intent(in)   :: nwp_vars(:)    !list of nwp predictor variables
+
+  character (len=2000)  ::  nwp_timestep_file        !name of a NWP predictor file
+
+  integer(I4B), intent(in)          :: nPredict            ! number of total predictors
+  integer(I4B), intent(in)          :: n_nwp               ! number of NWP predictors
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
@@ -221,6 +255,9 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
 
+  integer(I4B)  :: nBase  !number of geophysical predictors
+  integer(I4B),allocatable  :: noSlopePredicts(:)
+
   ! variables for tracking closest N stations for precipitation
   integer (i4b), parameter :: sta_limit = 30
   integer (i4b), allocatable :: close_loc (:, :)
@@ -237,6 +274,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (dp), allocatable :: close_meta_t (:, :, :)
   real (dp) :: max_distance_t
   real (dp) :: tmp_weight
+
+  integer(I4B), allocatable :: nearestGridpoint(:)
 
   integer (i4b) :: slope_flag_pcp
   integer (i4b) :: slope_flag_temp
@@ -276,8 +315,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   allocate (w_temp_1d(sta_limit))
   allocate (w_pcp_1d_loc(sta_limit))
   allocate (w_temp_1d_loc(sta_limit))
-  allocate (tmp(6, 6))
-  allocate (vv(6))
+  allocate (tmp(nPredict, nPredict))
+  allocate (vv(nPredict))
   allocate (pcp(ngrid, ntimes))
   allocate (pop(ngrid, ntimes))
   allocate (pcperr(ngrid, ntimes))
@@ -312,6 +351,12 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   ! base weight array
   allocate (w_base(ngrid, nstns))
 
+  !nearest grid index to stations
+  allocate (nearestGridpoint(nstns))
+ 
+  !predictor index array
+  allocate (noSlopePredicts(nPredict-2))
+
   ! max_dist tracking variables
   allocate (expand_dist(ngrid), expand_flag(ngrid))
   allocate (expand_dist_t(ngrid), expand_flag_t(ngrid))
@@ -338,6 +383,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   expand_flag = 0
   expand_dist_t = 0.0d0
   expand_flag_t = 0
+
 
   ! ================= LOOP OVER STATIONS ============
   ! this part calls subroutines that calc various  correlations
@@ -440,10 +486,29 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
 
   ! AWW-Feb2016:  just allocate grids once time, and re-use in code below
-  allocate (twx_red(6, sta_limit))    ! these have dim1 = 6
-  allocate (tx_red(6, sta_limit))
-  allocate (twx_red_2(4, sta_limit))  ! these are for no slope calcs, have dim1 = 4
-  allocate (tx_red_2(4, sta_limit))
+  allocate (twx_red(nPredict, sta_limit))    ! these have dim1 = 6
+  allocate (tx_red(nPredict, sta_limit))
+  allocate (twx_red_2(nPredict-2, sta_limit))  ! these are for no slope calcs, have dim1 = 4
+  allocate (tx_red_2(nPredict-2, sta_limit))
+
+
+  !open NWP predcitor file list
+  open(unit=55,file=trim(nwp_input_list),form='formatted',status='old',iostat=error)
+  if( error /= 0) then
+    print *,'Error opening NWP predictor file list: ',trim(nwp_input_list)
+    stop
+  end if
+
+  !create index array of closest grid point to every station
+  call station_grid_correspondence(close_weights,close_weights_t,close_loc,close_loc_t,nstns,nearestGridpoint)
+
+  nBase = nPredict-n_nwp
+  noSlopePredicts(1:4) = (/1,2,3,4/)
+!print *,'here ',nBase,nPredict
+  do i = 1,n_nwp,1
+    noSlopePredicts(nBase-2+i) = nBase+i
+!print *,'here ',nBase,nPredict,i,noSlopePredicts
+  end do
 
   ! =========== now LOOP through all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
@@ -461,14 +526,31 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     ! do power transformation on precip vector (AWW: consider alternate transforms)
     call normalize_y (4.0d0, y)    ! SHOULD NOT BE HARDWIRED
 
+
+    !read from nwp predictor file list
+    read(unit=55,fmt='(A)',iostat=error) nwp_timestep_file
+    print *,trim(nwp_timestep_file)
+    if(error /= 0) then
+      print *, 'Error reading from NWP predictor file list: ',trim(nwp_input_list)
+      stop
+    end if
+
+    !read NWP predictor file for current timestep
+    call read_nwp(times(t),nwp_timestep_file,nPredict,n_nwp,nwp_vars,nearestGridpoint,x,z,error)
+    if(error /= 0) then
+      print *, 'Error in read_nwp'
+      stop
+    end if
+
+
     ! -------- loop through all grid cells for a given time step --------
     do g = 1, ngrid, 1
       ! call system_clock(tg1,count_rate)
 
       deallocate (twx_red)
       deallocate (tx_red)
-      allocate (twx_red(6, sta_limit))! these have dim1 = 6
-      allocate (tx_red(6, sta_limit))
+      allocate (twx_red(nPredict, sta_limit))! these have dim1 = 6
+      allocate (tx_red(nPredict, sta_limit))
 
       ! IF the elevation is valid for this grid cell
       ! (this starts a long section working first on precip, then temp)
@@ -668,16 +750,23 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
             deallocate(tx_red_2)   ! just testing
             deallocate(twx_red_2)
-            allocate(tx_red_2(4, sta_limit))
-            allocate(twx_red_2(4, sta_limit))
+            allocate(tx_red_2(nPredict-2, sta_limit))
+            allocate(twx_red_2(nPredict-2, sta_limit))
 
-            tx_red_2 = transpose(x_red(:, 1:4))
+!            tx_red_2(:,1:4) = x_red(:, 1:4)
+!            tx_red_2(:,nBase+1:nPredict) = x_red(:,nBase+1:nPredict)
+            tx_red_2 = x_red(:,noSlopePredicts)
+            tx_red_2 = transpose(tx_red_2)
             twx_red_2 = matmul(tx_red_2, w_pcp_red)
-            call logistic_regression (x_red(:, 1:4), y_red, twx_red_2, yp_red, b)!AJN
-
+!print *,'npredict ',nPredict,nBase,n_nwp,' indices ',noSlopePredicts
+!print *,x_red(:, noSlopePredicts)
+!print *,size(x_red(:, noSlopePredicts)),size(y_red),size(twx_red_2),size(yp_red)
+            call logistic_regression (x_red(:, noSlopePredicts), y_red, twx_red_2, yp_red, b)!AJN
+!print *,'b ',b
             !pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
-            if(-dot_product(Z(g,1:4),B) < 25.) then
-              pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
+            if(-dot_product(Z(g,noSlopePredicts),B) < 25.) then
+!print *,'z ',z(g,noSlopePredicts)
+              pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, noSlopePredicts), b))), kind(sp))
             else
               POP(g,t) = 0.0
             endif
@@ -690,8 +779,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
           deallocate(twx_red)
           deallocate(tx_red)   ! just testing
-          allocate(twx_red(6, sta_limit))
-          allocate(tx_red(6, sta_limit))
+          allocate(twx_red(nPredict, sta_limit))
+          allocate(tx_red(nPredict, sta_limit))
 
           if(slope_flag_pcp .eq. 0) then
             pcp (g, t) = -999.
@@ -720,15 +809,15 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
           deallocate(tx_red_2)   ! just testing
           deallocate(twx_red_2)
-          allocate(tx_red_2(4, sta_limit))
-          allocate(twx_red_2(4, sta_limit))
+          allocate(tx_red_2(nPredict-2, sta_limit))
+          allocate(twx_red_2(nPredict-2, sta_limit))
 
           ! AWW note that these use the 2nd set of T* variables (different dimension)
-          tx_red_2 = transpose (x_red(:, 1:4))
+          tx_red_2 = transpose (x_red(:, noSlopePredicts))
           twx_red_2 = matmul (tx_red_2, w_pcp_red)
-          call least_squares (x_red(:, 1:4), y_red, twx_red_2, b)
+          call least_squares (x_red(:, noSlopePredicts), y_red, twx_red_2, b)
 
-          pcp_2 (g, t) = real (dot_product(z(g, 1:4), b), kind(sp))
+          pcp_2 (g, t) = real (dot_product(z(g, noSlopePredicts), b), kind(sp))
 
           wgtsum = 0.0
           errsum = 0.0
@@ -784,15 +873,15 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
           deallocate(tx_red_2)   ! just testing
           deallocate(twx_red_2)
-          allocate(tx_red_2(4, sta_limit))
-          allocate(twx_red_2(4, sta_limit))
+          allocate(tx_red_2(nPredict-2, sta_limit))
+          allocate(twx_red_2(nPredict-2, sta_limit))
 
           ! AWW note that these use the 2nd set of T* variables
-          tx_red_2 = transpose (x_red_t(:, 1:4))
+          tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
           twx_red_2 = matmul (tx_red_2, w_temp_red)
-          call least_squares (x_red_t(:, 1:4), y_tmean_red, twx_red_2, b)
+          call least_squares (x_red_t(:, noSlopePredicts), y_tmean_red, twx_red_2, b)
 
-          tmean_2 (g, t) = real (dot_product(z(g, 1:4), b), kind(sp))
+          tmean_2 (g, t) = real (dot_product(z(g, noSlopePredicts), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
@@ -809,8 +898,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
           deallocate(tx_red)   ! just testing
           deallocate(twx_red)
-          allocate(tx_red(6, sta_limit))
-          allocate(twx_red(6, sta_limit))
+          allocate(tx_red(nPredict, sta_limit))
+          allocate(twx_red(nPredict, sta_limit))
 
           ! AWW note that these use the 1st set of T* variables
           tx_red = transpose (x_red_t)
@@ -832,21 +921,21 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
           deallocate(tx_red_2)   ! just testing
           deallocate(twx_red_2)
-          allocate(tx_red_2(4, sta_limit))
-          allocate(twx_red_2(4, sta_limit))
+          allocate(tx_red_2(nPredict-2, sta_limit))
+          allocate(twx_red_2(nPredict-2, sta_limit))
 
           ! AWW note that these use the 2nd set of T* variables
-          tx_red_2 = transpose (x_red_t(:, 1:4))
+          tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
           twx_red_2 = matmul (tx_red_2, w_temp_red)
-          call least_squares (x_red_t(:, 1:4), y_trange_red, twx_red_2, b)
+          call least_squares (x_red_t(:, noSlopePredicts), y_trange_red, twx_red_2, b)
 
-          trange_2 (g, t) = real (dot_product(z(g, 1:4), b), kind(sp))
+          trange_2 (g, t) = real (dot_product(z(g, noSlopePredicts), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
-            sta_temp = real (dot_product(x_red_t(i, 1:4), b), kind(sp))
+            sta_temp = real (dot_product(x_red_t(i, noSlopePredicts), b), kind(sp))
             errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)
           end do
           trange_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))

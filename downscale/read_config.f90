@@ -40,6 +40,9 @@ subroutine read_config (fname, n, config_names, values)
   config_names(18) = "STN_END_DATE"   !  
   config_names(19) = "GEN_STA_WEIGHTS"   !  
   config_names(20) = "STA_WEIGHT_NAME"   !  
+  config_names(21) = "NPREDICT"          !total number of predictors (6+number of NWP predictors)
+  config_names(22) = "NWP_VAR_NAMES"      !Variable list for NWP predictors
+  config_names(23) = "NWP_INPUT_FILE_LIST"   !list of NWP input files
 
  
   do i = 1, n, 1
