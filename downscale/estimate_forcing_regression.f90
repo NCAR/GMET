@@ -435,6 +435,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   ! ========= LOOP OVER GRID CELLS ==================
   !Create station-grid cell weight matrices before time stepping
   print *, 'Generating base weight matrix and finding nearest stations for each gridpoint'
+
   if(gen_sta_weights .eq. "TRUE" .or. gen_sta_weights .eq. "true") then
     call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, & !input
                                  sta_limit,prcp_data,tair_data, & !input
