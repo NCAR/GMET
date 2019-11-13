@@ -5,6 +5,7 @@
 
 #no .mod files
 *.mod
+*genmod.f90
 
 #no text editor temp files
 *~

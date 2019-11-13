@@ -1,7 +1,7 @@
 ! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
-subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
@@ -35,6 +35,68 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
       logical, allocatable, intent (out) :: vals_miss (:), vals_miss_t (:)
       integer, intent (out) :: error
     end subroutine read_station
+
+    subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &
+                                   sta_limit,sta_data,tair_data, &
+                                   close_meta,close_meta_t,close_loc,close_loc_t, &
+                                   close_count,close_count_t,close_weights,close_weights_t,error)
+      use type
+      !inputs
+      character(len=500),intent(in) :: sta_weight_name   !name of station weight binary file
+      integer(I4B), intent(in)      :: ngrid               !number of grid points
+      integer(I4B), intent(in)      :: nstns               !number of stations
+      real(DP), intent(in)          :: Z(:,:)              !grid metadata array
+      real(DP), intent(in)          :: X(:,:)              !station metadata array
+      real(DP), intent(in)          :: search_distance     !default station search distance
+      integer(I4B), intent(in)      :: sta_limit           !maximum number of stations for a grid point
+      real(DP), intent(in)          :: sta_data(:,:)       !station data values for precipitation
+      real(DP), intent(in)          :: tair_data(:,:,:)    !station air temperature data
+      !in/out
+      real(DP), intent(inout)     :: close_meta(:,:,:)
+      real(DP), intent(inout)     :: close_meta_t(:,:,:)
+      integer(I4B), intent(inout) :: close_loc(:,:)
+      integer(I4B), intent(inout) :: close_loc_t(:,:)
+      integer(I4B), intent(inout) :: close_count(:)
+      integer(I4B), intent(inout) :: close_count_t(:)
+      real(DP), intent(inout)     :: close_weights(:,:)
+      real(DP), intent(inout)     :: close_weights_t(:,:) 
+      integer(I4B),intent(inout)  :: error
+    end subroutine compute_station_weights
+
+    subroutine write_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !input
+                                close_weights_t,close_count,close_count_t,error) !input
+      use type
+      !inputs
+      character(len=500), intent(in)    :: sta_weight_name
+      real(DP), intent(in)      :: close_meta(:,:,:)
+      real(DP), intent(in)      :: close_meta_t(:,:,:)
+      integer(I4B), intent(in)  :: close_loc(:,:)
+      integer(I4B), intent(in)  :: close_loc_t(:,:)
+      real(DP), intent(in)      :: close_weights(:,:)
+      real(DP), intent(in)      :: close_weights_t(:,:)
+      integer(I4B), intent(in)  :: close_count(:)
+      integer(I4B), intent(in)  :: close_count_t(:)
+      integer(I4B), intent(inout):: error
+    end subroutine write_station_weights
+
+    subroutine read_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
+                                close_weights_t,close_count,close_count_t,error) !output
+      use type
+      !input
+      character(len=500), intent(in)    :: sta_weight_name
+      !output
+      real(DP), intent(out)      :: close_meta(:,:,:)
+      real(DP), intent(out)      :: close_meta_t(:,:,:)
+      integer(I4B), intent(out)  :: close_loc(:,:)
+      integer(I4B), intent(out)  :: close_loc_t(:,:)
+      real(DP), intent(out)      :: close_weights(:,:)
+      real(DP), intent(out)      :: close_weights_t(:,:)
+      integer(I4B), intent(out)  :: close_count(:)
+      integer(I4B), intent(out)  :: close_count_t(:)
+      integer(I4B), intent(inout):: error
+    end subroutine read_station_weights
 
     subroutine normalize_x (x)
       use type
@@ -117,6 +179,8 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
   character (len=100), intent (in) :: stnid (:)!station id array
   character (len=100), intent (in) :: stnvar !control file variables
   character (len=500), intent (in) :: directory
+  character (len = 500),intent(in) :: gen_sta_weights     ! flag for generating station weight file
+  character (len = 500),intent(in) :: sta_weight_name     ! station weight file name
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
@@ -175,23 +239,19 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
   integer (i4b) :: auto_cnt, tp_cnt
 
   ! variables for tracking closest N stations for precipitation
-  integer (i4b) :: out_loc
   integer (i4b), parameter :: sta_limit = 30
   integer (i4b), allocatable :: close_loc (:, :)
   integer (i4b), allocatable :: close_count (:)
   real (dp), allocatable :: close_weights (:, :)
   real (dp), allocatable :: close_meta (:, :, :)
-  real (dp) :: min_weight
   real (dp) :: max_distance
   real (dp), parameter :: search_distance = 1000.0
 
   ! variables for tracking closest N stations for temperature
-  integer (i4b) :: out_loc_t
   integer (i4b), allocatable :: close_loc_t (:, :)
   integer (i4b), allocatable :: close_count_t (:)
   real (dp), allocatable :: close_weights_t (:, :)
   real (dp), allocatable :: close_meta_t (:, :, :)
-  real (dp) :: min_weight_t
   real (dp) :: max_distance_t
   real (dp) :: tmp_weight
 
@@ -373,91 +433,32 @@ subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec,
   call system_clock (t1, count_rate)
 
   ! ========= LOOP OVER GRID CELLS ==================
+  !Create station-grid cell weight matrices before time stepping
   print *, 'Generating base weight matrix and finding nearest stations for each gridpoint'
-  ! AJN 01/15/2014 -- pulled this weight generation step out of time loop, which is now down below
 
-  do g = 1, ngrid, 1
+  if(gen_sta_weights .eq. "TRUE" .or. gen_sta_weights .eq. "true") then
+    call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, & !input
+                                 sta_limit,prcp_data,tair_data, & !input
+                                 close_meta,close_meta_t,close_loc,close_loc_t, &  !output
+                                 close_count,close_count_t,close_weights,close_weights_t,error) !output
 
-    ! AJN
-    close_count (g) = 1   ! these are for precip
-    min_weight = 0.0d0
-    close_weights (g, :) = 0.0d0  ! close station weights
-
-    close_count_t (g) = 1  ! these are for temp
-    min_weight_t = 0.0d0
-    close_weights_t (g, :) = 0.0d0
-
-    ! for current grid cell, loop through stations, find distance
-    do i = 1, nstns, 1
-      ! setup distinct weight matrices for precip and temperature
-      ! x() are station lonlat; z() are grid lonlat; returns weight (w_base) for grd-to-stn
-      call calc_distance_weight (search_distance, x(i, 2), x(i, 3), z(g, 2), z(g, 3), w_base(g, i))
-
-      ! original call
-      ! call calc_distance_weight(maxDistance, X(i,2), X(i,3), Z(g,2), Z(g,3), w_temp(i,i))
-
-      ! also set some logic to limit the number of stations to the N closest
-      min_weight = 0.0d0
-
-      ! THIS uses the first value in the timeseries to decide if a variable is present for the stn
-      if (w_base(g, i) .gt. min_weight .and. prcp_data(i, 1) .gt.-100.0d0) then
-
-        if (close_count(g) .le. sta_limit) then
-          close_weights (g, close_count(g)) = w_base (g, i)
-          close_loc (g, close_count(g)) = i
-          close_meta (1, g, close_count(g)) = x (i, 2)
-          close_meta (2, g, close_count(g)) = x (i, 3)
-          close_meta (3, g, close_count(g)) = z (g, 2)
-          close_meta (4, g, close_count(g)) = z (g, 3)
-          call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta(5, g, close_count(g)))
-          close_count (g) = close_count (g) + 1
-        else
-          min_weight = minval (close_weights(g, :), 1)
-          if (w_base(g, i) .gt. min_weight) then
-            out_loc = minloc (close_weights(g, :), 1)
-            close_weights (g, out_loc) = w_base (g, i)
-            close_loc (g, out_loc) = i
-            close_meta (1, g, out_loc) = x (i, 2)
-            close_meta (2, g, out_loc) = x (i, 3)
-            close_meta (3, g, out_loc) = z (g, 2)
-            close_meta (4, g, out_loc) = z (g, 3)
-            call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta(5, g, out_loc))
-          end if
-        end if
-      end if
-
-      ! need to repeat above for temperature since that data is independent of precipitation
-      min_weight_t = 0.0d0
-
-      if (w_base(g, i) .gt. min_weight_t .and. tair_data(1, i, 1) .gt.-200.0d0) then
-        if (close_count_t(g) .le. sta_limit) then
-          close_weights_t (g, close_count_t(g)) = w_base (g, i)
-          close_loc_t (g, close_count_t(g)) = i
-          close_meta_t (1, g, close_count_t(g)) = x (i, 2)
-          close_meta_t (2, g, close_count_t(g)) = x (i, 3)
-          close_meta_t (3, g, close_count_t(g)) = z (g, 2)
-          close_meta_t (4, g, close_count_t(g)) = z (g, 3)
-          call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta_t(5, g, &
-         & close_count_t(g)))
-          close_count_t (g) = close_count_t (g) + 1
-        else
-          min_weight_t = minval (close_weights_t(g, :), 1)
-          if (w_base(g, i) .gt. min_weight_t) then
-            out_loc_t = minloc (close_weights_t(g, :), 1)
-            close_weights_t (g, out_loc_t) = w_base (g, i)
-            close_loc_t (g, out_loc_t) = i
-            close_meta_t (1, g, out_loc_t) = x (i, 2)
-            close_meta_t (2, g, out_loc_t) = x (i, 3)
-            close_meta_t (3, g, out_loc_t) = z (g, 2)
-            close_meta_t (4, g, out_loc_t) = z (g, 3)
-            call calc_distance (x(i, 2), x(i, 3), z(g, 2), z(g, 3), close_meta_t(5, g, out_loc_t))
-          end if
-        end if
-      end if
-
-    end do ! end station loop
-  end do
-  ! ============== end grid point loop to find nearest stations ==============
+    if(error /= 0) then
+       return
+    endif
+    call write_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !input
+                                close_weights_t,close_count,close_count_t,error) !input
+    if(error /= 0) then
+       return
+    endif
+  else
+    call read_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
+                                close_weights_t,close_count,close_count_t,error) !output
+    if(error /= 0) then
+       return
+    endif
+  endif
 
   call system_clock (t2, count_rate)
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
