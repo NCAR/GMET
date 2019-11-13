@@ -63,6 +63,23 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       integer(I4B),intent(inout)  :: error
     end subroutine compute_station_weights
 
+    subroutine write_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !input
+                                close_weights_t,close_count,close_count_t,error) !input
+      use type
+      !inputs
+      character(len=500), intent(in)    :: sta_weight_name
+      real(DP), intent(in)      :: close_meta(:,:,:)
+      real(DP), intent(in)      :: close_meta_t(:,:,:)
+      integer(I4B), intent(in)  :: close_loc(:,:)
+      integer(I4B), intent(in)  :: close_loc_t(:,:)
+      real(DP), intent(in)      :: close_weights(:,:)
+      real(DP), intent(in)      :: close_weights_t(:,:)
+      integer(I4B), intent(in)  :: close_count(:)
+      integer(I4B), intent(in)  :: close_count_t(:)
+      integer(I4B), intent(inout):: error
+    end subroutine write_station_weights
+
     subroutine read_station_weights(sta_weight_name, & !input
                                 close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
                                 close_weights_t,close_count,close_count_t,error) !output
