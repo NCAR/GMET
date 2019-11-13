@@ -444,6 +444,12 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     if(error /= 0) then
        return
     endif
+    call write_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !input
+                                close_weights_t,close_count,close_count_t,error) !input
+    if(error /= 0) then
+       return
+    endif
   else
     call read_station_weights(sta_weight_name, & !input
                                 close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
