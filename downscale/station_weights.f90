@@ -3,13 +3,15 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
                                    close_meta,close_meta_t,close_loc,close_loc_t, &
                                    close_count,close_count_t,close_weights,close_weights_t,error)
 
+  !subroutine to compute the grid - station weight matrix for every grid point for all stations considered for each grid point
+
   use type
 
   implicit none
 
   !declarations
   !inputs
-  character(len=500),intent(in) :: sta_weight_name   !name of station weight binary file
+  character(len=500),intent(in) :: sta_weight_name     !name of station weight binary file
   integer(I4B), intent(in)      :: ngrid               !number of grid points
   integer(I4B), intent(in)      :: nstns               !number of stations
   real(DP), intent(in)          :: Z(:,:)              !grid metadata array
@@ -125,20 +127,88 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
           endif
         endif
       endif
+
     end do  !end station loop
   end do      !end grid point loop
+
+end subroutine compute_station_weights
+
+
+subroutine write_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !input
+                                close_weights_t,close_count,close_count_t,error) !input
+
+  !subroutine to write the grid-station weight matrix to a fortran binary file
+
+  use type
+
+  implicit none
+
+  !declarations
+  !inputs
+  character(len=500),intent(in) :: sta_weight_name     !name of station weight binary file
+  real(DP), intent(in)     :: close_meta(:,:,:)
+  real(DP), intent(in)     :: close_meta_t(:,:,:)
+  integer(I4B), intent(in) :: close_loc(:,:)
+  integer(I4B), intent(in) :: close_loc_t(:,:)
+  integer(I4B), intent(in) :: close_count(:)
+  integer(I4B), intent(in) :: close_count_t(:)
+  real(DP), intent(in)     :: close_weights(:,:)
+  real(DP), intent(in)     :: close_weights_t(:,:)
+  !in/out
+  integer(I4B), intent(inout) :: error
 
   !output weight variables to file
   open(unit=34,file=trim(sta_weight_name),form='unformatted',iostat=error)
 
-  if(error .ne. 0) then; print *, 'Error opening station weight file ', trim(sta_weight_name), ' ', error; return; end if
+  if(error .ne. 0) then; print *, 'Error opening station weight file ', trim(sta_weight_name), ' ', error; stop; end if
 
   write(unit=34,iostat=error) close_meta,close_loc,close_weights,close_count, &
                               close_meta_t,close_loc_t,close_weights_t,close_count_t
 
-  if(error .ne. 0) then; print *, 'Error writing station weight file ', trim(sta_weight_name), ' ', error; return; end if
+  if(error .ne. 0) then; print *, 'Error writing station weight file ', trim(sta_weight_name), ' ', error; stop; end if
 
   close(unit=34)
 
-end subroutine compute_station_weights
+end subroutine write_station_weights
 
+subroutine read_station_weights(sta_weight_name, & !input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
+                                close_weights_t,close_count,close_count_t,error) !output
+
+  !subroutine to read the grid-station weight matrix from fortran binary file
+
+  use type
+  implicit none
+
+  !input
+  character(len=500), intent(in)    :: sta_weight_name
+
+  !output
+  real(DP), intent(out)      :: close_meta(:,:,:)
+  real(DP), intent(out)      :: close_meta_t(:,:,:)
+  integer(I4B), intent(out)  :: close_loc(:,:)
+  integer(I4B), intent(out)  :: close_loc_t(:,:)
+  real(DP), intent(out)      :: close_weights(:,:)
+  real(DP), intent(out)      :: close_weights_t(:,:)
+  integer(I4B), intent(out)  :: close_count(:)
+  integer(I4B), intent(out)  :: close_count_t(:)
+
+  !in/out
+  integer(I4B), intent(inout):: error
+
+  !code starts below
+
+  open(unit=34,file=trim(sta_weight_name),form='unformatted',iostat=error)
+
+  if(error .ne. 0) then; print *, 'Error opening station weight file ', trim(sta_weight_name), ' ', error; stop; end if
+
+  read(unit=34,iostat=error) close_meta,close_loc,close_weights,close_count, &
+                             close_meta_t,close_loc_t,close_weights_t,close_count_t
+
+
+  if(error .ne. 0) then; print *, 'Error reading station weight file ', trim(sta_weight_name), ' ', error; stop; end if
+
+  close(unit=34)
+
+end subroutine read_station_weights
