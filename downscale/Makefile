@@ -92,8 +92,7 @@ $(EXE):	type.o \
 	write_nc.o \
         stats_routines.o \
         regression_routines.o \
-        compute_station_weights.o \
-        read_station_weights.o \
+        station_weights.o \
         estimate_coefficients.o \
         estimate_forcing_regression.o \
 	main.o
