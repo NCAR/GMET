@@ -101,15 +101,21 @@ SCRF_ALL = $(NRUTIL) $(NRPROC) $(DATAMS) $(qpe) $(GEN)
 #========================================================================
 
 # Define the Fortran Compiler
-FC  = pgf90
+#FC  = pgf90
+FC  = gfortran
+#FC = ifort
 
 # Define the NetCDF libraries and path to include files
 ifeq "$(FC)" "gfortran"
- LIBNETCDF = -L/opt/netcdf-4.1.3/gcc-4.4.5/lib -lnetcdff -lnetcdf -L/opt/hdf5-1.8.7/lib -lhdf5_hl -lhdf5 -L/opt/lib -lsz -lz
- INCNETCDF = -I/opt/netcdf-4.1.3/gcc-4.4.5/include
+   NCDF_PATH = /opt/netcdf-4.7.0/gcc-6.3.0/
+   LOCL_PATH = /usr/local
+   LDLOCAL = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib/
+   LIBNETCDF = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib/ -L/opt/netcdf-4.7.0/gcc-6.3.0/lib/ -lnetcdf -lnetcdff 
+   INCNETCDF = -I/opt/netcdf-4.7.0/gcc-6.3.0/include
 endif
 ifeq "$(FC)" "ifort"
- NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
+# NCDF_PATH = /usr/local/netcdf-4.1.3/ifort-12.0.5
+ NCDF_PATH = /opt/netcdf-4.7.0/intel-18.0.3/
  LOCL_PATH = /usr/local
  LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf -L$(LOCL_PATH)/lib -lsz -lz
  INCNETCDF = -I$(NCDF_PATH)/include
@@ -131,7 +137,9 @@ DRIVER__EX = generate_ensemble.exe
 
 # Define flags
 ifeq "$(FC)" "gfortran"
- FLAGS = -static -Wall -g -ffree-line-length-none
+ # FLAGS = -static -Wall -g -ffree-line-length-none
+ # FLAGS = -O2 -ffree-line-length-none -fno-range-check
+ FLAGS = -O2 -ffree-line-length-none
 endif
 ifeq "$(FC)" "ifort"
  FLAGS = -static -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0
@@ -163,10 +171,6 @@ endif
 # PART 4: Compile the puppy
 #========================================================================
 
-#FLAGS = -O3 -W -v
-
-#.SUFFIXES: .f .o .f90
-
 # Compile
 #all: compile_scrf link clean install
 all: compile_scrf link clean 
@@ -184,7 +188,11 @@ compile_scrf:
 link:
 #	$(FC) -fPIC -Bstatic_pgi -rpath,/usr/local/netcdf4-pgi/lib *.o -I./ $(LIBNETCDF) -o $(DRIVER__EX)
 #	$(FC) -fPIC -rpath,/usr/local/netcdf4-pgi/lib -I./ $(LIBNETCDF) -o $(DRIVER__EX) *.o 
-	$(FC) -fPIC -rpath,/opt/netcdf4-pgi/lib -I./ $(LIBNETCDF) -o $(DRIVER__EX) *.o 
+#	$(FC) -fPIC -rpath,/opt/netcdf4-pgi/lib -I./ $(LIBNETCDF) -o $(DRIVER__EX) *.o 
+#	$(FC) -fPIC -rpath,$(NCDF_PATH)/lib -I./ $(LIBNETCDF) -o $(DRIVER__EX) *.o 
+#	$(FC) $(FLAGS) $(LIBNETCDF) $(LDFLAGS) $(INCNETCDF) -o $(DRIVER__EX) *.o 
+	$(FC) $(FLAGS) $(LIBNETCDF)  -o $(DRIVER__EX) *.o 
+
 
 # Remove object files
 clean:

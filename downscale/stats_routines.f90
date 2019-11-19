@@ -91,7 +91,12 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
   end do
  
   mean_all = sum_x / real (ntimes)
-  mean = sum_x / real (sum(yp))
+  if(sum(Yp) .gt. 0)then
+    mean = sum_x / real(sum(Yp))
+  else
+    mean = 0.0
+  endif
+
   do t = 1, ntimes, 1
     sum_stdev = sum_stdev + (x(t)-mean_all) ** 2
     if (yp(t) .eq. 1) then
@@ -99,7 +104,6 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
     end if
   end do
   !  stdev_all = sqrt(sum_stdev/(ntimes-1))
- 
  
   if (sum(yp) .ge. 2) then
     stdev = sqrt (sum_std/real(sum(yp)-1.0))
@@ -152,7 +156,12 @@ subroutine normalize_y (texp, y)
   do t = 1, ntimes, 1
 !     Y(t) = Y(t) ** (1.0d0/2.5d0)
 !    Y(t) = Y(t) ** (1.0d0/4d0)
-    y (t) = y (t) ** (1.0d0/texp)
+
+    if(Y(t) > 0) then
+      y (t) = y (t) ** (1.0d0/texp)
+    else
+      y (t) = 0
+    end if 
   end do
  
 end subroutine normalize_y
@@ -173,11 +182,10 @@ end subroutine normalize_y
 !                 3 = exclude month, 30 Day period
 ! Output:
 !   W     = A t by t array containing the diagonal weights for each time step.
-subroutine calc_weights (times, tt, x, w)
+subroutine calc_weights (tt, x, w)
   use type
   implicit none
  
-  real (dp), intent (in) :: times (:)
   integer (i4b), intent (in) :: tt
   real (dp), intent (in) :: x (:, :)
   real (dp), allocatable, intent (out) :: w (:, :)
@@ -299,6 +307,7 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   integer (i4b) :: i, j, tmp_cnt
   integer (i4b) :: ntimes
   integer (i4b) :: half_window
+  integer (i4b) :: local_window
   integer (i4b) :: cnt_sums
   integer (i4b) :: data_cnt
  
@@ -307,6 +316,12 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   allocate (tmean(ntimes))
   allocate (trange(ntimes))
   allocate (moving_avg(2, ntimes))
+
+  if(window .gt. ntimes) then
+   local_window = ntimes
+  else
+    local_window = window
+  endif
  
   data_cnt = 0
   do i = 1, ntimes, 1
@@ -322,52 +337,34 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
     end if
   end do
  
-  half_window = floor (window/2.0d0)
+  half_window = floor (local_window/2.0d0)
  
   ! do the lag correlation for temperature
   ! first compute the moving average for climo removal in window
   ! need to check for missing values....
+  !    handle edge cases for window averaging near bounds of 1 or ntimes
   do i = 1, ntimes, 1
-    if (i .lt. half_window) then
       tmp_tmean = 0.0
       tmp_trange = 0.0
       tmp_cnt = 0
-      do j = 1, window, 1
+
+    if (i .le. half_window) then
+      do j = 1, local_window, 1
         if (tmean(j) .gt.-100.0) then
           tmp_tmean = tmp_tmean + tmean (j)
           tmp_trange = tmp_trange + trange (j)
           tmp_cnt = tmp_cnt + 1
         end if
-        if (tmp_cnt .gt. 0) then
-          moving_avg (1, i) = tmp_tmean / real (tmp_cnt, kind(dp))
-          moving_avg (2, i) = tmp_trange / real (tmp_cnt, kind(dp))
-        else
-          moving_avg (1, i) = - 999.0
-          moving_avg (2, i) = - 999.0
-        end if
       end do
     else if (i .gt. ntimes-half_window) then
-      tmp_tmean = 0.0
-      tmp_trange = 0.0
-      tmp_cnt = 0
-      do j = 1, window, 1
-        if (tmean(ntimes-j) .gt.-100.0) then
-          tmp_tmean = tmp_tmean + tmean (ntimes-j)
-          tmp_trange = tmp_trange + trange (ntimes-j)
+      do j = 1, local_window, 1
+        if (tmean(ntimes-j+1) .gt.-100.0) then
+          tmp_tmean = tmp_tmean + tmean (ntimes-j+1)
+          tmp_trange = tmp_trange + trange (ntimes-j+1)
           tmp_cnt = tmp_cnt + 1
         end if
       end do
-      if (tmp_cnt .gt. 0) then
-        moving_avg (1, i) = tmp_tmean / real (tmp_cnt, kind(dp))
-        moving_avg (2, i) = tmp_trange / real (tmp_cnt, kind(dp))
-      else
-        moving_avg (1, i) = -999.0
-        moving_avg (2, i) = -999.0
-      end if
     else
-      tmp_tmean = 0.0
-      tmp_trange = 0.0
-      tmp_cnt = 0
       do j = - half_window, half_window, 1
         if (tmean(i+j) .gt.-100.0) then
           tmp_tmean = tmp_tmean + tmean (i+j)
@@ -375,17 +372,16 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
           tmp_cnt = tmp_cnt + 1
         end if
       end do
-      if (tmp_cnt .gt. 0) then
-        moving_avg (1, i) = tmp_tmean / real (tmp_cnt, kind(dp))
-        moving_avg (2, i) = tmp_trange / real (tmp_cnt, kind(dp))
-      else
-        moving_avg (1, i) = -999.0
-        moving_avg (2, i) = -999.0
-      end if
- 
-      !moving_avg(1,i) = sum(tmean(i-half_window:i+half_window))/real(window,kind(dp))
-      !moving_avg(2,i) = sum(trange(1:window))/real(window,kind(dp))
     end if
+
+    if (tmp_cnt .gt. 0) then
+      moving_avg (1, i) = tmp_tmean / real (tmp_cnt, kind(dp))
+      moving_avg (2, i) = tmp_trange / real (tmp_cnt, kind(dp))
+    else
+      moving_avg (1, i) = -999.0
+      moving_avg (2, i) = -999.0
+    end if
+
   end do
  
   ! print *,'tmean ',moving_avg(1,1:2)
@@ -412,9 +408,13 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
     end if
   end do
  
-  lag_0_mean = lag_0_sum / real (cnt_sums, kind(dp))
-  lag_n_mean = lag_n_sum / real (cnt_sums, kind(dp))
-  ! print *,lag_0_mean,lag_n_mean
+  if(cnt_sums .gt. 0)then
+    lag_0_mean = lag_0_sum/real(cnt_sums,kind(dp))
+    lag_n_mean = lag_n_sum/real(cnt_sums,kind(dp))
+  else
+    lag_0_mean = 0.0
+    lag_n_mean = 0.0
+  endif
  
   ! compute variance, covariance
   do i = lag + 1, ntimes, 1
@@ -428,7 +428,12 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   end do
  
   ! compute autocorrelation
-  auto_corr = cov / (sqrt(lag_0_var)*sqrt(lag_n_var))
+  if(lag_0_var .gt. 0 .and. lag_n_var .gt. 0) then
+    auto_corr = cov/(sqrt(lag_0_var)*sqrt(lag_n_var))
+  else
+    auto_corr = 0.0
+    print*, "INFO: lag_0_var or lag_n_var < 0; setting auto_corr to zero"
+  endif
  
   !------------------------------------------------------
   ! now do the TxP cross-correlation for a single station
@@ -455,8 +460,13 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
       tmp_cnt = tmp_cnt + 1
     end if
   end do
-  lag_0_pmean = lag_0_psum / real (tmp_cnt, kind(dp))
-  trange_mean = trange_sum / real (tmp_cnt, kind(dp))
+  if(tmp_cnt .gt. 0) then
+    lag_0_pmean = lag_0_psum/real(tmp_cnt,kind(dp))
+    trange_mean = trange_sum/real(tmp_cnt,kind(dp))
+  else
+    lag_0_pmean = 0.0
+    trange_mean = 0.0
+  end if
  
   ! compute variance and covariance
   do i = 1, ntimes, 1
@@ -468,10 +478,12 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   end do
   ! print *,cov,lag_0_pvar,trange_var,trange_mean,lag_0_pmean,lag_0_psum
  
-  t_p_corr = cov / (sqrt(lag_0_pvar)*sqrt(trange_var))
-  if (sqrt(lag_0_pvar)*sqrt(trange_var) .le. 0.00001) then
+  if(lag_0_pvar .le. 0.00001 .or. trange_var .le. 0.00001) then
     t_p_corr = 0.0
-  end if
+  else
+    t_p_corr = cov/(sqrt(lag_0_pvar)*sqrt(trange_var))
+  endif
+
   ! print *,t_p_corr
  
   ! in some situations, there are very limited data used for calculations

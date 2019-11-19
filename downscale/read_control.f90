@@ -25,7 +25,7 @@ end subroutine read_transform_exp
  
 subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, forecast, v, x, y, t, &
 & error)
-  use strings
+  use string_mod
   use utim
   use type
   implicit none
@@ -56,7 +56,7 @@ subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, fo
   integer (i4b) :: vshape (3)
   integer (i4b) :: sday, eday, ntimes, ngrids
   integer (i4b) :: sec, min, hour, day, month, year
-  integer (i4b) :: i, j, k
+  integer (i4b) :: i, j
  
   error = 0
  
@@ -103,7 +103,7 @@ subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, fo
       print *, 'var ', trim (var_name)
       exit
     else
-      print ("(AAAF11.0)"), "Success reading file ", trim (file), " Valid at ", valid_time
+      print ("(3A,F11.0)"), "Success reading file ", trim(file), " Valid at ", valid_time
     end if
  
     vshape = shape (var)
@@ -149,7 +149,7 @@ end subroutine read_refcst
  
 subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e, n_stations, &
                               & error, vars)
-  use strings
+  use string_mod
   use type
   implicit none
  
@@ -160,7 +160,7 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
   integer (i4b), intent (out) :: n_stations
   integer, intent (out) :: error
  
-  character (len=100) :: settings (7)
+  character (len=100) :: settings (8)
   integer (i4b) i, nsettings, stat, err, ipos
   character (500) line
   logical fexist
@@ -263,11 +263,11 @@ end subroutine check
  
 ! ======== subroutine to read station data in netcdf format ===========
 !modified EAC Dec 2015 adapted from AJN version for ASCII, replacing it
-!modified AWW Dec 2015, Feb 2016 -- added times, directory, st_rec, end_rec
-!subroutine read_station(stnvar, stnid, site_list, vals, tair_vals, vals_miss, vals_miss_t, error)
-subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end_rec, vals, tair_vals, &
-& vals_miss, vals_miss_t, error)
-  use strings
+!modified AWW Dec 2015, Feb 2016 -- added directory, st_rec, end_rec
+
+subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_vals, &
+                       & vals_miss, vals_miss_t, error)
+  use string_mod
   use utim
   use type
   use netcdf
@@ -275,10 +275,8 @@ subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end
  
   character (len=100), intent (in) :: stnvar !! prcp variable name
   character (len=100), intent (in) :: stnid
-  character (len=500), intent (in) :: site_list
   character (len=500), intent (in) :: directory ! AWW-feb2016 data dir separated from site list
  
-  real (dp), intent (in) :: times (:)! AWW
   integer (i4b), intent (in) :: st_rec, end_rec ! AWW
  
   real, allocatable :: vals1 (:), vals2 (:), valsp (:)
@@ -292,30 +290,16 @@ subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end
  
   character (len=500) :: file_name
   !character (len=500) :: directory  AWW
-  character (len=100) :: settings (10)
   character (len=100) :: stnvar_t1, stnvar_t2
-  integer (i4b) :: i, nsettings, t
+  integer (i4b) :: t
   logical :: fexist
  
   integer :: status, status_tn, status_tx
  
-  !!!! first read in station precipitation data
+  !!!! === first read in station precipitation data
   error = 0
  
   !!!! Get directory and file name based on station_list and stnid
- 
-  !! AWW-redid following: allow the station list and data files to reside in different places
-  !call parse (site_list, "/", settings, nsettings)
-  !if (nsettings == 0) then
-  !  directory = "."
-  !else
-  !  directory = settings (1)
-  !  if (nsettings > 2) then
-  !    do i = 2, nsettings - 1, 1
-  !      directory = trim (directory) // "/" // settings (i)
-  !    end do
-  !  end if
-  !end if
  
   file_name = trim (directory) // "/" // trim (stnid) // ".nc"
  
@@ -367,7 +351,6 @@ subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end
  
       ! AWW here could make it so that if the station var not specified (PT), don't use
 
-      ! do t = 1, nctimes, 1  AWW-del
       do t = st_rec, end_rec, 1 ! AWW store only within desired period
         if (valsp(t) == nf90_fill_float) then
           vals_miss = .false.   ! this is the reverse of what the name suggests -AWW need to FIX
@@ -414,7 +397,6 @@ subroutine read_station (stnvar, stnid, site_list, directory, times, st_rec, end
       call check (nf90_inq_varid(ncid, stnvar_t2, varid))! reset varid for TMAX
       call check (nf90_get_var(ncid, varid, vals2))! get tmax data
  
-      ! do t = 1, nctimes, 1  AWW-del
       do t = st_rec, end_rec, 1 ! AWW store only within desired period
         if (vals1(t) == nf90_fill_float .or. vals2(t) == nf90_fill_float) then
           tair_vals = - 999.0
@@ -443,7 +425,7 @@ end subroutine read_station
  
  
 subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
-  use strings
+  use string_mod
   use type
   implicit none
  

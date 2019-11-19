@@ -5,6 +5,7 @@
 
 #no .mod files
 *.mod
+*genmod.f90
 
 #no text editor temp files
 *~
@@ -25,14 +26,14 @@ bin/
 # others
 from_NR/*.f90
 downscale/numrec.f90
-run/
+from_NR.tgz
 
 # no text files (OK)
 # *.txt
 
 #no archives
 *.tar
-*.tgz
+#*.tgz -- allowing the example to exist as an archive
 *.gz
 *.zip
 *.Z
@@ -45,3 +46,10 @@ run/
 
 # misc notes files
 LASTNEXT
+
+# not the run directory
+run/
+scripts/
+
+# not a devel code dir
+downscale/alt/

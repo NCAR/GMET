@@ -26,7 +26,9 @@ function erfinv (x)
    & ((1.637067800*tmp+3.543889200)*tmp+1.0)
   end if
 !
-  if (neg) then
+  !if (neg) then   ! AW
+  if (neg .eq. 1) then
+
     erfinv = - erfinv
   end if
 !

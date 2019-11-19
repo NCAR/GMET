@@ -1,12 +1,12 @@
 subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, times, site_list, &
-& station_var, stnid, stnlat, stnlon, stnalt, forecast, file, error)
+& stnid, stnlat, stnlon, stnalt, forecast, file, error)
   use netcdf
   use type
   implicit none
  
   character (len=100), intent (in) :: var_names (:), stnid (:)
   integer, intent (in) :: n_vars, forecast
-  character (len=100), intent (in) :: startdate, enddate, station_var
+  character (len=100), intent (in) :: startdate, enddate
   character (len=500), intent (in) :: file, site_list
   real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
   real (dp), intent (in) :: coefs (:, :, :)
@@ -50,7 +50,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   integer :: stn_id_varid, stn_lat_varid, stn_lon_varid, stn_alt_varid
   integer :: charids (2)
   integer :: dimids (4)
-  integer :: count4 (4), start4 (4), count3 (3), start3 (3), count2 (2), start2 (2), count1 (1), &
+  integer :: count4 (4), start4 (4), count2 (2), start2 (2), count1 (1), &
  & start1 (1)
   integer :: nstns, nvars, nrecs, ntimes, rec, i
  
@@ -402,7 +402,8 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   iny = ny
  
   if (size(grdlat) /= inx*iny) then
-    print *, "Error "
+    print *, "ERROR, gridlat is not the same size as inx*iny "
+    print*, "These are, respectively: ", size(grdlat), inx, iny
   end if
  
   error = nf90_open (file, nf90_write, ncid)
@@ -412,7 +413,8 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
     call check (nf90_create(file, nf90_clobber, ncid), "File creation error", error)
     if (error /= 0) return
  
-     ! Define the dimensions.
+     ! Define the dimensions
+    print*, 'inx and iny = ', inx, iny  !AW
     call check (nf90_def_dim(ncid, y_name, iny, y_dimid), "y dim def error", error)
     call check (nf90_def_dim(ncid, x_name, inx, x_dimid), "x dim def error", error)
     call check (nf90_def_dim(ncid, time_name, nf90_unlimited, time_dimid), "time dim def error", &
@@ -824,4 +826,3 @@ contains
   end subroutine check
  
 end subroutine save_forcing_regression
-!end subroutine save_precip

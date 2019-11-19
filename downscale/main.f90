@@ -1,7 +1,8 @@
 ! Main program file for the Gridded Meteorological Ensemble Tool (GMET)
+
 program gmet
   use type
-  use strings
+  use string_mod
   use utim ! AWW
   implicit none
  
@@ -43,43 +44,40 @@ program gmet
       integer, intent (out) :: error
     end subroutine read_grid_list
  
-    subroutine read_nc_grid (file_name, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
+    subroutine read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
       use netcdf
       use type
  
-      character (len=500), intent (in) :: file_name
+      character (len=500), intent (in) :: grid_list
       real (dp), allocatable, intent (out) :: lat (:, :), lon (:, :), elev (:, :), grad_n (:, :), &
      & grad_e (:, :), mask (:, :)
       integer (i4b), intent (out) :: nx, ny
       integer, intent (out) :: error
-    end subroutine read_nc_grid
+    end subroutine read_domain_grid
  
-    ! subroutine estimate_coefficients(D, nvars, Lats, Lons, Times, stnid, stnlat, stnlon, &
     ! AWW modified feb-2016
     subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
-   & stnlon, stnalt, stnvar, site_var, site_list, directory, c, poc, error)
+   & stnlon, stnvar, directory, c, poc, error)
       use type
       real (dp), intent (in) :: d (:, :, :), lats (:), lons (:)
       real (dp), intent (in) :: times (:)
-      integer (i4b), intent (in) :: st_rec, end_rec ! AWW
       integer (i4b), intent (in) :: nvars
+      integer (i4b), intent (in) :: st_rec, end_rec
       character (len=100), intent (in) :: stnid (:)
-      real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
+      real (dp), intent (in) :: stnlat (:), stnlon (:)
       character (len=100), intent (in) :: stnvar
-      character (len=100), intent (in) :: site_var
-      character (len=500), intent (in) :: site_list
       character (len=500), intent (in) :: directory !AWW added
       real (dp), allocatable, intent (out) :: c (:, :, :), poc (:, :, :)
       integer, intent (out) :: error
     end subroutine estimate_coefficients
  
     subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, times, site_list, &
-   & station_var, stnid, stnlat, stnlon, stnalt, forecast, file, error)
+   & stnid, stnlat, stnlon, stnalt, forecast, file, error)
       use netcdf
       use type
       character (len=100), intent (in) :: var_names (:), stnid (:)
       integer, intent (in) :: n_vars, forecast
-      character (len=100), intent (in) :: startdate, enddate, station_var
+      character (len=100), intent (in) :: startdate, enddate
       character (len=500), intent (in) :: file, site_list
       real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
       real (dp), intent (in) :: coefs (:, :, :)
@@ -90,20 +88,22 @@ program gmet
     !modified AJN Sept 2013
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
-    subroutine estimate_forcing_regression (x, z, nsta, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, stnvar, site_var, site_var_t, site_list, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
+
+    subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
       use type
+      character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
+      character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
       real (dp), intent (in) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
-      integer (i4b), intent (in) :: nsta, ngrid
+      integer (i4b), intent (in) :: ngrid
       real (dp), intent (in) :: times (:)
-      integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec ! AWW added
+      integer (i4b), intent (in) :: st_rec, end_rec
       character (len=100), intent (in) :: stnid (:)
-      character (len=100), intent (in) :: stnvar, site_var, site_var_t
-      character (len=500), intent (in) :: site_list
-      character (len=500), intent (in) :: directory !AWW
+      character (len=100), intent (in) :: stnvar
+      character (len=500), intent (in) :: directory
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
       real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
       real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
@@ -144,22 +144,24 @@ program gmet
     !end subroutine save_precip
  
   end interface
-  ! === end of interfaces, start of program ====
+  ! === end of interface, start the program ====
  
   character (len=100) :: config_file
-  !integer, parameter :: nconfigs = 15 !modified AJN Sept 2013
-  integer, parameter :: nconfigs = 18 !modified AWW Feb 2016
+  integer, parameter  :: nconfigs = 20 
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
-  character (len=500) :: directory ! AWW feb 2016
+  character (len=500) :: directory
 
   character (len=100) :: startdate, enddate ! desired output dates, YYYYMMDD, read from config file
-  character (len=20) :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
+  character (len=20)  :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
   character (len=100) :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
   character (len=100), allocatable :: stnid (:), stnname (:)
   character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
+
+  character (len = 500) :: gen_sta_weights     ! flag for generating station weight file
+  character (len = 500) :: sta_weight_name     ! name of station weight file
  
   character (len=2000) :: arg !command line arg for configuration file
  
@@ -197,7 +199,7 @@ program gmet
  
   real (dp) :: maxdistance
   real (dp), allocatable :: grdlat (:), grdlon (:), grdalt (:), grd_slp_n (:), grd_slp_e (:), &
- & mask_1d (:)
+                            & mask_1d (:)
   real (sp), allocatable :: pcp (:, :), pop (:, :), pcperror (:, :)
   !modified AJN Sept 2013
   real (sp), allocatable :: tmean (:, :), tmean_err (:, :)
@@ -218,88 +220,64 @@ program gmet
     if (len_trim(arg) == 0) exit
     i = i + 1
   end do
- 
-  config_names(1) = "MODE"
-  config_names(2) = "START_DATE"
-  config_names(3) = "END_DATE"
-  config_names(4) = "SITE_LIST"
-  config_names(5) = "SITE_VAR"
-  config_names(6) = "STATION_VAR"
-  config_names(7) = "PERTURBATION"
-  config_names(8) = "FORECAST"
-  config_names(9) = "NUMBER_VARS"
-  config_names(10) = "FILE_VARIABLE"
-  config_names(11) = "VARIABLE_NAME"
-  config_names(12) = "OUTPUT_FILE"
-  config_names(13) = "GRID_LIST"
-  config_names(14) = "MAX_DISTANCE"
-  config_names(15) = "SITE_VAR_T" !modified AJN Sept 2013
-  config_names(16) = "DATA_DIRECTORY" !AWW-feb2016, free data dir from site list path
-  config_names(17) = "STN_START_DATE" !AWW-apr2016, add station period limits
-  config_names(18) = "STN_END_DATE"   !  to get them out of being hardwired
- 
+
+  ! initialize 
   error    = 0
   n_vars   = 0
   forecast = -1
  
+  ! get configuration information, make assignments
   call read_config (config_file, nconfigs, config_names, config_values)
   call value (config_values(1), mode, error)
   if (error /= 0) then
     print *, "ERROR: Failed to read mode from config file."
-    return
+    stop
   end if
  
-  startdate   = config_values(2)
-  enddate     = config_values(3)
-  site_list   = config_values(4)
-  site_var    = config_values(5)
-  site_var_t  = config_values(15)
-  station_var = config_values(6)
-  output_file = config_values(12)
-  directory   = config_values(16)
-  stn_startdate   = config_values(17)
-  stn_enddate     = config_values(18)
+  startdate      = config_values(2)
+  enddate        = config_values(3)
+  site_list      = config_values(4)
+  site_var       = config_values(5)
+  station_var    = config_values(6)
+  output_file    = config_values(12)
+  site_var_t     = config_values(15)
+  directory      = config_values(16)
+  stn_startdate  = config_values(17)
+  stn_enddate    = config_values(18)
+  gen_sta_weights= config_values(19)
+  sta_weight_name= config_values(20)
  
   ! print *,trim(site_var_t),' ',trim(site_var)
  
+  ! check that dates were entered
   if (len(trim(startdate)) == 0 .or. len(trim(enddate)) == 0 .or. len(trim(site_list)) == 0 .or. &
- & len(trim(output_file)) == 0) then
-    print *, "ERROR: Failed to read in one more more required config parameters. (START_DATE, END_D&
-   &ATE, SITE_LIST or OUTPUT_FILE)"
-    return
+    & len(trim(output_file)) == 0) then
+    print *, "ERROR: Failed to read in one more more required config parameters. &
+      & START_DATE, END_DATE, SITE_LIST or OUTPUT_FILE"
+    stop
   end if
  
-  ! --- AWW:  figure out start and end utimes & records for requested station data read period ---
+  ! --- AWW:  calculate start and end utimes & records for requested station data read period ---
   call get_time_list (startdate, enddate, times)  ! makes unix-time list for desired records
   ntimes = size (times)
   print *, 'startdate=', startdate, 'enddate=', enddate, 'ntimes=', ntimes  ! YYYYMMDD dates
+  print *, "---------"
 
   !translate times to a start and end record for station files
 
-  ! the station file start & end dates are given in the config file so that this calculation 
+  ! NOTE: the station file start & end dates are given in the config file so that this calculation 
   !   doesn't have to be done for every single station (ie reading st/end from the station file
   !   but it would be more flexible to do it for every station file, perhaps -- then they would
   !   not all have to be the same lengths
 
-  ! retro dates
-  !st_stndata_utime = date_to_unix ('19800101')  ! returns secs-since-1970 for st date of station files
-                                                ! hardwired for testing
-  !end_stndata_utime = date_to_unix ('20141231') ! returns secs-since-1970 for end date of station files
-                                                ! hardwired for testing
-  ! spinup dates
-  !st_stndata_utime = date_to_unix ('20150101')  ! returns secs-since-1970 for st date of station files
-                                                 ! hardwired for testing
-  !end_stndata_utime = date_to_unix ('20160430') ! returns secs-since-1970 for end date of station files
-                                                 ! hardwired for testing
-  ! --- station data start and end dates
+  ! --- station data start and end utimes are now derived from config file dates
   st_stndata_utime = date_to_unix (stn_startdate) ! returns secs-since-1970 for st date of station files
   end_stndata_utime = date_to_unix (stn_enddate)  ! returns secs-since-1970 for end date of station files
 
   ! calculate start & end recs for processing station data files 
   st_rec = floor ((times(1)-st_stndata_utime)/86400) + 1
   end_rec = floor ((times(ntimes)-st_stndata_utime)/86400) + 1
- 
-  print *, 'st_rec and end_rec =', st_rec, end_rec
+  print *, 'st_rec and end_rec days since 1970/1/1: ', st_rec, end_rec
   ! --- end AWW add ---
  
  
@@ -315,9 +293,9 @@ program gmet
     if (error /= 0) n_vars = 0
  
     if (len(trim(perturbation)) == 0 .or. n_vars == 0 .or. forecast ==-1) then
-      print *, "ERROR: Failed to read in one or more required model config parameters. (PERTURBATIO&
-     &N, NUMBER_VARS or FORECAST)"
-      return
+      print *, "ERROR: Failed to read in one or more required model config parameters. &
+               &(PERTURBATION, NUMBER_VARS or FORECAST)"
+      stop
     end if
  
     if (n_vars > 1) then
@@ -327,7 +305,7 @@ program gmet
       call parse (config_values(11), ",", var_name, nvar_name)
       if (nfile_var /= n_vars .or. nvar_name /= n_vars) then
         print *, "ERROR: Number of variables in config file does not match."
-        return
+        stop
       end if
     else
       allocate (file_var(1))
@@ -335,9 +313,9 @@ program gmet
       file_var (1) = config_values (10)
       var_name (1) = config_values (11)
       if (len(trim(file_var(1))) == 0 .or. len(trim(var_name(1))) == 0) then
-        print *, "ERROR: Failed to read in one or more required model config parameters. (FILE_VARI&
-       &ABLE or VARIABLE_NAME)"
-        return
+        print *, "ERROR: Failed to read in one or more required model config parameters. &
+                 &(FILE_VARIABLE or VARIABLE_NAME)"
+        stop
       end if
  
     end if
@@ -346,7 +324,10 @@ program gmet
     do i = 1, n_vars, 1
       call read_refcst (startdate, enddate, file_var(i), perturbation, var_name(i), forecast, vals, &
      & lats, lons, times, error)
-      if (error /= 0) return
+      if (error /= 0) then
+        print*, 'ERROR: subroutine read_refcst() returned an error: ', error
+        stop
+      end if 
       if (i == 1) then
         allocate (y(n_vars, size(lons)*size(lats), size(times)))
       end if
@@ -356,13 +337,17 @@ program gmet
  
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
    & stn_slp_e, nstations, error, vars)  ! AWW-feb2016 handled reading station variables
-    !   & stn_slp_e, nstations, error)
-    if (error /= 0) return
+    if (error /= 0) then
+      print*, "ERROR in reading station list: ", error
+      stop
+    end if
  
-    !call estimate_coefficients(Y, n_vars, Lats, Lons, Times, stnid, stnlat, stnlon, &
     call estimate_coefficients (y, n_vars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
-   & stnlon, stnalt, station_var, site_var, site_list, directory, coefs, prob_coefs, error)
-    if (error /= 0) return
+   & stnlon, station_var, directory, coefs, prob_coefs, error)
+    if (error /= 0) then
+      print*, "ERROR calling estimate_coefficients() routine: ", error
+      stop
+    end if
  
     if (trim(station_var) .eq. "PRCP") then
       lenfile = len_trim (output_file)
@@ -371,62 +356,77 @@ program gmet
       output_file2 (6:lenfile+6) = output_file (1:lenfile)
       print *, trim (output_file2)
  
+      ! store PoP
       call save_coefficients (n_vars, var_name, prob_coefs, startdate, enddate, times, site_list, &
-     & station_var, stnid, stnlat, stnlon, stnalt, forecast, output_file2, error)
-      if (error /= 0) return
+     & stnid, stnlat, stnlon, stnalt, forecast, output_file2, error)
+      if (error /= 0) then
+        print*, "ERROR calling save_coefficients() subroutine, pop: ", error
+        stop
+      end if 
     end if
  
+    ! store PCP  ( should this be inside the if block above?)
     call save_coefficients (n_vars, var_name, coefs, startdate, enddate, times, site_list, &
-   & station_var, stnid, stnlat, stnlon, stnalt, forecast, output_file, error)
-    if (error /= 0) return
+   & stnid, stnlat, stnlon, stnalt, forecast, output_file, error)
+    if (error /= 0) then
+      print*, "ERROR calling save_coefficients() subroutine, pcp: ", error
+      stop
+    end if
  
-    ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec...just passed now because
+    ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec ... just passed now because
     !   an internal subroutine wants them and may use them in the future
+    !   also Mode 1 has not be used much with this program, and may be removed as it's been 
+    !   superceded by GARD
  
   else if (mode == 2) then
  
-    ! =================== ensemble forcing generation =====================
+    ! =================== Ensemble Forcing Generation =====================
  
-    grid_list = config_values (13)
-    call value (config_values(14), maxdistance, error)
-    maxdistance = maxdistance * 0.539957   ! AWW...why?
-    if (error /= 0) maxdistance = - 1
- 
-    if (len(trim(grid_list)) == 0) then
-      print *, "ERROR: Failed to read in one more more required model config parameters.&
-     & (GRID_LIST)"
-      return
+    call value (config_values(14), maxdistance, error)  ! convert config str to number
+    print*, "Max Distance =", maxdistance
+    if (error /= 0) then
+      !maxdistance = -1   ! AWW why not just stop (orig code)?
+      print*, "Max Distance not correctly read ... quitting"
+      stop
     end if
-  
+    maxdistance = maxdistance * 0.539957   ! AWW...why?
+ 
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
-   & stn_slp_e, nstations, error, vars) !AWW added vars
-    if (error /= 0) return
- 
-    ! call read_grid_list(grid_list, grdlat, grdlon, grdalt, grd_slp_n, grd_slp_e, nx, ny, error)
-    ! if(error /= 0) return
- 
-    call read_nc_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
- 
-    print *, size (lat), size (elev), nx, ny, nx * ny
- 
-    !allocate 1-d grid variables
+   & stn_slp_e, nstations, error, vars) ! AWW added vars
+    if (error /= 0) then
+      print *, "ERROR: Failed to read station list ... quitting", error
+      stop
+    end if
+
+    ! read grid domain file 
+    grid_list = config_values (13)
+    if (len(trim(grid_list)) == 0) then
+      print *, "ERROR: Failed to read GRID_LIST name"
+      stop
+    end if
+
+    call read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
+    if(error /= 0) then
+      print *, "ERROR: Failed to read station list ... quitting", error
+      stop
+    end if
+
+    ! allocate 1-d grid variables
+    print*, "allocating vector variables matching grids of nx= ",nx," by ny= ",ny
     allocate (grdlat(nx*ny))
     allocate (grdlon(nx*ny))
     allocate (grdalt(nx*ny))
     allocate (grd_slp_n(nx*ny))
     allocate (grd_slp_e(nx*ny))
     allocate (mask_1d(nx*ny))
- 
-    print *, size (grdlat)
- 
-    grdlat = reshape (lat, (/ nx*ny /))
-    grdlon = reshape (lon, (/ nx*ny /))
-    grdalt = reshape (elev, (/ nx*ny /))
+
+    ! reshape the domain grids into vectors
+    grdlat    = reshape (lat, (/ nx*ny /))
+    grdlon    = reshape (lon, (/ nx*ny /))
+    grdalt    = reshape (elev, (/ nx*ny /))
     grd_slp_n = reshape (grad_n, (/ nx*ny /))
     grd_slp_e = reshape (grad_e, (/ nx*ny /))
-    mask_1d = reshape (mask, (/ nx*ny /))
- 
-    print *, size (lat), size (elev), nx, ny
+    mask_1d   = reshape (mask, (/ nx*ny /))
  
     ngrid = nx * ny
     allocate (x(nstations, 6))   ! x arrays for station variables
@@ -444,8 +444,6 @@ program gmet
     z(:, 4) = grdalt (:)
     z(:, 5) = grd_slp_n (:)
     z(:, 6) = grd_slp_e (:)
- 
-    print *, size (lat), size (elev), nx, ny
  
     !       call get_time_list(startdate, enddate, Times)
     !	ntimes = size(Times)
@@ -470,21 +468,29 @@ program gmet
     allocate (y_max(ngrid, ntimes))
     allocate (y_min(ngrid, ntimes))
  
-    ! call estimate_precip(X, Z, nstations, ngrid, maxDistance, Times, st_rec, end_rec, &
-    call estimate_forcing_regression (x, z, nstations, ngrid, maxdistance, times, st_rec, &
-   & end_rec, stnid, station_var, site_var, site_var_t, site_list, directory, pcp, pop, pcperror, tmean, &
+    call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+   & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
    & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
-    if (error /= 0) return
+    if (error /= 0) then
+      print *, "ERROR: subroutine estimate_forcing_regression() returned error", error
+      stop
+    end if
  
     print *, 'Creating output file'
  
     ! call save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
+
     call save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, nx, &
    & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
    & y_min, y_max, output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
    & trange_err_2)
-    if (error /= 0) return
+    if (error /= 0) then
+      print *, "ERROR: subroutine save_forcing_regression() returned error", error
+      stop
+    end if
+    
+    ! end Mode 2:  ensemble regression
  
   else
 
@@ -492,7 +498,7 @@ program gmet
     print*, 'Mode given in config file = ',mode,' Not recognized (can be 1 or 2).  Quitting.' 
     stop
 
-  end if  ! end if mode=2
+  end if
   
 end program gmet
  
