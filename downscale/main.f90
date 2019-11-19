@@ -164,7 +164,9 @@ program gmet
   character (len = 500) :: sta_weight_name     ! name of station weight file
  
   character (len=2000) :: arg !command line arg for configuration file
- 
+  character (len=2000) :: output_file_tmp !temporary output file name
+  character (len=2000) :: sys_str !string for system commands
+
   integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
   integer :: nstations, lenfile
  
@@ -246,6 +248,21 @@ program gmet
   stn_enddate    = config_values(18)
   gen_sta_weights= config_values(19)
   sta_weight_name= config_values(20)
+
+  !check to see if output file path is valid
+  !create the output file and see if an error occurs
+  output_file_tmp = trim(output_file) // ".txt"
+  open(unit=34,file=trim(output_file_tmp),form='unformatted',iostat=error)
+    
+  !check to see if it was created
+  if(error /= 0) then
+    print *, "Error: Output path is not valid." 
+    print *, trim(output_file_tmp), " cannot be created in output directory"
+    stop
+  else
+    sys_str = "rm " // trim(output_file_tmp)
+    call system(sys_str)
+  end if
  
   ! print *,trim(site_var_t),' ',trim(site_var)
  
