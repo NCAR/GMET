@@ -5,6 +5,7 @@
 
 #no .mod files
 *.mod
+*genmod.f90
 
 #no text editor temp files
 *~
@@ -52,3 +53,6 @@ scripts/
 
 # not a devel code dir
 downscale/alt/
+
+#other makefiles
+Makefile-cheyenne
