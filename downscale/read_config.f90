@@ -40,6 +40,7 @@ subroutine read_config (fname, n, config_names, values)
   config_names(18) = "STN_END_DATE"   !  
   config_names(19) = "GEN_STA_WEIGHTS"   !  
   config_names(20) = "STA_WEIGHT_NAME"   !  
+  config_names(21) = "TIME_MODE"         ! forcing regression time hierarchical mode (e.g. daily, climo, climo_anom, etc)
 
  
   do i = 1, n, 1

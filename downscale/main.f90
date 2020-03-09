@@ -85,14 +85,9 @@ program gmet
       integer, intent (out) :: error
     end subroutine save_coefficients
  
-    !modified AJN Sept 2013
-    ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
-    ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
-
     subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
-   & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
-   & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+   & trange_err, mean_autocorr, mean_tp_corr, y_max, error)
       use type
       character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
       character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
@@ -107,47 +102,78 @@ program gmet
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
       real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
       real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
-      real (sp), allocatable, intent (out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
-      real (sp), allocatable, intent (out) :: tmean_2 (:, :), tmean_err_2 (:, :)!OLS tmean estimate and error
-      real (sp), allocatable, intent (out) :: trange_2 (:, :), trange_err_2 (:, :)!OLS trange estimate and error
       integer, intent (out) :: error
       real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
       real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
-      real (dp), intent (out) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)!std and mean of transformed time step precipitation
-      real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min,max of normalized time step precip
+      real (dp), intent (out) :: y_max (:, :)!max of normalized time step precip
     end subroutine estimate_forcing_regression
-    !end subroutine estimate_precip  ! AWW-Feb2016 renamed to be more descriptive
+
+    subroutine estimate_climo_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
+   & trange_err, mean_autocorr, mean_tp_corr, y_max, error)
+      use type
+      character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
+      character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
+      real (dp), intent (in) :: x (:, :), z (:, :)
+      real (dp), intent (in) :: maxdistance
+      integer (i4b), intent (in) :: ngrid
+      real (dp), intent (in) :: times (:)
+      integer (i4b), intent (in) :: st_rec, end_rec
+      character (len=100), intent (in) :: stnid (:)
+      character (len=100), intent (in) :: stnvar
+      character (len=500), intent (in) :: directory
+      real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
+      real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
+      real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
+      integer, intent (out) :: error
+      real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
+      real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
+      real (dp), intent (out) :: y_max (:, :)!max of normalized time step precip
+    end subroutine estimate_climo_regression
  
-    !modified AJN Sept 2013
-    !subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
-    ! AWW Feb2016, renamed to be more descriptive.  Note did NOT call scrf/save_precip.f90 subroutine
+    subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+        & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
+        & trange_err, mean_autocorr, mean_tp_corr, y_max, error)
+      use type
+      character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
+      character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
+      real (dp), intent (in) :: x (:, :), z (:, :)
+      real (dp), intent (in) :: maxdistance
+      integer (i4b), intent (in) :: ngrid
+      real (dp), intent (in) :: times (:)
+      integer (i4b), intent (in) :: st_rec, end_rec
+      character (len=100), intent (in) :: stnid (:)
+      character (len=100), intent (in) :: stnvar
+      character (len=500), intent (in) :: directory
+      real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
+      real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
+      real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
+      integer, intent (out) :: error
+      real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
+      real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
+      real (dp), intent (out) :: y_max (:, :)!max obs at each timestep
+    end subroutine estimate_climo_anom_regression
+ 
     subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
-   & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
-   & y_min, y_max, file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
-   & trange_err_2)
+   & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_max, file, error)
       use netcdf
       use type
       real (sp), intent (in) :: pcp (:, :), pop (:, :), pcperror (:, :)
       real (sp), intent (in) :: tmean (:, :), tmean_err (:, :), trange (:, :), trange_err (:, :)
-      real (sp), intent (in) :: pcp_2 (:, :), pop_2 (:, :), pcperror_2 (:, :)
-      real (sp), intent (in) :: tmean_2 (:, :), tmean_err_2 (:, :), trange_2 (:, :), trange_err_2 &
-     & (:, :)
       integer (i4b), intent (in) :: nx, ny
       real (dp), intent (in) :: grdlat (:), grdlon (:), grdalt (:)
       real (dp), intent (in) :: times (:)
       real (dp), intent (in) :: mean_autocorr (:), mean_tp_corr (:)
-      real (dp), intent (in) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)
-      real (dp), intent (in) :: y_min (:, :), y_max (:, :)
+      real (dp), intent (in) :: y_max (:, :)
       character (len=500), intent (in) :: file
       integer, intent (out) :: error
     end subroutine save_forcing_regression
-    !end subroutine save_precip
  
   end interface
   ! === end of interface, start the program ====
  
   character (len=100) :: config_file
-  integer, parameter  :: nconfigs = 20 
+  integer, parameter  :: nconfigs = 21 
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
@@ -162,6 +188,8 @@ program gmet
 
   character (len = 500) :: gen_sta_weights     ! flag for generating station weight file
   character (len = 500) :: sta_weight_name     ! name of station weight file
+
+  character (len = 500) :: time_mode     ! mode of time hierarchical forcing regression (daily,climo,climo_anom, etc)
  
   character (len=2000) :: arg !command line arg for configuration file
   character (len=2000) :: output_file_tmp !temporary output file name
@@ -202,15 +230,11 @@ program gmet
   real (dp) :: maxdistance
   real (dp), allocatable :: grdlat (:), grdlon (:), grdalt (:), grd_slp_n (:), grd_slp_e (:), &
                             & mask_1d (:)
+
   real (sp), allocatable :: pcp (:, :), pop (:, :), pcperror (:, :)
-  !modified AJN Sept 2013
   real (sp), allocatable :: tmean (:, :), tmean_err (:, :)
   real (sp), allocatable :: trange (:, :), trange_err (:, :)
  
-  real (sp), allocatable :: pcp_2 (:, :), pop_2 (:, :), pcperror_2 (:, :)
-  !modified AJN Sept 2013
-  real (sp), allocatable :: tmean_2 (:, :), tmean_err_2 (:, :)
-  real (sp), allocatable :: trange_2 (:, :), trange_err_2 (:, :)
  
   ! ========== code starts below ==============================
  
@@ -248,6 +272,7 @@ program gmet
   stn_enddate    = config_values(18)
   gen_sta_weights= config_values(19)
   sta_weight_name= config_values(20)
+  time_mode      = config_values(21)
 
   !check to see if output file path is valid
   !create the output file and see if an error occurs
@@ -485,23 +510,41 @@ program gmet
     allocate (y_max(ngrid, ntimes))
     allocate (y_min(ngrid, ntimes))
  
-    call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
-   & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
-   & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
-    if (error /= 0) then
-      print *, "ERROR: subroutine estimate_forcing_regression() returned error", error
-      stop
+
+    if(trim(time_mode) .eq. 'daily' .or. trim(time_mode) .eq. 'DAILY') then
+       call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x(:,1:6), z(:,1:6), ngrid, maxdistance, times, st_rec, end_rec, &
+            & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
+            & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_max, error)
+
+       if (error /= 0) then
+         print *, "ERROR: subroutine estimate_forcing_regression() returned error", error
+         stop
+       end if
+
+    else if(trim(time_mode) .eq. 'daily_anom' .or. trim(time_mode) .eq. 'DAILY_ANOM') then
+      call estimate_climo_anom_regression(gen_sta_weights, sta_weight_name, x(:,1:3), z(:,1:3), ngrid, maxdistance, times, st_rec, end_rec, &
+              stnid, station_var, directory, pcp, pop, pcperror, tmean, &
+              tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr,y_max,error)
+       if (error /= 0) then
+         print *, "ERROR: subroutine estimate_climo_anom_regression() returned error", error
+         stop
+       end if
+
+    else if(trim(time_mode) .eq. 'climo') then
+      call estimate_climo_regression(gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+            & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
+            & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_max, error)
+       if (error /= 0) then
+         print *, "ERROR: subroutine estimate_climo_regression() returned error", error
+         stop
+       end if
     end if
- 
+
     print *, 'Creating output file'
  
-    ! call save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
 
     call save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, nx, &
-   & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
-   & y_min, y_max, output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
-   & trange_err_2)
+      & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_max, output_file, error)
     if (error /= 0) then
       print *, "ERROR: subroutine save_forcing_regression() returned error", error
       stop

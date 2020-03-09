@@ -1,7 +1,4 @@
-! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
-!   renamed from estimate_precip; add also 'directory' var, changed some var names
-
-subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+subroutine estimate_climo_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_max, error)
 
@@ -102,7 +99,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       real (dp), intent (inout) :: x (:, :)
     end subroutine normalize_x
 
-    ! added AJN Sept 2013
     subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
       use type
       real (dp), intent (inout) :: x (:)
@@ -138,7 +134,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       real (dp), allocatable, intent (out) :: b (:)
     end subroutine logistic_regression
 
-    ! added AJN Sept 2013
     subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
       use type
       real (dp), intent (in) :: prcp_data (:)
@@ -199,7 +194,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (dp), allocatable :: x_red_t (:, :)! reduced matrix for ...
 
   !reduced size matrices for quicker matrix operations
-  real (dp), allocatable :: twx_red (:, :), tx_red (:, :)!reduced matricies
+  real (dp), allocatable :: twx_red (:, :), tx_red (:, :)!reduced matricies 
 
   real (dp), allocatable :: w_base (:, :)!initial distance weight matrix
   real (dp), allocatable :: w_pcp_1d (:), w_temp_1d (:)
@@ -266,6 +261,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   integer (i4b) :: t1, t2, count_rate
   integer (i4b) :: tg1, tg2
 
+
   !==============================================================!
   !                     code starts below here                   !
   !==============================================================!
@@ -318,7 +314,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   ! base weight array
   allocate (w_base(ngrid, nstns))
 
- !loocv error estimation vectors and matrices
+  !loocv error estimation vectors and matrices
   allocate(y_red_loocv(sta_limit-1))
   allocate(x_red_loocv(sta_limit-1,xsize))
   allocate(w_pcp_red_loocv(sta_limit-1,sta_limit-1))
@@ -574,18 +570,19 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           pcperr (g, t) = 0.0
         end if
 
-        ! added AJN Sept 2013
         if (ndata_t == 0 .and. nodata_t == 0) then
           if (t .gt. 1) then
             tmean (g, t) = tmean (g, t-1)
             trange (g, t) = trange (g, t-1)
             tmean_err (g, t) = tmean_err (g, t-1)
             trange_err (g, t) = trange_err (g, t-1)
+
           else
             tmean (g, t) = -999
             trange (g, t) = -999
             tmean_err (g, t) = 0.0
             trange_err (g, t) = 0.0
+
           end if
         end if
         ! print *,ndata
@@ -613,9 +610,26 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           else
             ! some stations don't have precip > 0
             if (slope_flag_pcp .eq. 0) then
-              pop (g, t) = -999.   ! when not using slope regressions
+              allocate(tx_red(4, sta_limit))
+              allocate(twx_red(4, sta_limit))
+
+              tx_red = transpose(x_red(:, 1:4))
+              twx_red = matmul(tx_red, w_pcp_red)
+              call logistic_regression (x_red(:, 1:4), y_red, twx_red, yp_red, b)!AJN
+
+              if(-dot_product(Z(g,1:4),B) < 25.) then
+                pop(g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
+              else
+                POP(g,t) = 0.0
+              endif
+
+              deallocate (b)! B must get allocated in logistic reg.; could this also be allocated just once?
+              deallocate(tx_red)
+              deallocate(twx_red)
             else
-              ! --- regression with slope ---
+              allocate(tx_red(6,sta_limit))
+              allocate(twx_red(6,sta_limit))
+
               tx_red = transpose (x_red)
               twx_red = matmul (tx_red, w_pcp_red)
               call logistic_regression (x_red, y_red, twx_red, yp_red, b) ! AJN
@@ -628,31 +642,15 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
               endif
 
               deallocate (b)
+              deallocate(tx_red)
+              deallocate(twx_red)
             end if
 
-            ! --- regression without slope ---
-            ! AWW note that these now use the 2nd set of T* variables (different dimension)
-
-            deallocate(tx_red)   ! just testing
-            deallocate(twx_red)
-            allocate(tx_red(4, sta_limit))
-            allocate(twx_red(4, sta_limit))
-
-            tx_red = transpose(x_red(:, 1:4))
-            twx_red = matmul(tx_red, w_pcp_red)
-            call logistic_regression (x_red(:, 1:4), y_red, twx_red, yp_red, b)!AJN
-
-            if(-dot_product(Z(g,1:4),B) < 25.) then
-              pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
-            else
-              POP(g,t) = 0.0
-            endif
-
-            deallocate (b)! B must get allocated in logistic reg.; could this also be allocated just once?
           end if
           ! print *, "POP: ", POP(g,t)
 
           ! -------------- 2. NOW CALCULATING PCP -----------------
+
 
           if(slope_flag_pcp .eq. 0) then
             !regression without slope terms
@@ -660,7 +658,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             allocate(tx_red(4, sta_limit))
             allocate(tx_red_loocv(4,sta_limit-1))
             allocate(twx_red_loocv(4,sta_limit-1))
-
+            
             tx_red = transpose (x_red(:, 1:4))
             twx_red = matmul (tx_red, w_pcp_red)
             call least_squares (x_red(:, 1:4), y_red, twx_red, b)
@@ -698,7 +696,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             deallocate(twx_red)
             deallocate(tx_red)
             deallocate(twx_red_loocv)
-            deallocate(tx_red_loocv)
+            deallocate(tx_red_loocv)  
             deallocate(B)
           else
             ! regression with slope terms
@@ -744,7 +742,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             deallocate(twx_red)
             deallocate(tx_red)   ! just testing
             deallocate(twx_red_loocv)
-            deallocate(tx_red_loocv)
+            deallocate(tx_red_loocv)  
             deallocate(b)
           end if
 
@@ -761,9 +759,9 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         !  Temperature OLS
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        if (ndata_t .ge. 1) then !
+        if (ndata_t .ge. 1) then ! 
           ! regression without slope terms  only for temperature
-
+          
           deallocate(tx_red)
           deallocate(twx_red)
           deallocate(tx_red_loocv)
@@ -819,7 +817,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           allocate(tx_red_loocv(4,sta_limit-1))
           allocate(twx_red_loocv(4,sta_limit-1))
 
-          TX_red = transpose(X_red(:,1:4))
+          TX_red = transpose(X_red_t(:,1:4))
           TWX_red = matmul(TX_red, w_temp_red)
 
           call least_squares(X_red_t(:,1:4), y_trange_red, TWX_red, B)
@@ -843,7 +841,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
                 w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
                 y_trange_red_loocv(i:close_count_t(g)-2) = y_trange_red(i+1:close_count_t(g)-1)
               endif
-
               TX_red_loocv = transpose(X_red_t_loocv(:,1:4))
               TWX_red_loocv = matmul(TX_red_loocv,w_temp_red_loocv)
               call least_squares(X_red_t_loocv(:,1:4), Y_trange_red_loocv,TWX_red_loocv, B)
@@ -891,4 +888,4 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   deallocate (tx_red_loocv)
   deallocate (twx_red_loocv)
 
-end subroutine estimate_forcing_regression
+end subroutine estimate_climo_regression

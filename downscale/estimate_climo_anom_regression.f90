@@ -1,9 +1,7 @@
-! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
-!   renamed from estimate_precip; add also 'directory' var, changed some var names
+subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+          & stnid, stnvar, directory, pcp, pop, pcperr, tmean, &
+          & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr,obs_max_pcp,error)
 
-subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
-  & trange, trange_err, mean_autocorr, mean_tp_corr, y_max, error)
 
   ! ==============================================================================================
   ! This routine is called during MODE 2 usage:  creates gridded ensembles from station/point data
@@ -102,7 +100,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       real (dp), intent (inout) :: x (:, :)
     end subroutine normalize_x
 
-    ! added AJN Sept 2013
     subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
       use type
       real (dp), intent (inout) :: x (:)
@@ -138,7 +135,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       real (dp), allocatable, intent (out) :: b (:)
     end subroutine logistic_regression
 
-    ! added AJN Sept 2013
     subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
       use type
       real (dp), intent (in) :: prcp_data (:)
@@ -185,12 +181,13 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
   real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
 
+
   integer, intent (out) :: error ! integer error flag
   real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
   real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
 
   ! vary at each grid point and time step
-  real (dp), intent (out) :: y_max (:, :) !max time step precipitation
+  real (dp), intent (out) :: obs_max_pcp (:,:)     !maximum of observed precipitation
 
   real (dp), allocatable :: y (:), b (:)
 
@@ -198,8 +195,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (dp), allocatable :: x_red (:, :)! reduced matrix for ...
   real (dp), allocatable :: x_red_t (:, :)! reduced matrix for ...
 
-  !reduced size matrices for quicker matrix operations
-  real (dp), allocatable :: twx_red (:, :), tx_red (:, :)!reduced matricies
+  ! condensed these variables into just 4 that get re-used
+  real (dp), allocatable :: twx_red (:, :), tx_red (:, :)!reduced matricies (orig)
 
   real (dp), allocatable :: w_base (:, :)!initial distance weight matrix
   real (dp), allocatable :: w_pcp_1d (:), w_temp_1d (:)
@@ -232,7 +229,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
   integer (i4b) :: xsize !size of second dimension of input X array
   integer (i4b) :: ntimes, nstns
-  integer (i4b) :: t, i, j, g, ndata, nodata
+  integer (i4b) :: t, i, g, ndata, nodata
   integer (i4b) :: ndata_t, nodata_t
   integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
@@ -253,10 +250,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (dp), allocatable :: close_meta_t (:, :, :)
   real (dp) :: max_distance_t
   real (dp) :: tmp_weight
-  real(DP),allocatable  :: tmp_weight_arr(:,:)
-
-  integer (i4b) :: slope_flag_pcp
-  integer (i4b) :: slope_flag_temp
 
   ! variables to check for singular matrix
   real (dp), allocatable :: tmp (:, :)
@@ -265,6 +258,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   ! variables for timing code AJN
   integer (i4b) :: t1, t2, count_rate
   integer (i4b) :: tg1, tg2
+
 
   !==============================================================!
   !                     code starts below here                   !
@@ -318,13 +312,14 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   ! base weight array
   allocate (w_base(ngrid, nstns))
 
- !loocv error estimation vectors and matrices
+  !loocv error estimation vectors and matrices
   allocate(y_red_loocv(sta_limit-1))
   allocate(x_red_loocv(sta_limit-1,xsize))
   allocate(w_pcp_red_loocv(sta_limit-1,sta_limit-1))
   allocate(x_red_t_loocv(sta_limit-1,xsize))
   allocate(w_temp_red_loocv(sta_limit-1,sta_limit-1))
   allocate(Y_tmean_red_loocv(sta_limit),Y_trange_red_loocv(sta_limit))
+
 
   ! initializations
   pcp = 0.0d0
@@ -439,6 +434,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     if(error /= 0) then
        return
     endif
+  !or read station-grid cell weight matrices from an existing file
   else
     call read_station_weights(sta_weight_name, & !input
                                 close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
@@ -451,10 +447,12 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   call system_clock (t2, count_rate)
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
 
-  !for LOOCV, keep constant weights for stations
-  do j = 1,sta_limit
-    tmp_weight_arr(j,j) = 1.0
-  enddo
+  allocate (twx_red(3, sta_limit))    ! these have dim1 = 3
+  allocate (tx_red(3, sta_limit))
+  allocate (twx_red(3, sta_limit))! these have dim1 = 3
+  allocate (tx_red(3, sta_limit))
+  allocate (twx_red_loocv(3,sta_limit-1))
+  allocate (tx_red_loocv(3,sta_limit-1))
 
   ! =========== now LOOP through all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
@@ -470,11 +468,12 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     end do
 
     ! do power transformation on precip vector (AWW: consider alternate transforms)
-    call normalize_y (4.0d0, y)    ! SHOULD NOT BE HARDWIRED
+    call normalize_y (3.0d0, y)    ! SHOULD NOT BE HARDWIRED
 
     ! -------- loop through all grid cells for a given time step --------
     do g = 1, ngrid, 1
       ! call system_clock(tg1,count_rate)
+  
 
       ! IF the elevation is valid for this grid cell
       ! (this starts a long section working first on precip, then temp)
@@ -503,7 +502,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         end do
 
         ! reduced matrices for precip
-        slope_flag_pcp = 0
         do i = 1, (close_count(g)-1)
           call calc_distance_weight (max_distance, close_meta(1, g, i), close_meta(2, g, i), &
          & close_meta(3, g, i), close_meta(4, g, i), tmp_weight)
@@ -525,7 +523,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
        & yp_red)
 
-        y_max (g, t) = step_max
+        obs_max_pcp(g,t) = maxval(Y_red)
+
 
         ! ---- second, TEMPERATURES ----
 
@@ -546,7 +545,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         end do
 
         ! reduced matrices for temperature
-        slope_flag_temp = 0
         do i = 1, (close_count_t(g)-1)
           call calc_distance_weight (max_distance_t, close_meta_t(1, g, i), close_meta_t(2, g, i), &
          & close_meta_t(3, g, i), close_meta_t(4, g, i), tmp_weight)
@@ -595,158 +593,66 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
         if (ndata >= 1) then  ! at least one station close by has pcp > 0
 
-          ! tmp needs to be matmul(TX,X) where TX = TWX_red and X = X_red
-          twx_red = matmul (transpose(x_red), w_pcp_red)
-          tmp = matmul (twx_red, x_red)
-          vv = maxval (abs(tmp), dim=2)
-
-          if (any(vv == 0.0) .or. (abs(Z(g,5)) .lt. 3.6 .and. abs(Z(g,6)) .lt. 3.6)) then
-            slope_flag_pcp = 0
-          else
-            slope_flag_pcp = 1
-          end if
-
           ! -------------- 1. CALCULATING POP -----------------
           if (nodata == 0) then
             ! print *, "All stations have precip>0, POP = 1.0"
             pop (g, t) = 1.0
           else
             ! some stations don't have precip > 0
-            if (slope_flag_pcp .eq. 0) then
-              pop (g, t) = -999.   ! when not using slope regressions
-            else
-              ! --- regression with slope ---
-              tx_red = transpose (x_red)
-              twx_red = matmul (tx_red, w_pcp_red)
-              call logistic_regression (x_red, y_red, twx_red, yp_red, b) ! AJN
+            tx_red = transpose (x_red)
+            twx_red = matmul (tx_red, w_pcp_red)
+            call logistic_regression (x_red, y_red, twx_red, yp_red, b) ! AJN
 
-              !pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
-              if(-dot_product(Z(g,:),B) < 25.) then
-                pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
-              else
-                POP(g,t) = 0.0
-              endif
-
-              deallocate (b)
-            end if
-
-            ! --- regression without slope ---
-            ! AWW note that these now use the 2nd set of T* variables (different dimension)
-
-            deallocate(tx_red)   ! just testing
-            deallocate(twx_red)
-            allocate(tx_red(4, sta_limit))
-            allocate(twx_red(4, sta_limit))
-
-            tx_red = transpose(x_red(:, 1:4))
-            twx_red = matmul(tx_red, w_pcp_red)
-            call logistic_regression (x_red(:, 1:4), y_red, twx_red, yp_red, b)!AJN
-
-            if(-dot_product(Z(g,1:4),B) < 25.) then
-              pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
+            if(-dot_product(Z(g,:),B) < 25.) then
+              pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
             else
               POP(g,t) = 0.0
             endif
 
-            deallocate (b)! B must get allocated in logistic reg.; could this also be allocated just once?
+            deallocate (b)
+
           end if
           ! print *, "POP: ", POP(g,t)
 
           ! -------------- 2. NOW CALCULATING PCP -----------------
 
-          if(slope_flag_pcp .eq. 0) then
-            !regression without slope terms
-            allocate(twx_red(4, sta_limit))
-            allocate(tx_red(4, sta_limit))
-            allocate(tx_red_loocv(4,sta_limit-1))
-            allocate(twx_red_loocv(4,sta_limit-1))
 
-            tx_red = transpose (x_red(:, 1:4))
-            twx_red = matmul (tx_red, w_pcp_red)
-            call least_squares (x_red(:, 1:4), y_red, twx_red, b)
+          ! regression with slope
+          tx_red = transpose (x_red)
+          twx_red = matmul (tx_red, w_pcp_red)
 
-            pcp (g, t) = real (dot_product(z(g, 1:4), b), kind(sp))
+          call least_squares (x_red, y_red, twx_red, b)
+          pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
+          deallocate (b)  !AWW-seems to be missing
 
-            wgtsum = 0.0
-            errsum = 0.0
-            do i = 1, (close_count(g)-1), 1
-              wgtsum = wgtsum + w_pcp_red (i, i)
-              if(i .gt. 1) then
-                x_red_loocv(1:i-1,:) = x_red(1:i-1,:)
-                x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(1:i-1,1:i-1) = w_pcp_red(1:i-1,1:i-1)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
-                y_red_loocv(1:i-1) = y_red(1:i-1)
-                y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
-              else
-                x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
-                y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
-              end if
+          wgtsum = 0.0
+          errsum = 0.0
+          do i = 1, (close_count(g)-1), 1
+            wgtsum = wgtsum + w_pcp_red (i, i)
 
-              TX_red_loocv = transpose(X_red_loocv(:,1:4))
-              TWX_red_loocv = matmul(TX_red_loocv,w_pcp_red_loocv)
-              call least_squares(X_red_loocv(:,1:4), Y_red_loocv, TWX_red_loocv, B)
+            if(i .gt. 1) then
+              x_red_loocv(1:i-1,:) = x_red(1:i-1,:)
+              x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
+              w_pcp_red_loocv(1:i-1,1:i-1) = w_pcp_red(1:i-1,1:i-1)
+              w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+              y_red_loocv(1:i-1) = y_red(1:i-1)
+              y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
+            else
+              x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
+              w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+              y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
+            end if
 
-              pcp_tmp = real(dot_product(X_red(i,1:4),B),kind(sp))
+            TX_red_loocv = transpose(X_red_loocv)
+            TWX_red_loocv = matmul(TX_red_loocv,w_pcp_red_loocv)
+            call least_squares(X_red_loocv, Y_red_loocv, TWX_red_loocv, B)
+  
+            pcp_tmp = real(dot_product(X_red(i,:),B),kind(sp))
 
-              errsum = errsum + (w_pcp_red(i,i) * (pcp_tmp - Y_red(i))**2 )
-            end do
+            errsum = errsum + (w_pcp_red(i,i) * (pcp_tmp - Y_red(i))**2 )
+          end do
 
-            pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
-
-            deallocate(twx_red)
-            deallocate(tx_red)
-            deallocate(twx_red_loocv)
-            deallocate(tx_red_loocv)
-            deallocate(B)
-          else
-            ! regression with slope terms
-            allocate(twx_red(6, sta_limit))
-            allocate(tx_red(6, sta_limit))
-            allocate(tx_red_loocv(6,sta_limit-1))
-            allocate(twx_red_loocv(6,sta_limit-1))
-            tx_red = transpose (x_red)
-            twx_red = matmul (tx_red, w_pcp_red)
-
-            call least_squares (x_red, y_red, twx_red, b)
-            pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
-            deallocate (b)  !AWW-seems to be missing
-
-            wgtsum = 0.0
-            errsum = 0.0
-            do i = 1, (close_count(g)-1), 1
-              wgtsum = wgtsum + w_pcp_red (i, i)
-              if(i .gt. 1) then
-                x_red_loocv(1:i-1,:) = x_red(1:i-1,:)
-                x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(1:i-1,1:i-1) = w_pcp_red(1:i-1,1:i-1)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
-                y_red_loocv(1:i-1) = y_red(1:i-1)
-                y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
-              else
-                x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
-                y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
-              end if
-
-              TX_red_loocv = transpose(X_red_loocv)
-              TWX_red_loocv = matmul(TX_red_loocv,w_pcp_red_loocv)
-              call least_squares(X_red_loocv, Y_red_loocv, TWX_red_loocv, B)
-
-              pcp_tmp = real(dot_product(X_red(i,:),B),kind(sp))
-
-              errsum = errsum + (w_pcp_red(i,i) * (pcp_tmp - Y_red(i))**2 )
-            end do
-
-            pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
-
-            deallocate(twx_red)
-            deallocate(tx_red)   ! just testing
-            deallocate(twx_red_loocv)
-            deallocate(tx_red_loocv)
-            deallocate(b)
-          end if
+          pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
 
         else
           ! this means ndata = 0 for this grid cell and timestep
@@ -757,27 +663,18 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
         end if ! done with precip if (ndata>=1) block
 
+        ! added AJN Sept 2013
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !  Temperature OLS
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-        if (ndata_t .ge. 1) then !
-          ! regression without slope terms  only for temperature
+        if (ndata_t .ge. 1) then ! AJN
 
-          deallocate(tx_red)
-          deallocate(twx_red)
-          deallocate(tx_red_loocv)
-          deallocate(twx_red_loocv)
-          allocate(tx_red(4,sta_limit))
-          allocate(twx_red(4,sta_limit))
-          allocate(tx_red_loocv(4,sta_limit-1))
-          allocate(twx_red_loocv(4,sta_limit-1))
-
-          tx_red = transpose (x_red_t(:, 1:4))
+          tx_red = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
-          call least_squares (x_red_t(:,1:4), y_tmean_red, twx_red, b)
+          call least_squares (x_red_t, y_tmean_red, twx_red, b)
 
-          tmean (g, t) = real (dot_product(z(g, 1:4), b), kind(sp))
+          tmean (g, t) = real (dot_product(z(g, :), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
@@ -786,75 +683,60 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             if(i .gt. 1) then
               x_red_t_loocv(1:i-1,:) = x_red_t(1:i-1,:)
               x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-              w_temp_red_loocv(1:i-1,1:i-1) = tmp_weight_arr(1:i-1,1:i-1)
-              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              w_temp_red_loocv(1:i-1,1:i-1) = w_temp_red(1:i-1,1:i-1)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
               y_tmean_red_loocv(1:i-1) = y_tmean_red(1:i-1)
               y_tmean_red_loocv(i:close_count_t(g)-2) = y_tmean_red(i+1:close_count_t(g)-1)
             else
               x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
               y_tmean_red_loocv(i:close_count_t(g)-2) = y_tmean_red(i+1:close_count_t(g)-1)
             endif
-            TX_red_loocv = transpose(X_red_t_loocv(:, 1:4))
+            TX_red_loocv = transpose(X_red_t_loocv)
             TWX_red_loocv = matmul(TX_red_loocv,w_temp_red_loocv)
-            call least_squares(X_red_t_loocv(:, 1:4), Y_tmean_red_loocv,TWX_red_loocv, B)
+            call least_squares(X_red_t_loocv, Y_tmean_red_loocv, TWX_red_loocv, B)
 
-            temp_pred = dot_product(X_red_t(i,1:4),B)
+            temp_pred = real(dot_product(X_red_t(i,:),B),kind(sp))
             errsum = errsum + (w_temp_red(i,i) * (temp_pred - Y_tmean_red(i))**2)
           enddo
-          tmean_err(g,t) = real((errsum / wgtsum)**(1.0/2.0),kind(sp))
 
+          tmean_err(g,t) = real((errsum / wgtsum)**(1.0/2.0),kind(sp))
           deallocate (b)
 
           ! ===== NOW do TRANGE ============
 
-          !regression without slope terms
-          deallocate(TWX_red)
-          deallocate(TX_red)
-          allocate(TWX_red(4,sta_limit))
-          allocate(TX_red(4,sta_limit))
+          tx_red = transpose (x_red_t)
+          twx_red = matmul (tx_red, w_temp_red)
+          call least_squares (x_red_t, y_trange_red, twx_red, b)
 
-          deallocate(tx_red_loocv)
-          deallocate(twx_red_loocv)
-          allocate(tx_red_loocv(4,sta_limit-1))
-          allocate(twx_red_loocv(4,sta_limit-1))
-
-          TX_red = transpose(X_red(:,1:4))
-          TWX_red = matmul(TX_red, w_temp_red)
-
-          call least_squares(X_red_t(:,1:4), y_trange_red, TWX_red, B)
-          trange(g,t) = real(dot_product(Z(g,1:4),B),kind(sp))
+          trange (g, t) = real (dot_product(z(g, :), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
-          !do i = 1, nstns, 1
-          do i = 1,(close_count_t(g)-1),1
-              wgtsum = wgtsum + w_temp_red(i,i)
+          do i = 1, (close_count_t(g)-1), 1
+            wgtsum = wgtsum + w_temp_red (i, i)
+            if(i .gt. 1) then
+              x_red_t_loocv(1:i-1,:) = x_red_t(1:i-1,:)
+              x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
+              w_temp_red_loocv(1:i-1,1:i-1) = w_temp_red(1:i-1,1:i-1)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              y_trange_red_loocv(1:i-1) = y_trange_red(1:i-1)
+              y_trange_red_loocv(i:close_count_t(g)-2) = y_trange_red(i+1:close_count_t(g)-1)
+            else
+              x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              y_trange_red_loocv(i:close_count_t(g)-2) = y_trange_red(i+1:close_count_t(g)-1)
+            endif
+            TX_red_loocv = transpose(X_red_t_loocv)
+            TWX_red_loocv = matmul(TX_red_loocv,w_temp_red_loocv)
+            call least_squares(X_red_t_loocv, Y_trange_red_loocv, TWX_red_loocv, B)
 
-              if(i .gt. 1) then
-                x_red_t_loocv(1:i-1,:) = x_red_t(1:i-1,:)
-                x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-                w_temp_red_loocv(1:i-1,1:i-1) = tmp_weight_arr(1:i-1,1:i-1)
-                w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
-                y_trange_red_loocv(1:i-1) = y_trange_red(1:i-1)
-                y_trange_red_loocv(i:close_count_t(g)-2) = y_trange_red(i+1:close_count_t(g)-1)
-              else
-                x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-                w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
-                y_trange_red_loocv(i:close_count_t(g)-2) = y_trange_red(i+1:close_count_t(g)-1)
-              endif
-
-              TX_red_loocv = transpose(X_red_t_loocv(:,1:4))
-              TWX_red_loocv = matmul(TX_red_loocv,w_temp_red_loocv)
-              call least_squares(X_red_t_loocv(:,1:4), Y_trange_red_loocv,TWX_red_loocv, B)
-              temp_pred = dot_product(X_red_t(i,1:4),B)
-
-              errsum = errsum + (w_temp_red(i,i) * (temp_pred - Y_trange_red(i))**2)
-
+            temp_pred = real(dot_product(X_red_t(i,:),B),kind(sp))
+            errsum = errsum + (w_temp_red(i,i) * (temp_pred - Y_trange_red(i))**2)
           enddo
           trange_err(g,t) = real((errsum / wgtsum)**(1.0/2.0),kind(sp))
 
-          deallocate (b)  !AWW-seems to be missing
+          deallocate (b)
 
         else ! alternative to having (ndata_t <= 1)
 
@@ -885,10 +767,4 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
   end do ! end time record loop
 
-  ! AWW -- just deallocate once at end of subroutine
-  deallocate (twx_red)
-  deallocate (tx_red)
-  deallocate (tx_red_loocv)
-  deallocate (twx_red_loocv)
-
-end subroutine estimate_forcing_regression
+end subroutine estimate_climo_anom_regression

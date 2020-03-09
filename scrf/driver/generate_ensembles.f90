@@ -15,6 +15,7 @@ program generate_ensembles
 ! -----------------------------------------------------------------------------
  
   use netcdf !netcdf
+  use utim   !time utility routines
   use nrtype ! Numerical recipies types
   use linkstruct !structure from topnet model for grid information
   use gridweight !grid structure used by spcorr
@@ -23,6 +24,9 @@ program generate_ensembles
   ! use namelist_module, only: nens, ntimes, start_time AW edited
   use namelist_module, only: start_ens, stop_ens, ntimes, start_time
   use namelist_module, only: out_forc_name_base, in_regr_name, grid_name, clen
+  use namelist_module, only: time_mode
+  use namelist_module, only: climo_path
+
  
   implicit none
  
@@ -64,13 +68,6 @@ program generate_ensembles
       integer (i4b), intent (out) :: tot_times
     end subroutine read_grid_qpe_nc_ens
  
-    subroutine normalize_x (x, mean, stdev)
-      use nrtype
-      real (dp), intent (inout) :: x (:, :)
-      real (dp), intent (out) :: mean
-      real (dp), intent (out) :: stdev
-    end subroutine normalize_x
- 
     function erfinv (x)
       use nrtype
  
@@ -88,7 +85,40 @@ program generate_ensembles
       integer (i4b), intent (out) :: nx, ny
       integer, intent (out) :: error
     end subroutine read_nc_grid
+
+    subroutine read_climo_precip (climo_path,current_month,climo_field,climo_out,error)
+      use netcdf
+      use nrtype
   
+      character (len = *), intent(in)     :: climo_path      !path to climo netcdf files
+      integer, intent(in)                 :: current_month   !integer month
+      character (len = *), intent(in)     :: climo_field     !name of climo variable to read
+      real(SP), intent(out)               :: climo_out(:,:,:)    !climo variable grid
+      integer, intent(out)                :: error           !error code
+    end subroutine read_climo_precip
+
+    subroutine read_climo_temp(climo_path,current_month,climo_field,climo_out,error)
+      use netcdf
+      use nrtype
+
+      character (len = *), intent(in)     :: climo_path      !path to climo netcdf files
+      integer, intent(in)                 :: current_month   !integer month
+      character (len = *), intent(in)     :: climo_field     !name of climo variable to read
+      real(SP), intent(out)               :: climo_out(:,:)    !climo variable grid 
+      integer, intent(out)                :: error           !error code
+    end subroutine read_climo_temp
+
+    subroutine read_climo_uncertainty(uncert_path,current_month,uncert_field,uncert_out,error)
+      use netcdf
+      use nrtype
+
+      character (len = *), intent(in)     :: uncert_path      !path to uncert netcdf files
+      integer, intent(in)                 :: current_month   !integer month
+      character (len = *), intent(in)     :: uncert_field     !name of uncert variable to read
+      real(SP), intent(out)               :: uncert_out(:,:)    !uncertainty variable grid
+      integer, intent(out)                :: error           !error code
+    end subroutine read_climo_uncertainty
+
   end interface
   ! ================== END of INTERFACES ===============
  
@@ -113,14 +143,14 @@ program generate_ensembles
   real (sp) :: aprob_ra
  
   real (dp) :: cprob !cdf value from scrf
-  real (dp) :: amult !multiplier value to get actual precip from normalized value                                 ::
+  real (dp) :: amult !multiplier value to get actual precip from normalized value
   real (dp) :: rn
   real (dp) :: ra
   real (dp) :: ra_err
   real (dp) :: cs
   real (dp) :: cprob_ra
+  integer(I4B)   :: cs_percentile !for climo precip distribution
  
-  real (dp), allocatable :: transform_exp (:)
   real (dp) :: transform
  
   integer :: f ! AWW for command line argument read
@@ -148,25 +178,14 @@ program generate_ensembles
   real (dp), allocatable :: tmean_error (:, :, :)
   real (dp), allocatable :: trange (:, :, :)
   real (dp), allocatable :: trange_error (:, :, :)
- 
-  real (dp), allocatable :: pcp_2 (:, :, :)!output from qpe code, normalized precip
-  real (dp), allocatable :: pop_2 (:, :, :)!output from qpe code, normalized pop
-  real (dp), allocatable :: pcp_error_2 (:, :, :)!error from ols regression in qpe code
-  real (dp), allocatable :: tmean_2 (:, :, :)
-  real (dp), allocatable :: tmean_error_2 (:, :, :)
-  real (dp), allocatable :: trange_2 (:, :, :)
-  real (dp), allocatable :: trange_error_2 (:, :, :)
- 
+  real(DP)               :: obs_max !precipitation limit using observations (used as cap for ensemble members)
+
   real (dp), allocatable :: lons (:, :)!lons array from qpe code
   real (dp), allocatable :: lats (:, :)!lats array from qpe code
   real (dp), allocatable :: times (:)!time vector from qpe code
   real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation vector from qpe code
   real (dp), allocatable :: tpc_corr (:)!temp-precip correlation vector from qpe code
-  real (dp), allocatable :: y_mean (:, :, :) !mean of transformed non-0 pcp (at each timestep)
-  real (dp), allocatable :: y_std (:, :, :) !stdev of transformed non-0 pcpp (at each t-step)
-  real (dp), allocatable :: y_std_all (:, :, :) !stddev of transf. non-0 pcp (at each tstep)
-  real (dp), allocatable :: y_min (:, :, :) !min of normalized transf. non-0 pcp (each tstep)
-  real (dp), allocatable :: y_max (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
+  real (dp), allocatable :: obs_max_pcp (:, :, :) !max of non-0 pcp (each tstep)
   real (sp), allocatable :: pcp_out (:, :, :)!
   real (sp), allocatable :: tmean_out (:, :, :)!
   real (sp), allocatable :: trange_out (:, :, :)!
@@ -174,8 +193,31 @@ program generate_ensembles
   integer (i4b) :: spl1_start, spl2_start !starting point of x,y grid
   integer (i4b) :: spl1_count, spl2_count !length of x,y grid
   integer (i4b) :: tot_times
-  integer       :: ncid, varid, error
- 
+  integer (i4b) :: ncid, dimid, varid, error
+  integer (i4b) :: nTimesRegression 
+
+  !climo grid variables
+  real(SP),allocatable  :: climo_tmin(:,:,:)        !monthly climo tmax grids
+  real(SP),allocatable  :: climo_tmax(:,:,:)        !monthly climo tmin grids
+  real(SP),allocatable  :: climo_precip(:,:,:)        !climo precip grid for current day
+  real(SP),allocatable  :: climo_tmean(:,:)         !climo tmean grid for current day
+  real(SP),allocatable  :: climo_trange(:,:)        !climo trange grid for current day
+  real(SP),allocatable  :: uncert_tmean(:,:)         !uncertainty tmean grid for current month
+  real(SP),allocatable  :: uncert_trange(:,:)        !uncertainty trange grid for current month
+  logical               :: first_climo = .FALSE.    !logical for first read
+  integer               :: prev_month = -999        !previous month
+  integer               :: current_month            !current month
+  integer               :: prev_delta               !number of days from previous month for temporal interpolation
+  integer               :: next_delta               !number of days to next month for temporal interpolation
+  integer               :: year, day, hour, minute, second  !dates
+  integer,dimension(12) :: month_days = (/31,28,31,30,31,30,31,31,30,31,30,31/)
+  character(len=2)      :: mnth_str    !string to contain current month we're in
+  character(len=1024)   :: climo_file
+  real(DP)              :: combined_error           !total error of daily anomaly uncertainty and climo uncertainty
+  real(SP)              :: max_pcp                  !maximum allowable precip for a grid cell
+
+
+
   type (coords), pointer :: grid !coordinate structure for grid
   type (splnum), dimension (:, :), pointer :: sp_pcp, sp_temp ! structures of spatially correlated random field weights
 
@@ -190,9 +232,6 @@ program generate_ensembles
     f = f + 1
   end do
 
-  ! set transform power, shouldn't be hard-coded, but it is for now...
-  transform = 4.0d0
- 
   ! read namelist in
   call read_namelist (namelist_filename)
  
@@ -218,7 +257,7 @@ program generate_ensembles
   allocate (lat_out(nx*ny), lon_out(nx*ny), hgt_out(nx*ny), stat=ierr)
   if (ierr .ne. 0) call exit_scrf (1, 'problem allocating for 1-d output variables')
  
- !allocate a few other variables
+ !allocate regression input variables variables
   allocate (pcp(nx, ny, ntimes))
   allocate (pop(nx, ny, ntimes))
   allocate (pcp_error(nx, ny, ntimes))
@@ -227,19 +266,7 @@ program generate_ensembles
   allocate (trange(nx, ny, ntimes))
   allocate (trange_error(nx, ny, ntimes))
  
-  allocate (pcp_2(nx, ny, ntimes))
-  allocate (pop_2(nx, ny, ntimes))
-  allocate (pcp_error_2(nx, ny, ntimes))
-  allocate (tmean_2(nx, ny, ntimes))
-  allocate (tmean_error_2(nx, ny, ntimes))
-  allocate (trange_2(nx, ny, ntimes))
-  allocate (trange_error_2(nx, ny, ntimes))
- 
-  allocate (y_mean(nx, ny, ntimes))
-  allocate (y_std(nx, ny, ntimes))
-  allocate (y_std_all(nx, ny, ntimes))
-  allocate (y_min(nx, ny, ntimes))
-  allocate (y_max(nx, ny, ntimes))
+  allocate (obs_max_pcp(nx, ny, ntimes))
  
   allocate (times(ntimes))
   allocate (auto_corr(ntimes))
@@ -249,6 +276,19 @@ program generate_ensembles
  
   error = nf90_open (trim(in_regr_name), nf90_nowrite, ncid)
   if (ierr /= 0) stop
+
+  error = nf90_inq_dimid(ncid,'time',dimid)
+  error = nf90_inquire_dimension(ncid,dimid,len=nTimesRegression)
+  if(ierr /= 0)then; print *,'Error inquiring time dimension'; stop; endif
+
+  if(nTimesRegression<ntimes)then
+    print *,'Regression timesteps: ',nTimesRegression, ' less than namelist timesteps: ',ntimes
+    stop
+  endif
+  if((start_time+ntimes)-1 > nTimesRegression)then
+    print *,'Start timestep+number of timesteps: ',start_time+ntimes, ' greater than number of timesteps in regression output: ',nTimesRegression
+    stop
+  endif
  
   var_name = 'time'
   error = nf90_inq_varid (ncid, var_name, varid)
@@ -275,24 +315,10 @@ program generate_ensembles
  & /))
   if (ierr /= 0) stop
   
-  var_name = 'pcp_2'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, pcp_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
- & /))
-  if (ierr /= 0) stop
-
   var_name = 'pop'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, pop, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
- & /))
-  if (ierr /= 0) stop
- 
-  var_name = 'pop_2'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, pop_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
   if (ierr /= 0) stop
  
@@ -303,25 +329,11 @@ program generate_ensembles
  & ntimes /))
   if (ierr /= 0) stop
  
-  var_name = 'pcp_error_2'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, pcp_error_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
- & ntimes /))
-  if (ierr /= 0) stop
- 
   var_name = 'tmean'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, tmean, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
-  if (ierr /= 0) stop
- 
-  var_name = 'tmean_2'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, tmean_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
- & ntimes /))
   if (ierr /= 0) stop
  
   var_name = 'tmean_error'
@@ -331,24 +343,10 @@ program generate_ensembles
  & ntimes /))
   if (ierr /= 0) stop
  
-  var_name = 'tmean_error_2'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, tmean_error_2, start= (/ 1, 1, start_time /), count= (/ nx, &
- & ny, ntimes /))
-  if (ierr /= 0) stop
- 
   var_name = 'trange'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) stop
   error = nf90_get_var (ncid, varid, trange, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
- & ntimes /))
-  if (ierr /= 0) stop
- 
-  var_name = 'trange_2'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, trange_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
  & ntimes /))
   if (ierr /= 0) stop
  
@@ -359,51 +357,21 @@ program generate_ensembles
  & ntimes /))
   if (ierr /= 0) stop
  
-  var_name = 'trange_error_2'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, trange_error_2, start= (/ 1, 1, start_time /), count= (/ nx, &
- & ny, ntimes /))
-  if (ierr /= 0) stop
- 
-  var_name = 'ymean'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_mean, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
- & ntimes /))
-  if (ierr /= 0) stop
- 
-  var_name = 'ystd'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_std, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
- & /))
-  if (ierr /= 0) stop
- 
-  var_name = 'ystd_all'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_std_all, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
- & ntimes /))
-  if (ierr /= 0) stop
- 
-  var_name = 'ymin'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_min, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
- & /))
-  if (ierr /= 0) stop
- 
   var_name = 'ymax'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_max, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
+  error = nf90_get_var (ncid, varid, obs_max_pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
   if (ierr /= 0) stop
  
   error = nf90_close (ncid)
   if (ierr /= 0) stop
  
+  !sanity check on the observed maximum value in transformed anomaly space
+  where(obs_max_pcp .gt. 5.)
+    obs_max_pcp = 5.0
+  end where
+
   ! set up a few variables for spcorr structure
   nspl1 = nx
   nspl2 = ny
@@ -510,6 +478,22 @@ program generate_ensembles
   print *, 'Done generating weights...'
   print *, 'Generating ensembles...'
  
+
+  if(trim(time_mode) .eq. 'daily' .or. trim(time_mode) .eq. 'DAILY') then
+    ! set transform power, shouldn't be hard-coded, but it is for now...
+    transform = 4.0d0
+  elseif(trim(time_mode) .eq. 'climo' .or. trim(time_mode) .eq. 'CLIMO') then
+    transform = 4.0d0
+  elseif(trim(time_mode) .eq. 'daily_anom' .or. trim(time_mode) .eq. 'DAILY_ANOM') then
+    transform = 3.0d0
+
+    allocate(climo_precip(100,nx,ny))  !climo precip grid
+    allocate(climo_tmean(nx,ny))   !climo tmean grid
+    allocate(climo_trange(nx,ny))  !climo trange grid
+    allocate(uncert_tmean(nx,ny))   !uncert tmean grid
+    allocate(uncert_trange(nx,ny))  !uncert trange grid
+  end if
+
   ! ============ loop through the ensemble members ============
   ! do iens = 1, nens
   do iens = start_ens, stop_ens
@@ -518,7 +502,41 @@ program generate_ensembles
     do istep = 1, ntimes
  
       do igrd = 1, nspl1 * nspl2
- 
+
+        !check time mode and read climatological fields if necessary
+        !climo fields only needed for daily anomaly time mode
+        if(trim(time_mode) .eq. 'DAILY_ANOM' .or. trim(time_mode) .eq. 'daily_anom') then
+          !read in climo grid if needed
+          call unix_to_date(times(istep),year,current_month,day,hour,minute,second)
+
+          if(current_month .ne. prev_month) then
+            prev_month = current_month
+
+            write(mnth_str,"(I0.2)") current_month
+
+            !precipitation climo
+            call read_climo_precip(climo_path,current_month,'pcp_sorted',climo_precip,error)
+
+            !tmean climo
+            call read_climo_temp(climo_path,current_month,'t_mean',climo_tmean,error)
+
+            !trange climo
+            call read_climo_temp(climo_path,current_month,'t_range',climo_trange,error)
+
+            !read temperature uncertainty fields
+            !tmean uncertainty
+            call read_climo_uncertainty(climo_path,current_month,'t_mean_stddev',uncert_tmean,error)
+
+            !trange uncertainty
+            call read_climo_uncertainty(climo_path,current_month,'t_range_stddev',uncert_trange,error)
+
+            !convert climo precip to daily rates
+            climo_precip = climo_precip / real(month_days(current_month),kind(sp))
+          end if !end of climo read check
+
+        end if   !end of time_mode check
+        
+
         ! identify the (i,j) position of the igrd-th point
         isp1 = iorder (igrd)
         isp2 = jorder (igrd)
@@ -532,21 +550,6 @@ program generate_ensembles
           cprob = (2.d0-real(aprob, kind(dp))) / 2.d0
  
           ! check thresholds of slope fields to see which regression to use
-
-          ! For precipitation only
-          if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then
-            pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
-            pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
-            pcp_error (isp1, isp2, istep) = pcp_error_2 (isp1, isp2, istep)
-          end if
- 
-          ! For temperature don't use regression that included slope --
-          !   only lat,lon,elevation based regression
-          tmean (isp1, isp2, istep) = tmean_2 (isp1, isp2, istep)
-          tmean_error (isp1, isp2, istep) = tmean_error_2 (isp1, isp2, istep)
-          trange (isp1, isp2, istep) = trange_2 (isp1, isp2, istep)
-          trange_error (isp1, isp2, istep) = trange_error_2 (isp1, isp2, istep)
- 
           if (cprob .lt. (1.0_dp-real(pop(isp1, isp2, istep), kind(dp)))) then 
             ! Don't generate precip
             pcp_out (isp1, isp2, istep) = 0.0d0
@@ -568,65 +571,116 @@ program generate_ensembles
               rn = sqrt (2._sp) * erfinv ((2._sp*real(cs, kind(sp)))-1.0_sp)
             end if
  
+            cs_percentile = ceiling(cs*100.)
+            if(cs_percentile .eq. 0) then
+              cs_percentile = 1
+            endif
+
+            !time mode defines how ensemble values are generated
+            if(trim(time_mode) .eq. 'daily_anom' .or. trim(time_mode) .eq. 'DAILY_ANOM') then
+              ra = real(pcp(isp1,isp2,istep),kind(dp))+rn*real(pcp_error(isp1,isp2,istep),kind(dp))
+              ra = ((ra*(1.0/transform))+1.0_dp)**transform
+
+              pcp_out(isp1,isp2,istep) = ra*climo_precip(cs_percentile,isp1,isp2)
+
+              max_pcp = obs_max_pcp(isp1,isp2,istep)+0.2*cs
+              max_pcp = (max_pcp*(1.0/transform)+1.0_dp)**transform
+              max_pcp = max_pcp*climo_precip(50,isp1,isp2)
+
+              if(pcp_out(isp1,isp2,istep) .gt. max_pcp) then
+                pcp_out(isp1,isp2,istep) = max_pcp
+              endif
+
+              if(pcp_out(isp1,isp2,istep) .lt. 0.1) then
+                pcp_out(isp1,isp2,istep) = 0.1
+              endif
+
+            elseif(trim(time_mode) .eq. 'daily' .or. trim(time_mode) .eq. 'DAILY') then
+              
+              if(pcp_error(isp1,isp2,istep)<0.1) then
+                pcp_error(isp1,isp2,istep) = 0.1
+              endif
+              ra =  real(pcp(isp1,isp2,istep),kind(dp))+rn*real(pcp_error(isp1,isp2,istep),kind(dp))
+              ra = ((ra*(1.0/transform))+1.0_dp)**transform
+
+
+              !limit max value to obs_max_pcp + pcp_error (max station value plus some portion of error)
+              obs_max = 1.5*((((obs_max_pcp(isp1,isp2,istep)+0.2*cs)*(1.0/transform))+1.0)**transform)
+              if(ra .gt. obs_max) then
+                ra = obs_max
+              endif
+
+              pcp_out(isp1,isp2,istep) = ra
+
+              if(pcp_out(isp1,isp2,istep) .lt. 0.1) then
+                pcp_out(isp1,isp2,istep) = 0.1
+              endif
+
+            elseif(trim(time_mode) .eq. 'climo' .or. trim(time_mode) .eq. 'CLIMO') then
+              ra = real(pcp(isp1,isp2,istep),kind(dp)) + rn*real(pcp_error(isp1,isp2,istep),kind(dp))
+              ra = ((ra*(1.0_dp/transform))+1.0_dp)**transform
+
+              if(ra .lt. 0.01) then
+                pcp_out(isp1,isp2,istep) = 0.01
+              else
+                pcp_out(isp1,isp2,istep) = real(ra,kind(sp))
+              endif
+            end if  !end if for precipitation time_mode check
+
+          end if ! end IF statement for precip generation
  
-            ra = (real(pcp(isp1, isp2, istep), kind(dp))*real(y_std(isp1, isp2, istep), kind(dp))) &
-           & + real (y_mean(isp1, isp2, istep), kind(dp)) + real (y_std(isp1, isp2, istep), &
-           & kind(dp)) * rn * real (pcp_error(isp1, isp2, istep), kind(dp))
+          !time mode defines how ensemble values are generated
+          if(trim(time_mode) .eq. 'daily_anom' .or. trim(time_mode) .eq. 'DAILY_ANOM') then
+            !TMEAN
+            combined_error = sqrt( real(tmean_error(isp1,isp2,istep),kind(dp))**2 + real(uncert_tmean(isp1,isp2),kind(dp))**2 )
+
+            ra = ( real(tmean(isp1,isp2,istep),kind(dp))+real(climo_tmean(isp1,isp2),kind(dp)) ) + real(tmean_random(isp1,isp2),kind(dp))*combined_error
+            tmean_out(isp1,isp2,istep) = ra
+
+            !TRANGE
+            combined_error = sqrt( real(trange_error(isp1,isp2,istep),kind(dp))**2 + real(uncert_trange(isp1,isp2),kind(dp))**2 )
  
-            if (ra .gt. 0.0) then
-              ra = ra ** transform
-            else
-              ra = 0.01
-            end if
- 
- 
-            ! limit max value to y_max + pcp_error (max station value + some portion of error)
-            if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
-           & istep), kind(dp)))**transform) then
-              ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
-             & kind(dp))) ** transform
-            end if
- 
- 
-            pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
- 
- 
-          end if 
-          ! end IF statement for precip generation
- 
- 
-          ! tmean
-          ra = real (tmean(isp1, isp2, istep), kind(dp)) + real (tmean_random(isp1, isp2), &
-         & kind(dp)) * real (tmean_error(isp1, isp2, istep)/3.0, kind(dp))
-          tmean_out (isp1, isp2, istep) = real (ra, kind(sp))
- 
-          ! trange
-          ra = real (trange(isp1, isp2, istep), kind(dp)) + real (trange_random(isp1, isp2), &
-         & kind(dp)) * real (trange_error(isp1, isp2, istep)/3.0, kind(dp))
-          trange_out (isp1, isp2, istep) = real (ra, kind(sp))
- 
-          ! using +/- 3 std dev of uncertainty for temp gives unrealistic min and max ensemble 
-          ! member temps and diurnal ranges
-          ! ad hoc fix is to limit temp ensemble to roughly +/- 1 uncertainty range.  
-          ! needs to be looked at further in future releases but
-          ! this at least gives reasonable temp results and covers the daymet, 
-          ! nldas, maurer spread for basins we've looked at
- 
+            ra = ( real(trange(isp1,isp2,istep),kind(dp))+real(climo_trange(isp1,isp2),kind(dp)) ) + real(trange_random(isp1,isp2),kind(dp))*combined_error
+            trange_out(isp1,isp2,istep) = ra
+
+          elseif(trim(time_mode) .eq. 'daily' .or. trim(time_mode) .eq. 'DAILY') then
+            !TMEAN
+            ra = real(tmean(isp1,isp2,istep),kind(dp)) + real(tmean_random(isp1,isp2),kind(dp))*real(tmean_error(isp1,isp2,istep)/3.0,kind(dp))
+            tmean_out(isp1,isp2,istep) = real(ra,kind(sp))
+            !error term for tmean seems unrealistically large in many to all situations...  Limit to roughly +/- 1 std of error rather than ~+/- 3 std
+
+            !trange
+            ra = real(trange(isp1,isp2,istep),kind(dp)) + real(trange_random(isp1,isp2),kind(dp))*real(trange_error(isp1,isp2,istep)/3.0,kind(dp))
+            trange_out(isp1,isp2,istep) = real(ra,kind(sp))
+            !error term for trange seems unrealistically large in many to all situations...  Limit to roughly +/- 1 std of error rather than ~+/- 3 std
+          elseif(trim(time_mode) .eq. 'climo' .or. trim(time_mode) .eq. 'CLIMO') then
+            !TMEAN
+            ra = real(tmean(isp1,isp2,istep),kind(dp)) + real(tmean_random(isp1,isp2),kind(dp))*real(tmean_error(isp1,isp2,istep),kind(dp))
+            tmean_out(isp1,isp2,istep) = ra
+
+            !TRANGE
+            ra = real(trange(isp1,isp2,istep),kind(dp)) + real(trange_random(isp1,isp2),kind(dp))*real(trange_error(isp1,isp2,istep),kind(dp))
+            trange_out(isp1,isp2,istep) = ra
+          end if
+
           ! check for unrealistic and non-physical trange values
           if (trange_out(isp1, isp2, istep) .gt. 40.0) then
             trange_out (isp1, isp2, istep) = 40.0
-          else if (trange_out(isp1, isp2, istep) .lt. 2.0) then
-            trange_out (isp1, isp2, istep) = 2.0
+          else if (trange_out(isp1, isp2, istep) .lt. 1.0) then
+            trange_out (isp1, isp2, istep) = 1.0
           end if
  
           ! check for unrealistic tmean values
-          if (tmean_out(isp1, isp2, istep) .gt. 35.0) then
-            tmean_out (isp1, isp2, istep) = 35.0
-          else if (tmean_out(isp1, isp2, istep) .lt.-35.0) then
-            tmean_out (isp1, isp2, istep) = - 35.0
+          if (tmean_out(isp1, isp2, istep) .gt. 50.0) then
+            tmean_out (isp1, isp2, istep) = 50.0
+          else if (tmean_out(isp1, isp2, istep) .lt.-50.0) then
+            tmean_out (isp1, isp2, istep) = -50.0
           end if
  
- 
+        else  !if elevation not valid, fill with missing
+          pcp_out(isp1,isp2,istep) = -999.0
+          tmean_out(isp1,isp2,istep) = -999.0
+          trange_out(isp1,isp2,istep) = -999.0
         end if !end valid elevation if check
  
       end do !end loop for grid pts

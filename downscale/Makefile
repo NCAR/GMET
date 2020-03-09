@@ -6,9 +6,9 @@
 
 EXE = downscale.exe
 
-FC = gfortran
+#FC = gfortran
 #FC = pgf90
-#FC = ifort
+FC = ifort
 
 # flags for debugging or for maximum performance, comment as necessary
 
@@ -53,8 +53,8 @@ ifeq ($(FC),gfortran)
 endif
 
 ifeq ($(FC),ifort)
-#        FCFLAGS = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0 -heap_arrays
-        FCFLAGS = -O2 -warn all -FR -auto -WB -fltconsistency -fpe1 -heap_arrays
+        FCFLAGS = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0 -heap_arrays
+#        FCFLAGS = -O2 -warn all -FR -auto -WB -fltconsistency -fpe1 -heap_arrays
         
 
 #       FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
@@ -64,7 +64,7 @@ ifeq ($(FC),ifort)
 #       FCFLAGS += -I/usr/local/netcdf4-pgi/include
 #       FCFLAGS += -I/opt/netcdf4-ifort/include
 
-        NCDF_PATH = /opt/netcdf4-intel
+        NCDF_PATH = $(NETCDF)
         LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf  -L/opt/hdf5/lib 
         INCNETCDF = -I$(NCDF_PATH)/include
 
