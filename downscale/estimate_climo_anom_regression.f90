@@ -100,16 +100,12 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
       real (dp), intent (inout) :: x (:, :)
     end subroutine normalize_x
 
-    subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
+    subroutine normalize_xv (x, weight, yp, smax)
       use type
-      real (dp), intent (inout) :: x (:)
+      real (dp), intent (in) :: x (:)
+      integer (i4b), intent (in) :: yp (:)
       real (dp), intent (in) :: weight (:)
-      real (dp), intent (out) :: mean
-      real (dp), intent (out) :: stdev
-      real (dp), intent (out) :: stdev_all
-      real (dp), intent (out) :: smin
       real (dp), intent (out) :: smax
-      integer (i4b), intent (out) :: yp (:)
     end subroutine normalize_xv
 
     subroutine normalize_y (texp, y)
@@ -217,6 +213,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
   real(DP), allocatable :: y_tmean_red_loocv(:), y_trange_red_loocv(:)                    !size reduced precip matrices for loocv error estimation
   real(DP), allocatable :: x_red_t_loocv(:,:)                                             !size reduced temp matrices for loocv error estimation
   real(DP), allocatable :: w_pcp_red_loocv(:,:), w_temp_red_loocv(:,:)                    !size reduced weight matrices for loocv error estimation
+  real(DP),allocatable  :: tmp_weight_arr(:,:)
 
   real(SP)    :: pcp_tmp    !loocv precipitation prediction
   real(SP)    :: temp_pred  !loocv temperature prediction
@@ -225,11 +222,11 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
 
   real (dp) :: errsum, wgtsum, sta_temp
   real (dp) :: auto_corr_sum, tp_corr_sum
-  real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
+!  real (dp) :: step_max ! timestep statistics
 
   integer (i4b) :: xsize !size of second dimension of input X array
   integer (i4b) :: ntimes, nstns
-  integer (i4b) :: t, i, g, ndata, nodata
+  integer (i4b) :: t, i, j, g, ndata, nodata
   integer (i4b) :: ndata_t, nodata_t
   integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
@@ -252,6 +249,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
   real (dp) :: tmp_weight
 
   ! variables to check for singular matrix
+  real (dp), allocatable :: mat_test (:, :)
   real (dp), allocatable :: tmp (:, :)
   real (dp), allocatable :: vv (:)
 
@@ -296,6 +294,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
   allocate (t_p_corr(nstns))
   allocate (yp(nstns))
   allocate (yp_red(sta_limit))
+  allocate (mat_test(6,sta_limit))
 
   ! station limit arrays (precip)
   allocate (close_weights(ngrid, sta_limit))
@@ -319,7 +318,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
   allocate(x_red_t_loocv(sta_limit-1,xsize))
   allocate(w_temp_red_loocv(sta_limit-1,sta_limit-1))
   allocate(Y_tmean_red_loocv(sta_limit),Y_trange_red_loocv(sta_limit))
-
+  allocate(tmp_weight_arr(sta_limit,sta_limit))
 
   ! initializations
   pcp = 0.0d0
@@ -449,10 +448,14 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
 
   allocate (twx_red(3, sta_limit))    ! these have dim1 = 3
   allocate (tx_red(3, sta_limit))
-  allocate (twx_red(3, sta_limit))! these have dim1 = 3
-  allocate (tx_red(3, sta_limit))
   allocate (twx_red_loocv(3,sta_limit-1))
   allocate (tx_red_loocv(3,sta_limit-1))
+
+
+  !for LOOCV, keep constant weights for stations
+  do j = 1,sta_limit
+    tmp_weight_arr(j,j) = 1.0
+  enddo
 
   ! =========== now LOOP through all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
@@ -520,8 +523,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
           end if
         end do
 
-        call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
-       & yp_red)
+!        call normalize_xv (y_red, w_pcp_1d, yp_red, step_max)
 
         obs_max_pcp(g,t) = maxval(Y_red)
 
@@ -599,12 +601,12 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
             pop (g, t) = 1.0
           else
             ! some stations don't have precip > 0
-            tx_red = transpose (x_red)
+            tx_red = transpose (x_red(:,1:3))
             twx_red = matmul (tx_red, w_pcp_red)
-            call logistic_regression (x_red, y_red, twx_red, yp_red, b) ! AJN
+            call logistic_regression (x_red(:,1:3), y_red, twx_red, yp_red, b) ! AJN
 
             if(-dot_product(Z(g,:),B) < 25.) then
-              pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
+              pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:3), b))), kind(sp))
             else
               POP(g,t) = 0.0
             endif
@@ -618,11 +620,11 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
 
 
           ! regression with slope
-          tx_red = transpose (x_red)
+          tx_red = transpose (x_red(:,1:3))
           twx_red = matmul (tx_red, w_pcp_red)
 
-          call least_squares (x_red, y_red, twx_red, b)
-          pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
+          call least_squares (x_red(:,1:3), y_red, twx_red, b)
+          pcp (g, t) = real (dot_product(z(g, 1:3), b), kind(sp))
           deallocate (b)  !AWW-seems to be missing
 
           wgtsum = 0.0
@@ -633,21 +635,21 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
             if(i .gt. 1) then
               x_red_loocv(1:i-1,:) = x_red(1:i-1,:)
               x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-              w_pcp_red_loocv(1:i-1,1:i-1) = w_pcp_red(1:i-1,1:i-1)
-              w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+              w_pcp_red_loocv(1:i-1,1:i-1) = tmp_weight_arr(1:i-1,1:i-1)
+              w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = tmp_weight_arr(i+1:close_count(g)-1,i+1:close_count(g)-1)
               y_red_loocv(1:i-1) = y_red(1:i-1)
               y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
             else
               x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-              w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+              w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = tmp_weight_arr(i+1:close_count(g)-1,i+1:close_count(g)-1)
               y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
             end if
 
-            TX_red_loocv = transpose(X_red_loocv)
+            TX_red_loocv = transpose(X_red_loocv(:,1:3))
             TWX_red_loocv = matmul(TX_red_loocv,w_pcp_red_loocv)
-            call least_squares(X_red_loocv, Y_red_loocv, TWX_red_loocv, B)
+            call least_squares(X_red_loocv(:,1:3), Y_red_loocv, TWX_red_loocv, B)
   
-            pcp_tmp = real(dot_product(X_red(i,:),B),kind(sp))
+            pcp_tmp = real(dot_product(X_red(i,1:3),B),kind(sp))
 
             errsum = errsum + (w_pcp_red(i,i) * (pcp_tmp - Y_red(i))**2 )
           end do
@@ -670,9 +672,9 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
 
         if (ndata_t .ge. 1) then ! AJN
 
-          tx_red = transpose (x_red_t)
+          tx_red = transpose (x_red_t(:,1:3))
           twx_red = matmul (tx_red, w_temp_red)
-          call least_squares (x_red_t, y_tmean_red, twx_red, b)
+          call least_squares (x_red_t(:,1:3), y_tmean_red, twx_red, b)
 
           tmean (g, t) = real (dot_product(z(g, :), b), kind(sp))
 
@@ -683,20 +685,20 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
             if(i .gt. 1) then
               x_red_t_loocv(1:i-1,:) = x_red_t(1:i-1,:)
               x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-              w_temp_red_loocv(1:i-1,1:i-1) = w_temp_red(1:i-1,1:i-1)
-              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              w_temp_red_loocv(1:i-1,1:i-1) = tmp_weight_arr(1:i-1,1:i-1)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
               y_tmean_red_loocv(1:i-1) = y_tmean_red(1:i-1)
               y_tmean_red_loocv(i:close_count_t(g)-2) = y_tmean_red(i+1:close_count_t(g)-1)
             else
               x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
               y_tmean_red_loocv(i:close_count_t(g)-2) = y_tmean_red(i+1:close_count_t(g)-1)
             endif
-            TX_red_loocv = transpose(X_red_t_loocv)
+            TX_red_loocv = transpose(X_red_t_loocv(:,1:3))
             TWX_red_loocv = matmul(TX_red_loocv,w_temp_red_loocv)
-            call least_squares(X_red_t_loocv, Y_tmean_red_loocv, TWX_red_loocv, B)
+            call least_squares(X_red_t_loocv(:,1:3), Y_tmean_red_loocv, TWX_red_loocv, B)
 
-            temp_pred = real(dot_product(X_red_t(i,:),B),kind(sp))
+            temp_pred = real(dot_product(X_red_t(i,1:3),B),kind(sp))
             errsum = errsum + (w_temp_red(i,i) * (temp_pred - Y_tmean_red(i))**2)
           enddo
 
@@ -705,9 +707,9 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
 
           ! ===== NOW do TRANGE ============
 
-          tx_red = transpose (x_red_t)
+          tx_red = transpose (x_red_t(:,1:3))
           twx_red = matmul (tx_red, w_temp_red)
-          call least_squares (x_red_t, y_trange_red, twx_red, b)
+          call least_squares (x_red_t(:,1:3), y_trange_red, twx_red, b)
 
           trange (g, t) = real (dot_product(z(g, :), b), kind(sp))
 
@@ -718,20 +720,20 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
             if(i .gt. 1) then
               x_red_t_loocv(1:i-1,:) = x_red_t(1:i-1,:)
               x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-              w_temp_red_loocv(1:i-1,1:i-1) = w_temp_red(1:i-1,1:i-1)
-              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              w_temp_red_loocv(1:i-1,1:i-1) = tmp_weight_arr(1:i-1,1:i-1)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
               y_trange_red_loocv(1:i-1) = y_trange_red(1:i-1)
               y_trange_red_loocv(i:close_count_t(g)-2) = y_trange_red(i+1:close_count_t(g)-1)
             else
               x_red_t_loocv(i:close_count_t(g)-2,:) = x_red_t(i+1:close_count_t(g)-1,:)
-              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = w_temp_red(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
+              w_temp_red_loocv(i:close_count_t(g)-2,i:close_count_t(g)-2) = tmp_weight_arr(i+1:close_count_t(g)-1,i+1:close_count_t(g)-1)
               y_trange_red_loocv(i:close_count_t(g)-2) = y_trange_red(i+1:close_count_t(g)-1)
             endif
-            TX_red_loocv = transpose(X_red_t_loocv)
+            TX_red_loocv = transpose(X_red_t_loocv(:,1:3))
             TWX_red_loocv = matmul(TX_red_loocv,w_temp_red_loocv)
-            call least_squares(X_red_t_loocv, Y_trange_red_loocv, TWX_red_loocv, B)
+            call least_squares(X_red_t_loocv(:,1:3), Y_trange_red_loocv, TWX_red_loocv, B)
 
-            temp_pred = real(dot_product(X_red_t(i,:),B),kind(sp))
+            temp_pred = real(dot_product(X_red_t(i,1:3),B),kind(sp))
             errsum = errsum + (w_temp_red(i,i) * (temp_pred - Y_trange_red(i))**2)
           enddo
           trange_err(g,t) = real((errsum / wgtsum)**(1.0/2.0),kind(sp))

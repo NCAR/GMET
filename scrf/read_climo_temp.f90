@@ -31,16 +31,16 @@ subroutine read_climo_temp(climo_path,current_month,climo_field,climo_out,error)
   
   !open file  
   call check(nf90_open(trim(climo_file),nf90_nowrite,ncid),"Climo file open error: "//trim(climo_file), error)
-  if(error /= 0) return
+  if(error /= 0) stop
 
   !inquire about variables
   call check(nf90_inq_varid(ncid,climo_field,varid),"Climo variable name error",error)
-  if(error /= 0) return  
+  if(error /= 0) stop  
 
   !get dimensions
   call check(nf90_inquire_variable(ncid,varid,ndims = ndims),"Grid dimension inq error",error)
-  if(error /= 0) return
-  if(ndims/=2) then; print *,'Wrong number of dimensions',ndims,'should be 2'; return; endif
+  if(error /= 0) stop
+  if(ndims/=2) then; print *,'Wrong number of dimensions',ndims,'should be 2'; stop; endif
 
   !get x,y dimensions
   call check(nf90_inq_dimid(ncid,'y',dimid),"y dim inquiry error",error)
@@ -62,8 +62,8 @@ subroutine read_climo_temp(climo_path,current_month,climo_field,climo_out,error)
   endif
   
   !get it
-  call check(nf90_get_var(ncid,varid,climo_out),"Climo variable read error",error)
-  if(error /= 0) return
+  call check(nf90_get_var(ncid,varid,climo_out),"Climo temp read error",error)
+  if(error /= 0) stop
   
   !Close the netcdf file
   error = nf90_close(ncid)

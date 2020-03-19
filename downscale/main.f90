@@ -522,7 +522,7 @@ program gmet
        end if
 
     else if(trim(time_mode) .eq. 'daily_anom' .or. trim(time_mode) .eq. 'DAILY_ANOM') then
-      call estimate_climo_anom_regression(gen_sta_weights, sta_weight_name, x(:,1:3), z(:,1:3), ngrid, maxdistance, times, st_rec, end_rec, &
+      call estimate_climo_anom_regression(gen_sta_weights, sta_weight_name, x(:,1:4), z(:,1:4), ngrid, maxdistance, times, st_rec, end_rec, &
               stnid, station_var, directory, pcp, pop, pcperror, tmean, &
               tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr,y_max,error)
        if (error /= 0) then
@@ -538,6 +538,10 @@ program gmet
          print *, "ERROR: subroutine estimate_climo_regression() returned error", error
          stop
        end if
+    else
+      print *, 'Incorrect time mode: ',trim(time_mode)
+      print *, 'Current options are: daily, climo, daily_anom'
+      stop
     end if
 
     print *, 'Creating output file'

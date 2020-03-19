@@ -103,16 +103,12 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     end subroutine normalize_x
 
     ! added AJN Sept 2013
-    subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
+    subroutine normalize_xv (x, weight, yp, smax)
       use type
-      real (dp), intent (inout) :: x (:)
+      real (dp), intent (in) :: x (:)
+      integer (i4b), intent (in) :: yp (:)
       real (dp), intent (in) :: weight (:)
-      real (dp), intent (out) :: mean
-      real (dp), intent (out) :: stdev
-      real (dp), intent (out) :: stdev_all
-      real (dp), intent (out) :: smin
       real (dp), intent (out) :: smax
-      integer (i4b), intent (out) :: yp (:)
     end subroutine normalize_xv
 
     subroutine normalize_y (texp, y)
@@ -228,7 +224,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
   real (dp) :: errsum, wgtsum, sta_temp
   real (dp) :: auto_corr_sum, tp_corr_sum
-  real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
+  real (dp) :: step_max ! timestep statistics
 
   integer (i4b) :: xsize !size of second dimension of input X array
   integer (i4b) :: ntimes, nstns
@@ -259,6 +255,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   integer (i4b) :: slope_flag_temp
 
   ! variables to check for singular matrix
+  real (dp), allocatable :: mat_test (:, :)
   real (dp), allocatable :: tmp (:, :)
   real (dp), allocatable :: vv (:)
 
@@ -302,6 +299,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   allocate (t_p_corr(nstns))
   allocate (yp(nstns))
   allocate (yp_red(sta_limit))
+  allocate (mat_test(6,sta_limit))
 
   ! station limit arrays (precip)
   allocate (close_weights(ngrid, sta_limit))
@@ -325,6 +323,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   allocate(x_red_t_loocv(sta_limit-1,xsize))
   allocate(w_temp_red_loocv(sta_limit-1,sta_limit-1))
   allocate(Y_tmean_red_loocv(sta_limit),Y_trange_red_loocv(sta_limit))
+  allocate(tmp_weight_arr(sta_limit,sta_limit))
+
 
   ! initializations
   pcp = 0.0d0
@@ -522,8 +522,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           end if
         end do
 
-        call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
-       & yp_red)
+        call normalize_xv (y_red, w_pcp_1d, yp_red, step_max)
 
         y_max (g, t) = step_max
 
@@ -582,8 +581,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             tmean_err (g, t) = tmean_err (g, t-1)
             trange_err (g, t) = trange_err (g, t-1)
           else
-            tmean (g, t) = -999
-            trange (g, t) = -999
+            tmean (g, t) = -999.
+            trange (g, t) = -999.
             tmean_err (g, t) = 0.0
             trange_err (g, t) = 0.0
           end if
@@ -596,10 +595,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         if (ndata >= 1) then  ! at least one station close by has pcp > 0
 
           ! tmp needs to be matmul(TX,X) where TX = TWX_red and X = X_red
-          twx_red = matmul (transpose(x_red), w_pcp_red)
-          tmp = matmul (twx_red, x_red)
+          mat_test = matmul (transpose(x_red), w_pcp_red)
+          tmp = matmul (mat_test, x_red)
           vv = maxval (abs(tmp), dim=2)
-
+          
           if (any(vv == 0.0) .or. (abs(Z(g,5)) .lt. 3.6 .and. abs(Z(g,6)) .lt. 3.6)) then
             slope_flag_pcp = 0
           else
@@ -613,9 +612,29 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           else
             ! some stations don't have precip > 0
             if (slope_flag_pcp .eq. 0) then
-              pop (g, t) = -999.   ! when not using slope regressions
+              ! --- regression without slope ---
+              ! AWW note that these now use the 2nd set of T* variables (different dimension)
+
+              allocate(tx_red(4, sta_limit))
+              allocate(twx_red(4, sta_limit))
+
+              tx_red = transpose(x_red(:, 1:4))
+              twx_red = matmul(tx_red, w_pcp_red)
+              call logistic_regression (x_red(:, 1:4), y_red, twx_red, yp_red, b)!AJN
+
+              if(-dot_product(Z(g,1:4),B) < 25.) then
+                pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
+              else
+                POP(g,t) = 0.0
+              endif
+
+              deallocate (b)! B must get allocated in logistic reg.; could this also be allocated just once?
+              deallocate(tx_red)
+              deallocate(twx_red)
             else
               ! --- regression with slope ---
+              allocate(tx_red(6, sta_limit))
+              allocate(twx_red(6, sta_limit))
               tx_red = transpose (x_red)
               twx_red = matmul (tx_red, w_pcp_red)
               call logistic_regression (x_red, y_red, twx_red, yp_red, b) ! AJN
@@ -628,27 +647,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
               endif
 
               deallocate (b)
+              deallocate(tx_red)
+              deallocate(twx_red)
             end if
 
-            ! --- regression without slope ---
-            ! AWW note that these now use the 2nd set of T* variables (different dimension)
-
-            deallocate(tx_red)   ! just testing
-            deallocate(twx_red)
-            allocate(tx_red(4, sta_limit))
-            allocate(twx_red(4, sta_limit))
-
-            tx_red = transpose(x_red(:, 1:4))
-            twx_red = matmul(tx_red, w_pcp_red)
-            call logistic_regression (x_red(:, 1:4), y_red, twx_red, yp_red, b)!AJN
-
-            if(-dot_product(Z(g,1:4),B) < 25.) then
-              pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
-            else
-              POP(g,t) = 0.0
-            endif
-
-            deallocate (b)! B must get allocated in logistic reg.; could this also be allocated just once?
           end if
           ! print *, "POP: ", POP(g,t)
 
@@ -674,13 +676,13 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
               if(i .gt. 1) then
                 x_red_loocv(1:i-1,:) = x_red(1:i-1,:)
                 x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(1:i-1,1:i-1) = w_pcp_red(1:i-1,1:i-1)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+                w_pcp_red_loocv(1:i-1,1:i-1) = tmp_weight_arr(1:i-1,1:i-1)
+                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = tmp_weight_arr(i+1:close_count(g)-1,i+1:close_count(g)-1)
                 y_red_loocv(1:i-1) = y_red(1:i-1)
                 y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
               else
                 x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = tmp_weight_arr(i+1:close_count(g)-1,i+1:close_count(g)-1)
                 y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
               end if
 
@@ -720,13 +722,13 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
               if(i .gt. 1) then
                 x_red_loocv(1:i-1,:) = x_red(1:i-1,:)
                 x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(1:i-1,1:i-1) = w_pcp_red(1:i-1,1:i-1)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+                w_pcp_red_loocv(1:i-1,1:i-1) = tmp_weight_arr(1:i-1,1:i-1)
+                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = tmp_weight_arr(i+1:close_count(g)-1,i+1:close_count(g)-1)
                 y_red_loocv(1:i-1) = y_red(1:i-1)
                 y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
               else
                 x_red_loocv(i:close_count(g)-2,:) = x_red(i+1:close_count(g)-1,:)
-                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = w_pcp_red(i+1:close_count(g)-1,i+1:close_count(g)-1)
+                w_pcp_red_loocv(i:close_count(g)-2,i:close_count(g)-2) = tmp_weight_arr(i+1:close_count(g)-1,i+1:close_count(g)-1)
                 y_red_loocv(i:close_count(g)-2) = y_red(i+1:close_count(g)-1)
               end if
 
@@ -742,7 +744,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
 
             deallocate(twx_red)
-            deallocate(tx_red)   ! just testing
+            deallocate(tx_red)
             deallocate(twx_red_loocv)
             deallocate(tx_red_loocv)
             deallocate(b)
@@ -763,11 +765,6 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
         if (ndata_t .ge. 1) then !
           ! regression without slope terms  only for temperature
-
-          deallocate(tx_red)
-          deallocate(twx_red)
-          deallocate(tx_red_loocv)
-          deallocate(twx_red_loocv)
           allocate(tx_red(4,sta_limit))
           allocate(twx_red(4,sta_limit))
           allocate(tx_red_loocv(4,sta_limit-1))
@@ -809,17 +806,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           ! ===== NOW do TRANGE ============
 
           !regression without slope terms
-          deallocate(TWX_red)
-          deallocate(TX_red)
-          allocate(TWX_red(4,sta_limit))
-          allocate(TX_red(4,sta_limit))
-
-          deallocate(tx_red_loocv)
-          deallocate(twx_red_loocv)
-          allocate(tx_red_loocv(4,sta_limit-1))
-          allocate(twx_red_loocv(4,sta_limit-1))
-
-          TX_red = transpose(X_red(:,1:4))
+          TX_red = transpose(X_red_t(:,1:4))
           TWX_red = matmul(TX_red, w_temp_red)
 
           call least_squares(X_red_t(:,1:4), y_trange_red, TWX_red, B)
@@ -855,6 +842,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           trange_err(g,t) = real((errsum / wgtsum)**(1.0/2.0),kind(sp))
 
           deallocate (b)  !AWW-seems to be missing
+          deallocate(tx_red)
+          deallocate(twx_red)
+          deallocate(tx_red_loocv)
+          deallocate(twx_red_loocv)
 
         else ! alternative to having (ndata_t <= 1)
 
@@ -886,9 +877,9 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   end do ! end time record loop
 
   ! AWW -- just deallocate once at end of subroutine
-  deallocate (twx_red)
-  deallocate (tx_red)
-  deallocate (tx_red_loocv)
-  deallocate (twx_red_loocv)
+!  deallocate (twx_red)
+!  deallocate (tx_red)
+!  deallocate (tx_red_loocv)
+!  deallocate (twx_red_loocv)
 
 end subroutine estimate_forcing_regression

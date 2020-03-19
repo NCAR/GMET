@@ -492,6 +492,10 @@ program generate_ensembles
     allocate(climo_trange(nx,ny))  !climo trange grid
     allocate(uncert_tmean(nx,ny))   !uncert tmean grid
     allocate(uncert_trange(nx,ny))  !uncert trange grid
+  else
+    print *, 'Incorrect time mode: ',trim(time_mode)
+    print *, 'Current options are: daily, climo, daily_anom'
+    stop
   end if
 
   ! ============ loop through the ensemble members ============
@@ -530,8 +534,8 @@ program generate_ensembles
             !trange uncertainty
             call read_climo_uncertainty(climo_path,current_month,'t_range_stddev',uncert_trange,error)
 
-            !convert climo precip to daily rates
-            climo_precip = climo_precip / real(month_days(current_month),kind(sp))
+!            !convert climo precip to daily rates
+!            climo_precip = climo_precip / real(month_days(current_month),kind(sp))
           end if !end of climo read check
 
         end if   !end of time_mode check
@@ -625,8 +629,11 @@ program generate_ensembles
               else
                 pcp_out(isp1,isp2,istep) = real(ra,kind(sp))
               endif
+            else
+              print *, 'Incorrect time mode: ',trim(time_mode)
+              print *, 'Current options are: daily, climo, daily_anom'
+              stop
             end if  !end if for precipitation time_mode check
-
           end if ! end IF statement for precip generation
  
           !time mode defines how ensemble values are generated
@@ -661,7 +668,11 @@ program generate_ensembles
             !TRANGE
             ra = real(trange(isp1,isp2,istep),kind(dp)) + real(trange_random(isp1,isp2),kind(dp))*real(trange_error(isp1,isp2,istep),kind(dp))
             trange_out(isp1,isp2,istep) = ra
-          end if
+          else
+            print *, 'Incorrect time mode: ',trim(time_mode)
+            print *, 'Current options are: daily, climo, daily_anom'
+            stop
+          end if  !end of time_mode check for temperature
 
           ! check for unrealistic and non-physical trange values
           if (trange_out(isp1, isp2, istep) .gt. 40.0) then

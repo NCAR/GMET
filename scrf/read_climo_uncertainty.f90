@@ -30,16 +30,16 @@ subroutine read_climo_uncertainty(uncert_path,current_month,uncert_field,uncert_
   
   !open file  
   call check(nf90_open(trim(uncert_file),nf90_nowrite,ncid),"Uncertainty file open error: "//trim(uncert_file), error)
-  if(error /= 0) return
+  if(error /= 0) stop
 
   !inquire about variables
   call check(nf90_inq_varid(ncid,uncert_field,varid),"Uncertainty variable name error",error)
-  if(error /= 0) return  
+  if(error /= 0) stop  
 
   !get dimensions
   call check(nf90_inquire_variable(ncid,varid,ndims = ndims),"Grid dimension inq error",error)
-  if(error /= 0) return
-  if(ndims/=2) then; print *,'Wrong number of dimensions',ndims,'should be 2'; return; endif
+  if(error /= 0) stop
+  if(ndims/=2) then; print *,'Wrong number of dimensions',ndims,'should be 2'; stop; endif
 
   !get x,y dimensions
   call check(nf90_inq_dimid(ncid,'y',dimid),"y dim inquiry error",error)
@@ -62,7 +62,7 @@ subroutine read_climo_uncertainty(uncert_path,current_month,uncert_field,uncert_
   
   !get it
   call check(nf90_get_var(ncid,varid,uncert_out),"Uncertainty variable read error",error)
-  if(error /= 0) return
+  if(error /= 0) stop
   
   !Close the netcdf file
   error = nf90_close(ncid)

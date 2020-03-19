@@ -35,22 +35,18 @@ subroutine normalize_x (x)
 end subroutine normalize_x
  
 !added AJN Sept 2013
-subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
+subroutine normalize_xv (x, weight, yp, smax)
   use type
   implicit none
  
-  real (dp), intent (inout) :: x (:)
+  real (dp), intent (in) :: x (:)
   real (dp), intent (in) :: weight (:)
-  real (dp), intent (out) :: mean
-  real (dp), intent (out) :: stdev
-  real (dp), intent (out) :: stdev_all
-  real (dp), intent (out) :: smin
+  integer (i4b), intent (in) :: yp (:)
   real (dp), intent (out) :: smax
-  integer (i4b), intent (out) :: yp (:)
  
 !  real(DP) :: mean, stdev, sum_x2, sum_x
   real (dp) :: sum_x2, sum_x
-  real (dp) :: sum_stdev, sum_std
+  real (dp) :: sum_stdev, sum_std, smin
  
   real (dp) :: mean_all, sum_weight, sum_xw
  
@@ -59,13 +55,8 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
  
   ntimes = size (x)
  
-  yp = 0
   smin = 9999.0
   smax = 0.0
-  stdev = 0.01
-  mean = 0.0
-  sum_std = 0.0
-  sum_stdev = 0.0
  
   sum_xw = 0.0d0
   sum_weight = 0.0d0
@@ -73,12 +64,11 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
   sum_x = 0.0d0
   sum_x2 = 0.0d0
   do t = 1, ntimes, 1
-    if (x(t) > 0.0) then
+    if (x(t) >= -100) then
       sum_x = sum_x + x (t)
       sum_x2 = sum_x2 + x (t) ** 2
       sum_xw = sum_xw + weight (t) * x (t)
       sum_weight = sum_weight + weight (t)
-      yp (t) = 1
  
       if (x(t) .le. smin) then
         smin = x (t)
@@ -89,43 +79,10 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
  
     end if
   end do
- 
-  mean_all = sum_x / real (ntimes)
-  if(sum(Yp) .gt. 0)then
-    mean = sum_x / real(sum(Yp))
-  else
-    mean = 0.0
-  endif
+  if(smin > 1000.) then
+    smin = 0.0
+  end if 
 
-  do t = 1, ntimes, 1
-    sum_stdev = sum_stdev + (x(t)-mean_all) ** 2
-    if (yp(t) .eq. 1) then
-      sum_std = sum_std + (x(t)-mean) ** 2
-    end if
-  end do
-  !  stdev_all = sqrt(sum_stdev/(ntimes-1))
- 
-  if (sum(yp) .ge. 2) then
-    stdev = sqrt (sum_std/real(sum(yp)-1.0))
-    stdev_all = sqrt (sum_std/real(ntimes-1.0))
- 
-  else
-    mean = sum_x
-    stdev = 0.01
-    !    stdev_all = sum_xw
-    stdev_all = 0.01
-  end if
- 
- 
-  if (stdev .gt. 0.0) then
-    do t = 1, ntimes, 1
-      if (yp(t) .gt. 0.0) then
-        x (t) = (x(t)-mean) / stdev
-      end if
-    end do
-  end if
- 
- 
   return
  
 end subroutine normalize_xv
@@ -154,13 +111,16 @@ subroutine normalize_y (texp, y)
   ntimes = size (y)
  
   do t = 1, ntimes, 1
-!     Y(t) = Y(t) ** (1.0d0/2.5d0)
-!    Y(t) = Y(t) ** (1.0d0/4d0)
 
     if(Y(t) > 0) then
-      y (t) = y (t) ** (1.0d0/texp)
+      !power law
+      !!y (t) = y (t) ** (1.0d0/texp)
+
+      !box-cox
+      y(t) = ((Y(t)**(1.0/texp))-1.0)/(1.0/texp)
     else
-      y (t) = 0
+!      y (t) = -999.0
+      y (t) = -3.0
     end if 
   end do
  

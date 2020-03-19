@@ -40,35 +40,26 @@ subroutine least_squares (x, y, tx, b)
   nvars = size (x, 2) - 1
   ntimes = size (y)
  
-!  print *,'least'
   allocate (b(nvars+1))
   allocate (a(nvars+1, nvars+1))
   allocate (indx(nvars+1))
-!  print *,'allocated'
-  !print *, "Y = ", Y
-  !print *, "X = ", X
+
   b = matmul (tx, y)
   a = matmul (tx, x)
-  !print *, "A = ", A
-  !print *, "B = ", B
-!print *,'lu start'
+
   call ludcmp (a, indx, d)
-!print *,'ludcmp'
+
   if (any(abs(a) < 9.99999968E-15)) then
     b (:) = 0.0d0
-!AJN
 !     print *, "Warning, LUdcmp produced a zero."
     return
   end if
-!print *,'lubksb'
-  !print *, "LU A = ", A
+
   call lubksb (a, indx, b)
  
-  !print *, matmul(matmul(TX, X), B)
-!print *,'deallocate'
   deallocate (a)
   deallocate (indx)
-!print *,'done'
+
 end subroutine least_squares
  
  
@@ -123,8 +114,15 @@ subroutine logistic_regression (x, y, tx, yp, b)
   do while (f /=  1)
     !print*, 'matmul(x,b):'
     !print*, matmul(x, b)
-    p = 1.0d0 / (1.0d0+exp(-matmul(x, b)))
-    if (any(p > 0.97)) then
+    !check for divergence
+    if(any(-matmul(x,b) > 50)) then
+      f = 1
+    else
+      p = 1.0d0 / (1.0d0+exp(-matmul(x, b)))
+    endif
+
+    !check for divergence
+    if (any(p > 0.9999)) then
       ! print *, "WARNING: logistic regression diverging"
       f = 1
     else
@@ -144,7 +142,7 @@ subroutine logistic_regression (x, y, tx, yp, b)
           f = 0
         end if
       end do
-      if (it > 8) then
+      if (it > 20) then
         ! print *, "WARNING: logistic regression failed to converge"
         f = 1
       end if
