@@ -5,6 +5,7 @@
 
 #no .mod files
 *.mod
+*genmod*
 
 #no text editor temp files
 *~
