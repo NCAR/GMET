@@ -242,6 +242,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   real (dp), allocatable :: tmp_x_red (:, :)! reduced matrix for ...
   real (dp), allocatable :: x_red_t (:, :)! reduced matrix for ...
 
+  real (dp), allocatable :: Z_reg(:)! final grid point predictor vector
+
   ! condensed these variables into just 4 that get re-used
   real (dp), allocatable :: twx_red (:, :), tx_red (:, :)!reduced matricies (orig)
   real (dp), allocatable :: twx_red_2 (:, :), tx_red_2 (:, :)!reduced matricies (dims 2)
@@ -277,6 +279,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   integer(I4B)  :: nBase  !number of geophysical predictors
   integer(I4B),allocatable  :: noSlopePredicts(:)
   integer(I4B),allocatable  :: noPrcpPredicts(:)
+  integer(I4B),allocatable  :: noPrcpNoSlopePredicts(:)
 
   ! variables for tracking closest N stations for precipitation
   integer (i4b), parameter :: sta_limit = 30
@@ -378,6 +381,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   !predictor index array
   allocate (noSlopePredicts(nPredict-2))
   allocate (noPrcpPredicts(nPredict-1))
+  allocate (noPrcpNoSlopePredicts(nPredict-3))
 
   ! max_dist tracking variables
   allocate (expand_dist(ngrid), expand_flag(ngrid))
@@ -534,6 +538,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   nBase = nPredict-n_nwp
   noSlopePredicts(1:4) = (/1,2,3,4/)
   noPrcpPredicts(1:6) = (/1,2,3,4,5,6/)
+  noPrcpNoSlopePredicts(1:4) = (/1,2,3,4/)
 !print *,'here ',nBase,nPredict
   do i = 1,n_nwp,1
     noSlopePredicts(nBase-2+i) = nBase+i
@@ -545,6 +550,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   do i = 1,n_nwp,1
     if(nwp_vars(i) .ne. nwp_prcp_var) then
       noPrcpPredicts(nBase+cnt) = nBase+i
+      noPrcpNoSlopePredicts(nBase-2+cnt) = nBase+i
       cnt = cnt + 1
     endif
   enddo
@@ -770,8 +776,17 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
               allocate(x_red(sta_limit, xsize-1))
               !redefine reduced station predictor array
               x_red = x_red(:,noPrcpPredicts))
+              !create final Z array for regressions
+              allocate(Z_reg(xsize-1))
+              Z_reg = Z(g,noPrcpPredicts))
               !update nPredict
               nPredict = nPredict - 1
+              !update noSlopePredicts
+              noSlopePredicts = noPrcpNoSlopePredicts
+            else
+              !create final Z array for regressions
+              allocate(Z_reg(xsize))
+              Z_reg = Z(g,:))      
             end if
           end if
 
@@ -802,8 +817,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
               call logistic_regression (x_red, y_red, twx_red, yp_red, b) ! AJN
 
               !pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
-              if(-dot_product(Z(g,:),B) < 25.) then
-                pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
+              if(-dot_product(Z_reg,B) < 25.) then
+                pop (g, t) = real (1.0/(1.0+exp(-dot_product(Z_reg, b))), kind(sp))
               else
                 POP(g,t) = 0.0
               endif
@@ -819,8 +834,6 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             allocate(tx_red_2(nPredict-2, sta_limit))
             allocate(twx_red_2(nPredict-2, sta_limit))
 
-!            tx_red_2(:,1:4) = x_red(:, 1:4)
-!            tx_red_2(:,nBase+1:nPredict) = x_red(:,nBase+1:nPredict)
             tx_red_2 = x_red(:,noSlopePredicts)
             tx_red_2 = transpose(tx_red_2)
             twx_red_2 = matmul(tx_red_2, w_pcp_red)
@@ -830,9 +843,9 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             call logistic_regression (x_red(:, noSlopePredicts), y_red, twx_red_2, yp_red, b)!AJN
 !print *,'b ',b
             !pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
-            if(-dot_product(Z(g,noSlopePredicts),B) < 25.) then
+            if(-dot_product(Z_reg(noSlopePredicts),B) < 25.) then
 !print *,'z ',z(g,noSlopePredicts)
-              pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, noSlopePredicts), b))), kind(sp))
+              pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(Z_reg(noSlopePredicts), b))), kind(sp))
             else
               POP(g,t) = 0.0
             endif
@@ -856,7 +869,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             twx_red = matmul (tx_red, w_pcp_red)
 
             call least_squares (x_red, y_red, twx_red, b)
-            pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
+            pcp (g, t) = real (dot_product(Z_reg, b), kind(sp))
             deallocate (b)  !AWW-seems to be missing
 
             wgtsum = 0.0
@@ -883,7 +896,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           twx_red_2 = matmul (tx_red_2, w_pcp_red)
           call least_squares (x_red(:, noSlopePredicts), y_red, twx_red_2, b)
 
-          pcp_2 (g, t) = real (dot_product(z(g, noSlopePredicts), b), kind(sp))
+          pcp_2 (g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp))
 
           wgtsum = 0.0
           errsum = 0.0
@@ -924,7 +937,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t, y_tmean_red, twx_red, b)
 
-          tmean (g, t) = real (dot_product(z(g, :), b), kind(sp))
+          tmean (g, t) = real (dot_product(Z_reg, b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
@@ -947,7 +960,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           twx_red_2 = matmul (tx_red_2, w_temp_red)
           call least_squares (x_red_t(:, noSlopePredicts), y_tmean_red, twx_red_2, b)
 
-          tmean_2 (g, t) = real (dot_product(z(g, noSlopePredicts), b), kind(sp))
+          tmean_2 (g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
@@ -972,7 +985,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t, y_trange_red, twx_red, b)
 
-          trange (g, t) = real (dot_product(z(g, :), b), kind(sp))
+          trange (g, t) = real (dot_product(Z_reg, b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
@@ -995,7 +1008,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           twx_red_2 = matmul (tx_red_2, w_temp_red)
           call least_squares (x_red_t(:, noSlopePredicts), y_trange_red, twx_red_2, b)
 
-          trange_2 (g, t) = real (dot_product(z(g, noSlopePredicts), b), kind(sp))
+          trange_2 (g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
