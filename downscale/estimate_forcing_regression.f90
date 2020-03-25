@@ -2,7 +2,7 @@
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
 subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
-  & n_nwp, nwp_vars, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+  & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
@@ -210,6 +210,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   character (len = 500),intent(in)  :: sta_weight_name     ! station weight file name
   character (len = 2000),intent(in) :: nwp_input_list      !file containing list of NWP predictor input files
   character (len=100), intent(in)   :: nwp_vars(:)    !list of nwp predictor variables
+  character (len=100), intent(in)   :: nwp_prcp_var   !name of nwp predictor variable for precipitation
 
   character (len=2000)  ::  nwp_timestep_file        !name of a NWP predictor file
 
@@ -238,6 +239,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   real (dp), allocatable :: y_red (:)! reduced matrix for ...
   real (dp), allocatable :: x_red (:, :)! reduced matrix for ...
+  real (dp), allocatable :: tmp_x_red (:, :)! reduced matrix for ...
   real (dp), allocatable :: x_red_t (:, :)! reduced matrix for ...
 
   ! condensed these variables into just 4 that get re-used
@@ -267,13 +269,14 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   integer (i4b) :: xsize !size of second dimension of input X array
   integer (i4b) :: ntimes, nstns
-  integer (i4b) :: t, i, g, ndata, nodata
+  integer (i4b) :: t, i, g, ndata, nodata, cnt
   integer (i4b) :: ndata_t, nodata_t
   integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
 
   integer(I4B)  :: nBase  !number of geophysical predictors
   integer(I4B),allocatable  :: noSlopePredicts(:)
+  integer(I4B),allocatable  :: noPrcpPredicts(:)
 
   ! variables for tracking closest N stations for precipitation
   integer (i4b), parameter :: sta_limit = 30
@@ -327,6 +330,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   allocate (y_red(sta_limit))
   allocate (y_tmean_red(sta_limit), y_trange_red(sta_limit))
   allocate (x_red(sta_limit, xsize))
+  allocate (tmp_x_red(sta_limit, xsize))
   allocate (x_red_t(sta_limit, xsize))
   allocate (w_pcp_1d(sta_limit))
   allocate (w_temp_1d(sta_limit))
@@ -373,6 +377,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
  
   !predictor index array
   allocate (noSlopePredicts(nPredict-2))
+  allocate (noPrcpPredicts(nPredict-1))
 
   ! max_dist tracking variables
   allocate (expand_dist(ngrid), expand_flag(ngrid))
@@ -528,11 +533,21 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   nBase = nPredict-n_nwp
   noSlopePredicts(1:4) = (/1,2,3,4/)
+  noPrcpPredicts(1:6) = (/1,2,3,4,5,6/)
 !print *,'here ',nBase,nPredict
   do i = 1,n_nwp,1
     noSlopePredicts(nBase-2+i) = nBase+i
 !print *,'here ',nBase,nPredict,i,noSlopePredicts
   end do
+ 
+  !create predictor set without precipitation if it is used
+  cnt = 1
+  do i = 1,n_nwp,1
+    if(nwp_vars(i) .ne. nwp_prcp_var) then
+      noPrcpPredicts(nBase+cnt) = nBase+i
+      cnt = cnt + 1
+    endif
+  enddo
 
   ! =========== now LOOP through all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
@@ -733,11 +748,38 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           ! original call
           ! TWX = matmul(TX, w_pcp)
 
-          ! tmp needs to be matmul(TX,X) where TX = TWX_red and X = X_red
+          !check to see if the station predictor matrix will be well behaved
+          !if not, we need to change the predictor set
+          !main concerns are the two slope terms and dynamic predictor: precipitation
+          
+          !test precipitation dynamic predictor first
+          !then test slope terms
           twx_red = matmul (transpose(x_red), w_pcp_red)
           tmp = matmul (twx_red, x_red)
           vv = maxval (abs(tmp), dim=2)
+          !full predictor set is badly behaved
+          if (any(vv == 0.0)) then
+            !can we drop precipitation?
+            twx_red = matmul (transpose(x_red(:, noPrcpPredicts),w_pcp_red)
+            tmp = matmul (twx_red, x_red(:,noPrcpPredicts))
+            vv = maxval (abs(tmp),dim=2)
+            if(any(vv == 0.0)) then
+              tmp_x_red = x_red
+              deallocate(x_red)
+              !reallocate x_red
+              allocate(x_red(sta_limit, xsize-1))
+              !redefine reduced station predictor array
+              x_red = x_red(:,noPrcpPredicts))
+              !update nPredict
+              nPredict = nPredict - 1
+            end if
+          end if
 
+          !test predictor set again (without precipitation if necessary)
+          twx_red = matmul (transpose(x_red), w_pcp_red)
+          tmp = matmul (twx_red, x_red)
+          vv = maxval (abs(tmp), dim=2)
+          !if badly behaved, drop slope
           if (any(vv == 0.0)) then
             slope_flag_pcp = 0
           else

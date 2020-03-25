@@ -42,7 +42,8 @@ subroutine read_config (fname, n, config_names, values)
   config_names(20) = "STA_WEIGHT_NAME"   !  
   config_names(21) = "NPREDICT"          !total number of predictors (6+number of NWP predictors)
   config_names(22) = "NWP_VAR_NAMES"      !Variable list for NWP predictors
-  config_names(23) = "NWP_INPUT_FILE_LIST"   !list of NWP input files
+  config_names(23) = "NWP_PRCP_VAR_NAME"  !Variable name of NWP precipitation predictor
+  config_names(24) = "NWP_INPUT_FILE_LIST"   !list of NWP input files
 
  
   do i = 1, n, 1

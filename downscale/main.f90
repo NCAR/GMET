@@ -90,7 +90,7 @@ program gmet
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
 
     subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
-   & n_nwp, nwp_vars, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
@@ -99,6 +99,7 @@ program gmet
       character (len = 500), intent(in) :: sta_weight_name        ! station weight file name
       character (len = 2000),intent(in) :: nwp_input_list         ! name of file containint list of NWP input files
       character (len=100), intent(in)   :: nwp_vars(:)            !list of nwp predictor variables
+      character (len=100), intent(in)   :: nwp_prcp_var           !name of nwp precipitation predictor
       integer(i4b), intent(in)             :: nPredict            ! number of total predictors
       integer(i4b), intent(in)             :: n_nwp               ! number of NWP predictors
       real (dp), intent (inout) :: x (:, :), z (:, :)
@@ -152,7 +153,7 @@ program gmet
   ! === end of interface, start the program ====
  
   character (len=100) :: config_file
-  integer, parameter  :: nconfigs = 23
+  integer, parameter  :: nconfigs = 24
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
@@ -163,6 +164,7 @@ program gmet
   character (len=100) :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
   character (len=100), allocatable :: nwp_vars(:)    !list of nwp predictor variables
+  character (len=100), nwp_prcp_var = ''   !name of NWP precipitation predictor variable
   character (len=100), allocatable :: stnid (:), stnname (:)
   character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
 
@@ -430,7 +432,8 @@ program gmet
       stop
     end if
 
-    nwp_input_list = config_values(23)
+    nwp_prcp_var   = config_values(23)
+    nwp_input_list = config_values(24)
 
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
    & stn_slp_e, nstations, error, vars) ! AWW added vars
@@ -513,7 +516,7 @@ program gmet
     allocate (y_min(ngrid, ntimes))
  
     call estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
-   & n_nwp, nwp_vars, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
    & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
