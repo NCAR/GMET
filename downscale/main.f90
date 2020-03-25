@@ -100,7 +100,7 @@ program gmet
       character (len = 2000),intent(in) :: nwp_input_list         ! name of file containint list of NWP input files
       character (len=100), intent(in)   :: nwp_vars(:)            !list of nwp predictor variables
       character (len=100), intent(in)   :: nwp_prcp_var           !name of nwp precipitation predictor
-      integer(i4b), intent(in)             :: nPredict            ! number of total predictors
+      integer(i4b), intent(inout)          :: nPredict            ! number of total predictors
       integer(i4b), intent(in)             :: n_nwp               ! number of NWP predictors
       real (dp), intent (inout) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
@@ -164,7 +164,7 @@ program gmet
   character (len=100) :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
   character (len=100), allocatable :: nwp_vars(:)    !list of nwp predictor variables
-  character (len=100), nwp_prcp_var = ''   !name of NWP precipitation predictor variable
+  character (len=100)         :: nwp_prcp_var = ''   !name of NWP precipitation predictor variable
   character (len=100), allocatable :: stnid (:), stnname (:)
   character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
 

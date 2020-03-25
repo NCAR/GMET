@@ -214,7 +214,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   character (len=2000)  ::  nwp_timestep_file        !name of a NWP predictor file
 
-  integer(I4B), intent(in)          :: nPredict            ! number of total predictors
+  integer(I4B), intent(inout)          :: nPredict            ! number of total predictors
   integer(I4B), intent(in)          :: n_nwp               ! number of NWP predictors
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
@@ -590,6 +590,9 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
     ! -------- loop through all grid cells for a given time step --------
     do g = 1, ngrid, 1
+      !create final Z array (grid predictors) for regressions
+      allocate(Z_reg(xsize))
+      Z_reg = Z(g,:)
       ! call system_clock(tg1,count_rate)
 
       deallocate (twx_red)
@@ -765,29 +768,24 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           vv = maxval (abs(tmp), dim=2)
           !full predictor set is badly behaved
           if (any(vv == 0.0)) then
-            !can we drop precipitation?
-            twx_red = matmul (transpose(x_red(:, noPrcpPredicts),w_pcp_red)
+            !drop precipitation
+            twx_red = matmul (transpose(x_red(:, noPrcpPredicts)),w_pcp_red)
             tmp = matmul (twx_red, x_red(:,noPrcpPredicts))
             vv = maxval (abs(tmp),dim=2)
-            if(any(vv == 0.0)) then
-              tmp_x_red = x_red
-              deallocate(x_red)
-              !reallocate x_red
-              allocate(x_red(sta_limit, xsize-1))
-              !redefine reduced station predictor array
-              x_red = x_red(:,noPrcpPredicts))
-              !create final Z array for regressions
-              allocate(Z_reg(xsize-1))
-              Z_reg = Z(g,noPrcpPredicts))
-              !update nPredict
-              nPredict = nPredict - 1
-              !update noSlopePredicts
-              noSlopePredicts = noPrcpNoSlopePredicts
-            else
-              !create final Z array for regressions
-              allocate(Z_reg(xsize))
-              Z_reg = Z(g,:))      
-            end if
+            tmp_x_red = x_red
+            deallocate(x_red)
+            !reallocate x_red
+            allocate(x_red(sta_limit, xsize-1))
+            !redefine reduced station predictor array
+            x_red = x_red(:,noPrcpPredicts)
+            !create final Z array (grid predictors) for regressions
+            allocate(Z_reg(xsize-1))
+            Z_reg = Z(g,noPrcpPredicts)
+            !update nPredict
+            nPredict = nPredict - 1
+            !update noSlopePredicts
+            noSlopePredicts = noPrcpNoSlopePredicts
+            print *,'here',g
           end if
 
           !test predictor set again (without precipitation if necessary)
@@ -1049,7 +1047,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             tmean_err_2 (g, t) = tmean_err_2 (g, t-1)
           end if
         end if ! end data check if statement for temperature
-
+        deallocate(Z_reg)
       end if ! end check for valid elevation
 
     end do ! end grid loop
