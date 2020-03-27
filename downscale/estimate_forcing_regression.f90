@@ -3,7 +3,7 @@
 
 subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
+  & stnid, stnvar, directory, kfold_trials,kfold_hold,pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
@@ -13,6 +13,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   use string_mod
   use utim
+  use combination
   use type
   implicit none
 
@@ -166,7 +167,6 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       real (dp), allocatable, intent (out) :: b (:)
     end subroutine logistic_regression
 
-    ! added AJN Sept 2013
     subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
       use type
       real (dp), intent (in) :: prcp_data (:)
@@ -216,6 +216,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   integer(I4B), intent(inout)          :: nPredict            ! number of total predictors
   integer(I4B), intent(in)          :: n_nwp               ! number of NWP predictors
+  integer(I4B), intent(in)          :: kfold_trials        !number of kfold xval trials
+  integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
@@ -235,7 +237,6 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min & max  of normalized time step precipitation
 
   real (dp), allocatable :: y (:), b (:)
-  !real (dp), allocatable :: twx (:, :), tx (:, :) ! not used
 
   real (dp), allocatable :: y_red (:)! reduced matrix for ...
   real (dp), allocatable :: x_red (:, :)! reduced matrix for ...
@@ -251,7 +252,6 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   real (dp), allocatable :: w_base (:, :)!initial distance weight matrix
   real (dp), allocatable :: w_pcp_1d (:), w_temp_1d (:)
   integer (i4b), allocatable :: w_pcp_1d_loc (:), w_temp_1d_loc (:)
-  !real(DP), allocatable :: w_pcp(:,:), w_temp(:,:) !distance weight matrices for a specific grid point
   real (dp), allocatable :: w_pcp_red (:, :), w_temp_red (:, :)!reduced distance weigth matricies
 
   real (dp), allocatable :: y_tmean (:), y_trange (:)!transformed station data arrays
@@ -315,6 +315,16 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   integer (i4b), allocatable :: expand_flag (:), expand_flag_t (:)
   real (dp), allocatable :: expand_dist (:), expand_dist_t (:)
 
+  !kfold cross validation variables 
+  integer(i4b), allocatable :: xval_combinations(:,:)    ! array of sampling combinations (integer array indicies)
+  integer(i4b), allocatable :: xval_sta_list(:)          ! vector of one sampling combination (integer array indicies)
+  integer(I4B), allocatable :: withheld_sta_list(:)      ! vector of station indices not in the sampling combination
+  integer(I4B), allocatable :: xval_sta_list_fill(:)     ! vector of sampling combination zero padded to length kfold_nsamp
+  integer(I4B), allocatable :: all_inds(:)               ! vector of possible station indices (1-sta_limit)
+  integer(I4B), allocatable :: tmp_inds(:)               ! temporary vector
+  integer(i4B) :: kfold_nsamp                            ! number of samples to draw from
+
+
   !==============================================================!
   !                     code starts below here                   !
   !==============================================================!
@@ -322,6 +332,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   nstns = size (stnid)
   ntimes = size (times)
   xsize = size (x, 2)
+
+  kfold_nsamp = sta_limit
 
   ! allocate variables
   allocate (y(nstns))
@@ -387,6 +399,14 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   allocate (expand_dist(ngrid), expand_flag(ngrid))
   allocate (expand_dist_t(ngrid), expand_flag_t(ngrid))
 
+  !kfold xval variables
+  allocate(xval_combinations(kfold_trials,kfold_nsamp-kfold_hold))
+  allocate(xval_sta_list(kfold_nsamp-kfold_hold))
+  allocate(withheld_sta_list(kfold_hold))
+  allocate(xval_sta_list_fill(kfold_nsamp))
+  allocate(all_inds(kfold_nsamp))
+  allocate(tmp_inds(kfold_nsamp))
+
   ! initializations
   pcp = 0.0d0
   pop = 0.0d0
@@ -410,6 +430,12 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   expand_dist_t = 0.0d0
   expand_flag_t = 0
 
+  xval_combinations = -999
+  xval_sta_list_fill = 0
+  tmp_inds = -999
+  do i = 1,sta_limit
+    all_inds(i) = i
+  end do
 
   ! ================= LOOP OVER STATIONS ============
   ! this part calls subroutines that calc various  correlations
@@ -554,6 +580,9 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       cnt = cnt + 1
     endif
   enddo
+
+  !Create a station sampling list for Kfold xvalidation
+  call comb(kfold_nsamp,kfold_nsamp-kfold_hold,kfold_trials,xval_combinations)
 
   ! =========== now LOOP through all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
@@ -900,8 +929,48 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           errsum = 0.0
           ss_tot = 0.0
           ss_res = 0.0
+
+          !run through kfold cross-val to determine uncertainty
+          !k is set by user in configuration file. limits: [10-30]
+          !number of stations witheld also set by user in config file. limits [1-10]
+          !should the truth be the full regression and the kfold is compared against that? possibly...
+          do i = 1,kfold_trials
+            !current kfold trial sampling combination
+            xval_sta_list = xval_combinations(i,:)
+            !create a zero padded vector of above
+            xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
+
+            !find withheld stations
+            tmp_list = pack(all_inds,all_inds .ne. xval_sta_list_fill)
+            withheld_sta_list = tmp_list(1:kfold_hold)
+            !create weight sum of in regression station weights
+            wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+
+            !station predictor array
+            x_loocv = x_red(xval_sta_list,:)
+            !station values
+            y_loocv = y_red(xval_sta_list)
+            !station diagonal weight matrix
+            w_pcp_loocv = w_pcp_red(xval_sta_list,xval_sta_list)
+            !create transposed matrices for least squares
+            tx_loocv  = transpose(x_loocv)
+            twx_loocv = matmul(tx_loocv,w_pcp_loocv)
+
+            call least_squares(x_loocv,y_loocv,twx_loocv,B)
+            !regression precip
+            pcp_tmp = real(dot_product(x_loocv,B),kind(sp))
+            do j = 1,kfold_hold
+              errsum = errsum + sum(w_pcp_1d(withheld_sta_list) * (pcp_tmp - y_red(withheld_sta_list))**2)
+            end do
+          end do
+          !mean uncertainty estimate from all kfold trials
+          pcperr(g,t) = real((errsum/wgtsum)**(1.0/2.0),kind(sp))
+
           do i = 1, (close_count(g)-1), 1
             wgtsum = wgtsum + w_pcp_red (i, i)
+            if(i .gt. kfold) then
+              x_red_kfoldcv(1:i-1,:) = x_red(1:i-1,:)
+            else
             errsum = errsum + (w_pcp_red(i, i)*(pcp_2(g, t)-y_red(i))**2)
           end do
 
