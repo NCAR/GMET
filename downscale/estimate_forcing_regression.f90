@@ -13,7 +13,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   use string_mod
   use utim
-  use combination
+  use combination_routines
   use type
   implicit none
 
@@ -266,14 +266,14 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   logical, allocatable :: stn_miss (:), stn_miss_t (:) ! missing value logical arrays
 
-  real (dp) :: errsum, wgtsum, sta_temp
+  real (dp) :: errsum, wgtsum
+!  real (dp) :: sta_temp
   real (dp) :: auto_corr_sum, tp_corr_sum
   real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
-  real (dp) :: ss_tot, ss_res ! r-squared and variance correction
 
   integer (i4b) :: xsize !size of second dimension of input X array
   integer (i4b) :: ntimes, nstns
-  integer (i4b) :: t, i, g, ndata, nodata, cnt
+  integer (i4b) :: t, i, j, g, ndata, nodata, cnt
   integer (i4b) :: ndata_t, nodata_t
   integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
@@ -328,6 +328,12 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   integer(I4B), allocatable :: tmp_inds(:)               ! temporary vector
   integer(i4B) :: kfold_nsamp                            ! number of samples to draw from
 
+  real(dp), allocatable     :: x_xval(:,:)               ! station predictor array for kfold xval
+  real(dp), allocatable     :: y_xval(:)                 ! station obs vector for kfold xval
+  real(dp), allocatable     :: tx_xval(:,:)              ! transposed station predictor array for kfold xval
+  real(dp), allocatable     :: twx_xval(:,:)             ! transposed matmul(tx,w) array for kfold xval
+  real(dp), allocatable     :: w_xval(:,:)           ! diagonal weight matrix for kfold xval
+  real(dp)                  :: var_tmp
 
   !==============================================================!
   !                     code starts below here                   !
@@ -410,6 +416,11 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   allocate(xval_sta_list_fill(kfold_nsamp))
   allocate(all_inds(kfold_nsamp))
   allocate(tmp_inds(kfold_nsamp))
+  allocate(tx_xval(kfold_nsamp-kfold_hold,xsize))
+  allocate(twx_xval(kfold_nsamp-kfold_hold,xsize))
+  allocate(x_xval(kfold_nsamp-kfold_hold,xsize))
+  allocate(y_xval(kfold_nsamp-kfold_hold))
+  allocate(w_xval(kfold_nsamp-kfold_hold,kfold_nsamp-kfold_hold))
 
   ! initializations
   pcp = 0.0d0
@@ -590,6 +601,12 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   !Create a station sampling list for Kfold xvalidation
   call comb(kfold_nsamp,kfold_nsamp-kfold_hold,kfold_trials,xval_combinations)
+!  do i = 1,kfold_trials,1
+!    do j = kfold_nsamp-kfold_hold,1,-1
+!      write(*,"(I4, ' ')", advance="no") xval_combinations(i,j)
+!    end do
+!    write(*,*) ""
+!  end do
 
   ! =========== now LOOP through all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
@@ -626,6 +643,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
     ! -------- loop through all grid cells for a given time step --------
     do g = 1, ngrid, 1
+!    do g = 2524,2524, 1
       ! call system_clock(tg1,count_rate)
 
       deallocate (twx_red)
@@ -900,6 +918,13 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           allocate(twx_red(nPredict, sta_limit))
           allocate(tx_red(nPredict, sta_limit))
 
+          deallocate(x_xval)
+          deallocate(tx_xval)
+          deallocate(twx_xval)
+          allocate(x_xval(kfold_nsamp-kfold_hold,nPredict))
+          allocate(tx_xval(nPredict,kfold_nsamp-kfold_hold))
+          allocate(twx_xval(nPredict,kfold_nsamp-kfold_hold))
+
           if(slope_flag_pcp .eq. 0) then
             pcp (g, t) = -999.
           else
@@ -911,26 +936,74 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             pcp (g, t) = real (dot_product(Z_reg, b), kind(sp))
 !     print *,pcp(g,t)
 !     print *,'b: ',b
-            deallocate (b)  !AWW-seems to be missing
 
+            !run through kfold cross-val to determine uncertainty
+            !k is set by user in configuration file. limits: [10-30]
+            !number of stations witheld also set by user in config file. limits [1-10]
+            !should the truth be the full regression and the kfold is compared against that? possibly...
             wgtsum = 0.0
             errsum = 0.0
-            ss_tot = 0.0
-            ss_res = 0.0
-            do i = 1, (close_count(g)-1), 1
-              wgtsum = wgtsum + w_pcp_red (i, i)
-              errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)
-            end do
 
-            pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+            do i = 1,kfold_trials
+              !current kfold trial sampling combination
+              xval_sta_list = xval_combinations(i,:)
+              !create a zero padded vector of above
+              xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
+
+              !find withheld stations
+              tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
+              withheld_sta_list = tmp_inds(1:kfold_hold)
+!             !create weight sum of in regression station weights
+!              wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+
+              wgtsum = wgtsum + 1.0  !treat each kfold trial equally
+
+              !station predictor array
+              x_xval = x_red(xval_sta_list,:)
+              !station values
+              y_xval = y_red(xval_sta_list)
+              !station diagonal weight matrix
+              w_xval = w_pcp_red(xval_sta_list,xval_sta_list)
+              !create transposed matrices for least squares
+              tx_xval  = transpose(x_xval)
+              twx_xval = matmul(tx_xval,w_xval)
+
+              call least_squares(x_xval,y_xval,twx_xval,B)
+              !regression precip
+              var_tmp = real(dot_product(Z_reg,B),kind(sp))
+              !running error total
+              errsum = errsum + (var_tmp - pcp(g,t))**2
+            end do
+            !mean uncertainty estimate from all kfold trials
+            pcperr(g,t) = real((errsum/wgtsum)**(1.0/2.0),kind(sp))
+!  print *,'kfold:',pcperr(g,t)
+!  print *,'npredict:',nPredict,', ktrials:',kfold_trials,', khold:',kfold_hold
+
+!            wgtsum = 0.0
+!            errsum = 0.0
+!            do i = 1, (close_count(g)-1), 1
+!              wgtsum = wgtsum + w_pcp_red (i, i)
+!              errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)
+!            end do
+!
+!            pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+!   print *,'v1:',pcperr(g,t)
           end if
 
+          deallocate (b)  !AWW-seems to be missing
           ! regression without slope
 
           deallocate(tx_red_2)   ! just testing
           deallocate(twx_red_2)
           allocate(tx_red_2(nPredict-2, sta_limit))
           allocate(twx_red_2(nPredict-2, sta_limit))
+
+          deallocate(x_xval)
+          deallocate(tx_xval)
+          deallocate(twx_xval)
+          allocate(x_xval(kfold_nsamp-kfold_hold,nPredict-2))
+          allocate(tx_xval(nPredict-2,kfold_nsamp-kfold_hold))
+          allocate(twx_xval(nPredict-2,kfold_nsamp-kfold_hold))
 
           ! AWW note that these use the 2nd set of T* variables (different dimension)
           tx_red_2 = transpose (x_red(:, noSlopePredicts))
@@ -941,9 +1014,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           wgtsum = 0.0
           errsum = 0.0
-          ss_tot = 0.0
-          ss_res = 0.0
-
+    
           !run through kfold cross-val to determine uncertainty
           !k is set by user in configuration file. limits: [10-30]
           !number of stations witheld also set by user in config file. limits [1-10]
@@ -955,40 +1026,43 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
 
             !find withheld stations
-            tmp_list = pack(all_inds,all_inds .ne. xval_sta_list_fill)
-            withheld_sta_list = tmp_list(1:kfold_hold)
-            !create weight sum of in regression station weights
-            wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+            tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
+            withheld_sta_list = tmp_inds(1:kfold_hold)
+!            !create weight sum of in regression station weights
+!            wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+
+            wgtsum = wgtsum + 1.0  !treat each kfold trial equally
 
             !station predictor array
-            x_loocv = x_red(xval_sta_list,:)
+            x_xval = x_red(xval_sta_list,noSlopePredicts)
             !station values
-            y_loocv = y_red(xval_sta_list)
+            y_xval = y_red(xval_sta_list)
             !station diagonal weight matrix
-            w_pcp_loocv = w_pcp_red(xval_sta_list,xval_sta_list)
+            w_xval = w_pcp_red(xval_sta_list,xval_sta_list)
             !create transposed matrices for least squares
-            tx_loocv  = transpose(x_loocv)
-            twx_loocv = matmul(tx_loocv,w_pcp_loocv)
+            tx_xval  = transpose(x_xval)
+            twx_xval = matmul(tx_xval,w_xval)
 
-            call least_squares(x_loocv,y_loocv,twx_loocv,B)
+            call least_squares(x_xval,y_xval,twx_xval,B)
             !regression precip
-            pcp_tmp = real(dot_product(x_loocv,B),kind(sp))
-            do j = 1,kfold_hold
-              errsum = errsum + sum(w_pcp_1d(withheld_sta_list) * (pcp_tmp - y_red(withheld_sta_list))**2)
-            end do
+            var_tmp = real(dot_product(Z_reg(noSlopePredicts),B),kind(sp))
+            !running error total
+            errsum = errsum + (var_tmp - pcp_2(g,t))**2
           end do
           !mean uncertainty estimate from all kfold trials
-          pcperr(g,t) = real((errsum/wgtsum)**(1.0/2.0),kind(sp))
+          pcperr_2(g,t) = real((errsum/wgtsum)**(1.0/2.0),kind(sp))
+!  print *,'kfold pcp noslope:',pcperr_2(g,t)
+!  print *,'npredict:',nPredict,', ktrials:',kfold_trials,', khold:',kfold_hold
 
-          do i = 1, (close_count(g)-1), 1
-            wgtsum = wgtsum + w_pcp_red (i, i)
-            if(i .gt. kfold) then
-              x_red_kfoldcv(1:i-1,:) = x_red(1:i-1,:)
-            else
-            errsum = errsum + (w_pcp_red(i, i)*(pcp_2(g, t)-y_red(i))**2)
-          end do
+!          wgtsum = 0.0
+!          errsum = 0.0
+!          do i = 1, (close_count(g)-1), 1
+!            wgtsum = wgtsum + w_pcp_red (i, i)
+!            errsum = errsum + (w_pcp_red(i, i)*(pcp_2(g, t)-y_red(i))**2)
+!          end do
 
-          pcperr_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+!          pcperr_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+!   print *,'v1:',pcperr_2(g,t)
 
           deallocate (b)
           ! print *,'done precip'
@@ -1016,6 +1090,13 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 !   print *,'x:',x_red_t
           ! regression with slope
           ! AWW note that these use the 1st set of T* variables (6 dim)
+          deallocate(x_xval)
+          deallocate(tx_xval)
+          deallocate(twx_xval)
+          allocate(x_xval(kfold_nsamp-kfold_hold,nPredict))
+          allocate(tx_xval(nPredict,kfold_nsamp-kfold_hold))
+          allocate(twx_xval(nPredict,kfold_nsamp-kfold_hold))
+
           tx_red = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t, y_tmean_red, twx_red, b)
@@ -1026,11 +1107,52 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 !     print *,'b: ',b
           errsum = 0.0
           wgtsum = 0.0
-          do i = 1, (close_count_t(g)-1), 1
-            wgtsum = wgtsum + w_temp_red (i, i)
-            errsum = errsum + (w_temp_red(i, i)*(tmean(g, t)-y_tmean_red(i))**2)
+          !run through kfold cross-val to determine uncertainty
+          !k is set by user in configuration file. limits: [10-30]
+          !number of stations witheld also set by user in config file. limits [1-10]
+          !should the truth be the full regression and the kfold is compared against that? possibly...
+          do i = 1,kfold_trials
+            !current kfold trial sampling combination
+            xval_sta_list = xval_combinations(i,:)
+            !create a zero padded vector of above
+            xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
+
+            !find withheld stations
+            tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
+            withheld_sta_list = tmp_inds(1:kfold_hold)
+!             !create weight sum of in regression station weights
+!              wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+
+            wgtsum = wgtsum + 1.0  !treat each kfold trial equally
+
+            !station predictor array
+            x_xval = x_red_t(xval_sta_list,:)
+            !station values
+            y_xval = y_tmean_red(xval_sta_list)
+            !station diagonal weight matrix
+            w_xval = w_temp_red(xval_sta_list,xval_sta_list)
+            !create transposed matrices for least squares
+            tx_xval  = transpose(x_xval)
+            twx_xval = matmul(tx_xval,w_xval)
+
+            call least_squares(x_xval,y_xval,twx_xval,B)
+            !regression precip
+            var_tmp = real(dot_product(Z_reg,B),kind(sp))
+            !running error total
+            errsum = errsum + (var_tmp - tmean(g,t))**2
           end do
           tmean_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+!  print *,'kfold tmean:',tmean_err(g,t)
+!  print *,'npredict:',nPredict,', ktrials:',kfold_trials,', khold:',kfold_hold
+
+!          errsum = 0.0
+!          wgtsum = 0.0
+!          do i = 1, (close_count_t(g)-1), 1
+!            wgtsum = wgtsum + w_temp_red (i, i)
+!            errsum = errsum + (w_temp_red(i, i)*(tmean(g, t)-y_tmean_red(i))**2)
+!          end do
+!          tmean_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+!   print *,'v1:',tmean_err(g,t)
           deallocate (b)
 
           ! regression without slope
@@ -1039,6 +1161,13 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           deallocate(twx_red_2)
           allocate(tx_red_2(nPredict-2, sta_limit))
           allocate(twx_red_2(nPredict-2, sta_limit))
+
+          deallocate(x_xval)
+          deallocate(tx_xval)
+          deallocate(twx_xval)
+          allocate(x_xval(kfold_nsamp-kfold_hold,nPredict-2))
+          allocate(tx_xval(nPredict-2,kfold_nsamp-kfold_hold))
+          allocate(twx_xval(nPredict-2,kfold_nsamp-kfold_hold))
 
           ! AWW note that these use the 2nd set of T* variables
           tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
@@ -1049,11 +1178,47 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           errsum = 0.0
           wgtsum = 0.0
-          do i = 1, (close_count_t(g)-1), 1
-            wgtsum = wgtsum + w_temp_red (i, i)
-            errsum = errsum + (w_temp_red(i, i)*(tmean_2(g, t)-y_tmean_red(i))**2)
+          !run through kfold cross-val to determine uncertainty
+          !k is set by user in configuration file. limits: [10-30]
+          !number of stations witheld also set by user in config file. limits [1-10]
+          !should the truth be the full regression and the kfold is compared against that? possibly...
+          do i = 1,kfold_trials
+            !current kfold trial sampling combination
+            xval_sta_list = xval_combinations(i,:)
+            !create a zero padded vector of above
+            xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
+
+            !find withheld stations
+            tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
+            withheld_sta_list = tmp_inds(1:kfold_hold)
+!             !create weight sum of in regression station weights
+!              wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+
+            wgtsum = wgtsum + 1.0  !treat each kfold trial equally
+
+            !station predictor array
+            x_xval = x_red_t(xval_sta_list,noSlopePredicts)
+            !station values
+            y_xval = y_tmean_red(xval_sta_list)
+            !station diagonal weight matrix
+            w_xval = w_temp_red(xval_sta_list,xval_sta_list)
+            !create transposed matrices for least squares
+            tx_xval  = transpose(x_xval)
+            twx_xval = matmul(tx_xval,w_xval)
+
+            call least_squares(x_xval,y_xval,twx_xval,B)
+            !regression precip
+            var_tmp = real(dot_product(Z_reg(noSlopePredicts),B),kind(sp))
+            !running error total
+            errsum = errsum + (var_tmp - tmean_2(g,t))**2
           end do
           tmean_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+
+!          do i = 1, (close_count_t(g)-1), 1
+!            wgtsum = wgtsum + w_temp_red (i, i)
+!            errsum = errsum + (w_temp_red(i, i)*(tmean_2(g, t)-y_tmean_red(i))**2)
+!          end do
+!          tmean_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
 
           ! ===== NOW do TRANGE ============
@@ -1065,6 +1230,13 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           allocate(tx_red(nPredict, sta_limit))
           allocate(twx_red(nPredict, sta_limit))
 
+          deallocate(x_xval)
+          deallocate(tx_xval)
+          deallocate(twx_xval)
+          allocate(x_xval(kfold_nsamp-kfold_hold,nPredict))
+          allocate(tx_xval(nPredict,kfold_nsamp-kfold_hold))
+          allocate(twx_xval(nPredict,kfold_nsamp-kfold_hold))
+
           ! AWW note that these use the 1st set of T* variables
           tx_red = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
@@ -1074,11 +1246,54 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           errsum = 0.0
           wgtsum = 0.0
-          do i = 1, (close_count_t(g)-1), 1
-            wgtsum = wgtsum + w_temp_red (i, i)
-            errsum = errsum + (w_temp_red(i, i)*(trange(g, t)-y_trange_red(i))**2)
+          !run through kfold cross-val to determine uncertainty
+          !k is set by user in configuration file. limits: [10-30]
+          !number of stations witheld also set by user in config file. limits [1-10]
+          !should the truth be the full regression and the kfold is compared against that? possibly...
+          do i = 1,kfold_trials
+            !current kfold trial sampling combination
+            xval_sta_list = xval_combinations(i,:)
+            !create a zero padded vector of above
+            xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
+
+            !find withheld stations
+            tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
+            withheld_sta_list = tmp_inds(1:kfold_hold)
+!             !create weight sum of in regression station weights
+!              wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+
+            wgtsum = wgtsum + 1.0  !treat each kfold trial equally
+
+            !station predictor array
+            x_xval = x_red_t(xval_sta_list,:)
+            !station values
+            y_xval = y_trange_red(xval_sta_list)
+            !station diagonal weight matrix
+            w_xval = w_temp_red(xval_sta_list,xval_sta_list)
+            !create transposed matrices for least squares
+            tx_xval  = transpose(x_xval)
+            twx_xval = matmul(tx_xval,w_xval)
+
+            call least_squares(x_xval,y_xval,twx_xval,B)
+            !regression precip
+            var_tmp = real(dot_product(Z_reg,B),kind(sp))
+            !running error total
+            errsum = errsum + (var_tmp - trange(g,t))**2
           end do
           trange_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+!  print *,'kfold trange:',trange_err(g,t)
+!  print *,'npredict:',nPredict,', ktrials:',kfold_trials,', khold:',kfold_hold
+
+
+!          errsum = 0.0
+!          wgtsum = 0.0
+
+!          do i = 1, (close_count_t(g)-1), 1
+!            wgtsum = wgtsum + w_temp_red (i, i)
+!            errsum = errsum + (w_temp_red(i, i)*(trange(g, t)-y_trange_red(i))**2)
+!          end do
+!          trange_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+!   print *,'v1:',trange_err(g,t)
           deallocate (b)
 
           ! --- regression without slope ---
@@ -1087,6 +1302,13 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           deallocate(twx_red_2)
           allocate(tx_red_2(nPredict-2, sta_limit))
           allocate(twx_red_2(nPredict-2, sta_limit))
+
+          deallocate(x_xval)
+          deallocate(tx_xval)
+          deallocate(twx_xval)
+          allocate(x_xval(kfold_nsamp-kfold_hold,nPredict-2))
+          allocate(tx_xval(nPredict-2,kfold_nsamp-kfold_hold))
+          allocate(twx_xval(nPredict-2,kfold_nsamp-kfold_hold))
 
           ! AWW note that these use the 2nd set of T* variables
           tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
@@ -1097,12 +1319,48 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           errsum = 0.0
           wgtsum = 0.0
-          do i = 1, (close_count_t(g)-1), 1
-            wgtsum = wgtsum + w_temp_red (i, i)
-            sta_temp = real (dot_product(x_red_t(i, noSlopePredicts), b), kind(sp))
-            errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)
+          !run through kfold cross-val to determine uncertainty
+          !k is set by user in configuration file. limits: [10-30]
+          !number of stations witheld also set by user in config file. limits [1-10]
+          !should the truth be the full regression and the kfold is compared against that? possibly...
+          do i = 1,kfold_trials
+            !current kfold trial sampling combination
+            xval_sta_list = xval_combinations(i,:)
+            !create a zero padded vector of above
+            xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
+
+            !find withheld stations
+            tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
+            withheld_sta_list = tmp_inds(1:kfold_hold)
+!             !create weight sum of in regression station weights
+!              wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
+
+            wgtsum = wgtsum + 1.0  !treat each kfold trial equally
+
+            !station predictor array
+            x_xval = x_red_t(xval_sta_list,noSlopePredicts)
+            !station values
+            y_xval = y_trange_red(xval_sta_list)
+            !station diagonal weight matrix
+            w_xval = w_temp_red(xval_sta_list,xval_sta_list)
+            !create transposed matrices for least squares
+            tx_xval  = transpose(x_xval)
+            twx_xval = matmul(tx_xval,w_xval)
+
+            call least_squares(x_xval,y_xval,twx_xval,B)
+            !regression precip
+            var_tmp = real(dot_product(Z_reg(noSlopePredicts),B),kind(sp))
+            !running error total
+            errsum = errsum + (var_tmp - trange_2(g,t))**2
           end do
+
+!          do i = 1, (close_count_t(g)-1), 1
+!            wgtsum = wgtsum + w_temp_red (i, i)
+!            sta_temp = real (dot_product(x_red_t(i, noSlopePredicts), b), kind(sp))
+!            errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)
+!          end do
           trange_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+
           deallocate (b)  !AWW-seems to be missing
 
         else ! alternative to having (ndata_t <= 1)

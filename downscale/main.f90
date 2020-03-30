@@ -91,7 +91,7 @@ program gmet
 
     subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
    & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
+   & stnid, stnvar, directory, kfold_trials, kfold_hold, pcp, pop, pcperr, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
       use type
@@ -110,6 +110,8 @@ program gmet
       character (len=100), intent (in) :: stnid (:)
       character (len=100), intent (in) :: stnvar
       character (len=500), intent (in) :: directory
+      integer(I4B), intent(in)          :: kfold_trials        !number of kfold xval trials
+      integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
       real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
       real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
@@ -153,7 +155,7 @@ program gmet
   ! === end of interface, start the program ====
  
   character (len=100) :: config_file
-  integer, parameter  :: nconfigs = 24
+  integer, parameter  :: nconfigs = 26
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
@@ -200,7 +202,9 @@ program gmet
   real (dp), allocatable :: grad_e (:, :)
   real (dp), allocatable :: mask (:, :)
  
- 
+  integer(I4B)           :: kfold_trials        !number of kfold xval trials
+  integer(I4B)           :: kfold_hold          !number of stations to withhold from regression
+
   real (dp), allocatable :: x (:, :), z (:, :)
   integer :: ngrid
  
@@ -455,6 +459,22 @@ program gmet
       stop
     end if
 
+    !grab kfold cross validation config parameters
+    call value(config_values(25), kfold_trials, error)  ! convert config str to number
+    call value(config_values(26), kfold_hold,   error)  ! convert config str to number
+
+    !check kfold values
+    !limit number of trial as 10-30
+    if(kfold_trials .gt. 30 .or. kfold_trials .lt. 10) then
+      print *,'Error:  K-fold trials limited to range of 10-30 trials'
+      stop
+    end if
+    !limit number of stations withheld to 1-10
+    if(kfold_hold .gt. 10 .or. kfold_hold .lt. 1) then
+      print *,'Error:  K-fold station withholding limited to range of 1-10 stations withheld'
+      stop
+    end if
+
     ! allocate 1-d grid variables
     print*, "allocating vector variables matching grids of nx= ",nx," by ny= ",ny
     allocate (grdlat(nx*ny))
@@ -517,7 +537,7 @@ program gmet
  
     call estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
    & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
+   & stnid, station_var, directory, kfold_trials, kfold_hold, pcp, pop, pcperror, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
    & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
     if (error /= 0) then

@@ -1,4 +1,4 @@
-module combination
+module combination_routines
   use iso_fortran_env
   use type
   implicit none 
@@ -48,24 +48,25 @@ contains
 
     !local variables
     integer(I4B)   :: hm,s,kx
-    integer*8 :: i,j,ix,t
+    integer*8 :: i,ix,t
     integer(I4B) :: err
 
 !    hm = choose(n,k,err)
+    err = 0
     hm = nk
     if(err /= 0) then
       return
     end if
 
-    do i = 0,hm-1
-      ix = (i)*(choose(n,k)/hm)
+    do i = 1,hm
+      ix = (i)*(choose(n,k)/hm)-1
 !      ix = (choose(n,k))-1-i
       kx = k
       do s = 0, n-1
         if (kx == 0) exit
         t = choose(n-(s+1),kx-1)
         if(ix < t) then
-          co(i,kx-1) = s
+          co(i,kx) = s+1
           kx = kx -1
         else
           ix = ix - t
@@ -75,4 +76,4 @@ contains
 
   end subroutine comb
 
-end module combination
+end module combination_routines
