@@ -36,7 +36,9 @@ GMET_SUB = \
     $(KOREDIR)/regression_routines.f90 \
     $(KOREDIR)/station_weights.f90 \
     $(KOREDIR)/estimate_coefficients.f90 \
-    $(KOREDIR)/estimate_forcing_regression.f90
+    $(KOREDIR)/estimate_forcing_regression.f90 \
+    $(KOREDIR)/estimate_climo_regression.f90 \
+    $(KOREDIR)/estimate_climo_anom_regression.f90
 
 # Define the driver routine
 DRIVER = $(KOREDIR)/main.f90
