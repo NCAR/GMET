@@ -64,7 +64,7 @@ prob_qpe= \
 		precmod.f90 \
 		stringmod.f90 \
 		save_precip.f90 \
-		save_vars_tgq.f90 \
+		save_vars.f90 \
 		read_nc_grid.f90 \
 		read_grid_list.f90
 qpe = $(patsubst %, $(F_SRC_DIR)/%, $(prob_qpe))
@@ -103,11 +103,11 @@ FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=b
 
 # Define the driver routine
 SCRF_DRIVER= \
-	generate_ensembles_tgq.f90
+	generate_ensembles.f90
 DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SCRF_DRIVER))
 
 # name of executable
-EXE = generate_ensemble_tgq.exe
+EXE = generate_ensemble.exe
 
 #========================================================================
 # PART 3: Checks
