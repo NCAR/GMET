@@ -61,12 +61,16 @@ DATAMS = $(patsubst %, $(MOD_DIR)/%, $(SCRF_DATAMS))
 
 # Routines taken from or modifed versions of Jason Craig's old Prob QPE code
 prob_qpe= \
+		utim.f90 \
 		precmod.f90 \
 		stringmod.f90 \
 		save_precip.f90 \
 		save_vars.f90 \
 		read_nc_grid.f90 \
-		read_grid_list.f90
+		read_grid_list.f90 \
+		read_climo_precip.f90 \
+		read_climo_temp.f90 \
+		read_climo_uncertainty.f90
 qpe = $(patsubst %, $(F_SRC_DIR)/%, $(prob_qpe))
 
 # Define routines for SCRF code
