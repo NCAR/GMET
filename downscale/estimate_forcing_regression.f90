@@ -322,7 +322,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   allocate(w_pcp_red_loocv(sta_limit-1,sta_limit-1))
   allocate(x_red_t_loocv(sta_limit-1,xsize))
   allocate(w_temp_red_loocv(sta_limit-1,sta_limit-1))
-  allocate(Y_tmean_red_loocv(sta_limit),Y_trange_red_loocv(sta_limit))
+  allocate(Y_tmean_red_loocv(sta_limit-1),Y_trange_red_loocv(sta_limit-1))
   allocate(tmp_weight_arr(sta_limit,sta_limit))
 
 

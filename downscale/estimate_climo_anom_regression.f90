@@ -317,7 +317,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
   allocate(w_pcp_red_loocv(sta_limit-1,sta_limit-1))
   allocate(x_red_t_loocv(sta_limit-1,xsize))
   allocate(w_temp_red_loocv(sta_limit-1,sta_limit-1))
-  allocate(Y_tmean_red_loocv(sta_limit),Y_trange_red_loocv(sta_limit))
+  allocate(Y_tmean_red_loocv(sta_limit-1),Y_trange_red_loocv(sta_limit-1))
   allocate(tmp_weight_arr(sta_limit,sta_limit))
 
   ! initializations
@@ -605,7 +605,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
             twx_red = matmul (tx_red, w_pcp_red)
             call logistic_regression (x_red(:,1:3), y_red, twx_red, yp_red, b) ! AJN
 
-            if(-dot_product(Z(g,:),B) < 25.) then
+            if(-dot_product(Z(g,1:3),B) < 25.) then
               pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:3), b))), kind(sp))
             else
               POP(g,t) = 0.0
@@ -676,7 +676,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t(:,1:3), y_tmean_red, twx_red, b)
 
-          tmean (g, t) = real (dot_product(z(g, :), b), kind(sp))
+          tmean (g, t) = real (dot_product(z(g, 1:3), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
@@ -711,7 +711,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t(:,1:3), y_trange_red, twx_red, b)
 
-          trange (g, t) = real (dot_product(z(g, :), b), kind(sp))
+          trange (g, t) = real (dot_product(z(g, 1:3), b), kind(sp))
 
           errsum = 0.0
           wgtsum = 0.0
