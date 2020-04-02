@@ -194,6 +194,19 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       real (dp), dimension (:), intent (inout) :: ra
     end subroutine heapsort
 
+    subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combinations,varUncert)
+      use type
+      implicit none
+      !inputs/outputs 
+      real(dp), intent(in)      :: X(:,:)                    ! full station attribute array
+      real(dp), intent(in)      :: Y(:)                    ! full station variable value vector  
+      real(dp), intent(in)      :: W(:,:)                  ! full station diagonal weight matrix
+      integer(I4B), intent(in)  :: kfold_trials            ! number of kfold xval trials
+      integer(I4B), intent(in)  :: kfold_nsamp             ! number of samples to draw from
+      integer(I4B), intent(in)  :: kfold_hold              ! number of stations to withhold from regression
+      integer(I4B), intent(in)  :: xval_combinations(:,:)  ! array of sampling combinations (integer array indicies)
+      real(sp), intent(out)     :: varUncert               ! output: uncertainty estimate from kfold trials
+    end subroutine kfold_crossval
   end interface
   ! =========== end interfaces, start code =============
 
@@ -332,7 +345,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   real(dp), allocatable     :: y_xval(:)                 ! station obs vector for kfold xval
   real(dp), allocatable     :: tx_xval(:,:)              ! transposed station predictor array for kfold xval
   real(dp), allocatable     :: twx_xval(:,:)             ! transposed matmul(tx,w) array for kfold xval
-  real(dp), allocatable     :: w_xval(:,:)           ! diagonal weight matrix for kfold xval
+  real(dp), allocatable     :: w_xval(:,:)               ! diagonal weight matrix for kfold xval
   real(dp)                  :: var_tmp
 
   !==============================================================!
@@ -642,8 +655,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
 
     ! -------- loop through all grid cells for a given time step --------
-    do g = 1, ngrid, 1
-!    do g = 2524,2524, 1
+!    do g = 1, ngrid, 1
+    do g = 2524,2524, 1
       ! call system_clock(tg1,count_rate)
 
       deallocate (twx_red)
@@ -956,7 +969,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 !             !create weight sum of in regression station weights
 !              wgtsum = wgt_sum + sum(w_pcp_1d(xval_sta_list))
 
-              wgtsum = wgtsum + 1.0  !treat each kfold trial equally
+!              wgtsum = wgtsum + 1.0  !treat each kfold trial equally
+              wgtsum = wgtsum + sum(w_pcp_1d(withheld_sta_list))
 
               !station predictor array
               x_xval = x_red(xval_sta_list,:)
@@ -968,26 +982,38 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
               tx_xval  = transpose(x_xval)
               twx_xval = matmul(tx_xval,w_xval)
 
-              call least_squares(x_xval,y_xval,twx_xval,B)
-              !regression precip
-              var_tmp = real(dot_product(Z_reg,B),kind(sp))
+!              call least_squares(x_xval,y_xval,twx_xval,B)
+!              !regression precip
+!              var_tmp = real(dot_product(Z_reg,B),kind(sp))
               !running error total
-              errsum = errsum + (var_tmp - pcp(g,t))**2
+!              errsum = errsum + (var_tmp - pcp(g,t))**2
+              do j = 1,kfold_hold
+                call least_squares(x_xval,y_xval,twx_xval,B)
+                !regression precip
+                var_tmp = real( dot_product( x_red(withheld_sta_list(j),:),B ), kind(sp) )
+                !error total
+                errsum = errsum + w_pcp_1d(withheld_sta_list(j))*(var_tmp - y_red(withheld_sta_list(j)))**2
+              end do
             end do
             !mean uncertainty estimate from all kfold trials
             pcperr(g,t) = real((errsum/wgtsum)**(1.0/2.0),kind(sp))
-!  print *,'kfold:',pcperr(g,t)
-!  print *,'npredict:',nPredict,', ktrials:',kfold_trials,', khold:',kfold_hold
+  print *,'kfold:',pcperr(g,t)
+  print *,'npredict:',nPredict,', ktrials:',kfold_trials,', khold:',kfold_hold
+  print *,wgtsum,errsum
+            call kfold_crossval(x_red,y_red,w_pcp_red,kfold_trials,kfold_nsamp,kfold_hold,xval_combinations,pcperr(g,t)) 
 
-!            wgtsum = 0.0
-!            errsum = 0.0
-!            do i = 1, (close_count(g)-1), 1
-!              wgtsum = wgtsum + w_pcp_red (i, i)
-!              errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)
-!            end do
-!
-!            pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
-!   print *,'v1:',pcperr(g,t)
+  print *,'kfold subroutine:',pcperr(g,t)
+
+            wgtsum = 0.0
+            errsum = 0.0
+            do i = 1, (close_count(g)-1), 1
+              wgtsum = wgtsum + w_pcp_red (i, i)
+              errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)
+            end do
+
+            pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
+   print *,'v1:',pcperr(g,t)
+
           end if
 
           deallocate (b)  !AWW-seems to be missing
