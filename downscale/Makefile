@@ -6,9 +6,9 @@
 
 EXE = downscale.exe
 
-FC = gfortran
+#FC = gfortran
 #FC = pgf90
-#FC = ifort
+FC = ifort
 
 # flags for debugging or for maximum performance, comment as necessary
 
@@ -69,8 +69,7 @@ ifeq ($(FC),ifort)
         INCNETCDF = -I$(NCDF_PATH)/include
 
         # libraries needed for linking, unused in the examples
-#       LDLOCAL = -rpath,/usr/local/netcdf-4.1.1/pgi-v11-7/lib
-#       LDFLAGS = $(LDLOCAL) -L/usr/local/netcdf4-pgi/lib -lnetcdff -lnetcdf
+#       LDFLAGS = $(LDLOCAL) -L/usr/local/netcdf4-intel/lib -lnetcdff -lnetcdf
 
         LDFLAGS = $(LIBNETCDF) $(INCNETCDF) 
 
@@ -85,14 +84,18 @@ $(EXE):	type.o \
 	string_mod.o \
 	numrec.o \
 	utim.o \
+        combination_routines.o \
 	read_config.o \
 	read_control.o \
 	read_nc.o \
+        station_grid_correspondence.o \
+        read_nwp.o \
 	read_domain_grid.o \
 	write_nc.o \
         stats_routines.o \
         regression_routines.o \
         station_weights.o \
+        kfold_crossval.o \
         estimate_coefficients.o \
         estimate_forcing_regression.o \
 	main.o
