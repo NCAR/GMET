@@ -89,11 +89,13 @@ program gmet
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
 
-    subroutine estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+    subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
       use type
+      character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
+      character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
       real (dp), intent (in) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
       integer (i4b), intent (in) :: ngrid
@@ -145,7 +147,7 @@ program gmet
   ! === end of interface, start the program ====
  
   character (len=100) :: config_file
-  integer, parameter  :: nconfigs = 18 !modified AWW Feb 2016
+  integer, parameter  :: nconfigs = 20 
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
@@ -157,9 +159,14 @@ program gmet
   character (len=100), allocatable :: file_var (:), var_name (:)
   character (len=100), allocatable :: stnid (:), stnname (:)
   character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
+
+  character (len = 500) :: gen_sta_weights     ! flag for generating station weight file
+  character (len = 500) :: sta_weight_name     ! name of station weight file
  
   character (len=2000) :: arg !command line arg for configuration file
- 
+  character (len=2000) :: output_file_tmp !temporary output file name
+  character (len=2000) :: sys_str !string for system commands
+
   integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
   integer :: nstations, lenfile
  
@@ -239,6 +246,23 @@ program gmet
   directory      = config_values(16)
   stn_startdate  = config_values(17)
   stn_enddate    = config_values(18)
+  gen_sta_weights= config_values(19)
+  sta_weight_name= config_values(20)
+
+  !check to see if output file path is valid
+  !create the output file and see if an error occurs
+  output_file_tmp = trim(output_file) // ".txt"
+  open(unit=34,file=trim(output_file_tmp),form='unformatted',iostat=error)
+    
+  !check to see if it was created
+  if(error /= 0) then
+    print *, "Error: Output path is not valid." 
+    print *, trim(output_file_tmp), " cannot be created in output directory"
+    stop
+  else
+    sys_str = "rm " // trim(output_file_tmp)
+    call system(sys_str)
+  end if
  
   ! print *,trim(site_var_t),' ',trim(site_var)
  
@@ -461,7 +485,7 @@ program gmet
     allocate (y_max(ngrid, ntimes))
     allocate (y_min(ngrid, ntimes))
  
-    call estimate_forcing_regression (x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+    call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
    & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)

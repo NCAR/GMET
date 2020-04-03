@@ -64,9 +64,7 @@ ifeq ($(FC),ifort)
 #       FCFLAGS += -I/usr/local/netcdf4-pgi/include
 #       FCFLAGS += -I/opt/netcdf4-ifort/include
 
-        NCDF_PATH = /opt/netcdf4
-#        NCDF_PATH = /opt/netcdf4-intel
-#        NCDF_PATH = /opt/netcdf4-4.3.3.1
+        NCDF_PATH = /opt/netcdf4-intel
         LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf  -L/opt/hdf5/lib 
         INCNETCDF = -I$(NCDF_PATH)/include
 
@@ -94,6 +92,7 @@ $(EXE):	type.o \
 	write_nc.o \
         stats_routines.o \
         regression_routines.o \
+        station_weights.o \
         estimate_coefficients.o \
         estimate_forcing_regression.o \
 	main.o
@@ -104,4 +103,4 @@ $(EXE):	type.o \
 	$(FC) $(FCFLAGS) $(LDFLAGS) -c $<
 
 clean:
-	rm -f *.o *.mod *.MOD
+	rm -f *.o *.mod *.MOD *genmod.f90
