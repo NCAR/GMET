@@ -278,7 +278,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
 
-  integer(I4B)  :: nBase  !number of geophysical predictors
+  integer(I4B)  :: nBase                                   ! number of geophysical predictors
+  integer(I4B)  :: prcpPredictInd                          ! index of precipitation predictor in predictor vector
   integer(I4B),allocatable  :: noSlopePredicts(:)
   integer(I4B),allocatable  :: noPrcpPredicts(:)
   integer(I4B),allocatable  :: noPrcpNoSlopePredicts(:)
@@ -578,6 +579,9 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   !create predictor set without precipitation if it is used
   if(trim(nwp_prcp_var) .eq. "") no_precip = .true.
   if(.not. no_precip) then
+    do i = 1,n_nwp,1
+      if(nwp_vars(i) .eq. nwp_prcp_var) prcpPredictInd = i+nBase
+    enddo
     cnt = 1
     do i = 1,n_nwp,1
       if(nwp_vars(i) .ne. nwp_prcp_var) then
@@ -626,6 +630,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
     ! -------- loop through all grid cells for a given time step --------
     do g = 1, ngrid, 1
+!   do g = 2524,2524,1
       ! call system_clock(tg1,count_rate)
 
       deallocate (twx_red)
@@ -793,29 +798,34 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           twx_red = matmul (transpose(x_red), w_pcp_red)
           tmp = matmul (twx_red, x_red)
           vv = maxval (abs(tmp), dim=2)
+!   print *,'vv:',vv
           !full predictor set is badly behaved
           if (any(vv == 0.0)) then
             !drop precipitation
             drop_precip = .true.
+!    print *,'stats',nPredict,'ns',noSlopePredicts,'np',noPrcpPredicts, 'nps', noPrcpNoSlopePredicts
             !redefine reduced station predictor arrays
             tmp_x_red = x_red
             deallocate(x_red)
             !reallocate x_red
             allocate(x_red(sta_limit, xsize-1))
-            x_red = x_red(:,noPrcpPredicts)
+            x_red = tmp_x_red(:,noPrcpPredicts)
             !x_red_t
             tmp_x_red = x_red_t
             deallocate(x_red_t)
             allocate(x_red_t(sta_limit,xsize-1))
-            x_red_t = x_red_t(:,noPrcpPredicts)
+            x_red_t = tmp_x_red(:,noPrcpPredicts)
 
             !create final Z array (grid predictors) for regressions
             Z_reg = Z(g,noPrcpPredicts)
             !update nPredict
             nPredict = nPredict - 1
             !update noSlopePredicts
+            where(noPrcpNoSlopePredicts > prcpPredictInd) noPrcpNoSlopePredicts = noPrcpNoSlopePredicts - 1
             noSlopePredicts = noPrcpNoSlopePredicts
           end if
+!    print *,'stats',nPredict,'ns',noSlopePredicts,'nps',noPrcpNoSlopePredicts
+
         end if
         ! ========= Precip & temp are processed sequentially, again ===========
         ! this is the start of the PRECIP processing block ---
