@@ -236,25 +236,26 @@ program gmet
     stop
   end if
  
-  startdate      = config_values(2)
-  enddate        = config_values(3)
-  site_list      = config_values(4)
-  site_var       = config_values(5)
-  station_var    = config_values(6)
-  output_file    = config_values(12)
-  site_var_t     = config_values(15)
-  directory      = config_values(16)
-  stn_startdate  = config_values(17)
-  stn_enddate    = config_values(18)
-  gen_sta_weights= config_values(19)
-  sta_weight_name= config_values(20)
+  ! store rest of config file values (ordered)
+  startdate       = config_values(2)
+  enddate         = config_values(3)
+  site_list       = config_values(4)
+  site_var        = config_values(5)
+  station_var     = config_values(6)
+  output_file     = config_values(12)
+  site_var_t      = config_values(15)
+  directory       = config_values(16)
+  stn_startdate   = config_values(17)
+  stn_enddate     = config_values(18)
+  gen_sta_weights = config_values(19)
+  sta_weight_name = config_values(20)
 
-  !check to see if output file path is valid
-  !create the output file and see if an error occurs
+  ! check to see if output file path is valid
+  ! create the output file and see if an error occurs
   output_file_tmp = trim(output_file) // ".txt"
   open(unit=34,file=trim(output_file_tmp),form='unformatted',iostat=error)
     
-  !check to see if it was created
+  ! check to see if it was created
   if(error /= 0) then
     print *, "Error: Output path is not valid." 
     print *, trim(output_file_tmp), " cannot be created in output directory"
@@ -288,17 +289,19 @@ program gmet
   !   not all have to be the same lengths
 
   ! --- station data start and end utimes are now derived from config file dates
-  st_stndata_utime = date_to_unix (stn_startdate) ! returns secs-since-1970 for st date of station files
+  st_stndata_utime  = date_to_unix (stn_startdate) ! returns secs-since-1970 for st date of station files
   end_stndata_utime = date_to_unix (stn_enddate)  ! returns secs-since-1970 for end date of station files
 
   ! calculate start & end recs for processing station data files 
-  st_rec = floor ((times(1)-st_stndata_utime)/86400) + 1
-  end_rec = floor ((times(ntimes)-st_stndata_utime)/86400) + 1
+  st_rec  = floor((times(1)-st_stndata_utime)/86400) + 1
+  end_rec = floor((times(ntimes)-st_stndata_utime)/86400) + 1
   print *, 'st_rec and end_rec days since 1970/1/1: ', st_rec, end_rec
   ! --- end AWW add ---
  
  
   ! === CHOOSE BETWEEN MODE 1 and MODE 2 ====
+  !   1) ens. source is gridded variables
+  !   2) ens. source is station data
   if (mode == 1) then
 
     ! =================== Ensemble Source Is Gridded Model Variables =================
@@ -394,6 +397,8 @@ program gmet
     !   an internal subroutine wants them and may use them in the future
     !   also Mode 1 has not be used much with this program, and may be removed as it's been 
     !   superceded by GARD
+    !   lastly some of the subroutines (eg save_coefficients & estimate_coefficients are 
+    !   now duplicated by the save... and estimate... routines called in mode2
  
   else if (mode == 2) then
  
@@ -418,13 +423,13 @@ program gmet
     ! read grid domain file 
     grid_list = config_values (13)
     if (len(trim(grid_list)) == 0) then
-      print *, "ERROR: Failed to read GRID_LIST name"
+      print *, "ERROR: Failed to read GRID_LIST (domain grid) name"
       stop
     end if
 
     call read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
     if(error /= 0) then
-      print *, "ERROR: Failed to read station list ... quitting", error
+      print *, "ERROR: Failed to read domain grid ... quitting", error
       stop
     end if
 
@@ -462,21 +467,6 @@ program gmet
     z(:, 5) = grd_slp_n (:)
     z(:, 6) = grd_slp_e (:)
  
-    !       call get_time_list(startdate, enddate, Times)
-    !	ntimes = size(Times)
-    !        print *,'startdate=',startdate,'enddate=',enddate,'ntimes=',ntimes
-  
-    ! -- AWW:  translate times to a start and end record for station files
-    !        st_stndata_utime = date_to_unix('19800101')   ! returns secs-since-1970 for enddate of stn files
-                                                       ! hardwired for testing
-    !        end_stndata_utime = date_to_unix('20141231')   ! returns secs-since-1970 for enddate of stn files
-                                                       ! hardwired for testing
-    !        st_rec  = FLOOR((Times(1) - st_stndata_utime)/86400) + 1
-    !        end_rec = FLOOR((Times(ntimes) - st_stndata_utime)/86400) + 1
-    !        print*, 'st_rec and end_rec =', st_rec, end_rec
-    ! -- AWW:  end addition
- 
-    ! modified AJN Sept 2013
     allocate (mean_autocorr(ntimes))
     allocate (mean_tp_corr(ntimes))
     allocate (y_mean(ngrid, ntimes))
@@ -496,8 +486,6 @@ program gmet
  
     print *, 'Creating output file'
  
-    ! call save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
-
     call save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, nx, &
    & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
    & y_min, y_max, output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
