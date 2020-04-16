@@ -467,7 +467,7 @@ subroutine estimate_climo_anom_regression (gen_sta_weights, sta_weight_name, x, 
     do i = 1, nstns, 1
       y (i) = prcp_data (i, t)
       y_tmean (i) = (tair_data(1, i, t)+tair_data(2, i, t)) / 2.0d0
-      y_trange (i) = abs (tair_data(2, i, t)-tair_data(1, i, t))
+      y_trange (i) = tair_data(2, i, t)-tair_data(1, i, t)
     end do
 
     ! do power transformation on precip vector (AWW: consider alternate transforms)
