@@ -53,3 +53,6 @@ scripts/
 
 # not a devel code dir
 downscale/alt/
+
+# don't update main Makefile; use Makefile-local
+Makefile-*
