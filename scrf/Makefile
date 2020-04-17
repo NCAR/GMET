@@ -5,15 +5,16 @@
 #    Andy Newman, 2013
 #    A. Wood, 2016 -- updated random initialization procedures and
 #                     namelist usage
-#                     a modified version of NR ran_state.f90 moved to 
+#                     renamed many subroutines in code reorganizaton
+#                     a modified version of NR ran_state.f90 moved to
 #                     main directory
 #
 #========================================================================
 # PART 0: Define directory paths
 #========================================================================
 
-# Define core directory below which everything resides
-F_MASTER = /home/hydrofcst/overtheloop/methods/GMET
+# Define core directory below which everything resides (GMET/ dir)
+F_MASTER =
 
 # Core directory that contains source code
 F_SRC_DIR = $(F_MASTER)/scrf
@@ -110,7 +111,7 @@ ifeq "$(FC)" "gfortran"
    NCDF_PATH = /opt/netcdf-4.7.0/gcc-6.3.0/
    LOCL_PATH = /usr/local
    LDLOCAL = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib/
-   LIBNETCDF = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib/ -L/opt/netcdf-4.7.0/gcc-6.3.0/lib/ -lnetcdf -lnetcdff 
+   LIBNETCDF = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib/ -L/opt/netcdf-4.7.0/gcc-6.3.0/lib/ -lnetcdf -lnetcdff
    INCNETCDF = -I/opt/netcdf-4.7.0/gcc-6.3.0/include
 endif
 ifeq "$(FC)" "ifort"
@@ -191,7 +192,7 @@ link:
 #	$(FC) -fPIC -rpath,/opt/netcdf4-pgi/lib -I./ $(LIBNETCDF) -o $(DRIVER__EX) *.o 
 #	$(FC) -fPIC -rpath,$(NCDF_PATH)/lib -I./ $(LIBNETCDF) -o $(DRIVER__EX) *.o 
 #	$(FC) $(FLAGS) $(LIBNETCDF) $(LDFLAGS) $(INCNETCDF) -o $(DRIVER__EX) *.o 
-	$(FC) $(FLAGS) $(LIBNETCDF)  -o $(DRIVER__EX) *.o 
+	$(FC) $(FLAGS) $(LIBNETCDF)  -o $(DRIVER__EX) *.o
 
 
 # Remove object files
