@@ -1,0 +1,62 @@
+# ============= Makefile for downscaling program ======================
+
+# NOTE: first link one numrec.f file needed into this directory if not present
+#  eg, ln -s ../from_NR/numrec.f90
+
+# name of executable
+EXE = downscale.exe
+
+# core directory
+KOREDIR = /Users/localuser/Github/GMET/downscale
+
+# fortran compiler
+FC = gfortran
+
+# NetCDF libraries
+PATHNETCDF = /usr/local/Cellar/netcdf/4.6.3_1
+LIBNETCDF = -L$(PATHNETCDF)/lib -lnetcdff
+INCNETCDF = -I$(PATHNETCDF)/include
+
+# define compiler flags
+FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+
+# define subroutines
+GMET_SUB = \
+  $(KOREDIR)/type.f90 \
+  $(KOREDIR)/precmod.f90 \
+  $(KOREDIR)/string_mod.f90 \
+  $(KOREDIR)/numrec.f90 \
+  $(KOREDIR)/utim.f90 \
+  $(KOREDIR)/read_config.f90 \
+  $(KOREDIR)/read_control.f90 \
+  $(KOREDIR)/read_nc.f90 \
+  $(KOREDIR)/read_domain_grid.f90 \
+  $(KOREDIR)/write_nc.f90 \
+    $(KOREDIR)/stats_routines.f90 \
+    $(KOREDIR)/regression_routines.f90 \
+    $(KOREDIR)/station_weights.f90 \
+    $(KOREDIR)/estimate_coefficients.f90 \
+    $(KOREDIR)/estimate_forcing_regression.f90 \
+    $(KOREDIR)/estimate_climo_regression.f90 \
+    $(KOREDIR)/estimate_climo_anom_regression.f90
+
+# Define the driver routine
+DRIVER = $(KOREDIR)/main.f90
+
+# Compile
+
+# tasks
+all: compile install clean
+
+# compile
+compile:
+	$(FC) $(FLAGS) $(GMET_SUB) $(DRIVER) \
+	$(LIBNETCDF) $(INCNETCDF) -o $(EXE)
+
+install:
+
+# Remove object files
+clean:
+	@rm -f *.o
+	@rm -f *.mod
+	@rm -f *__genmod.f90

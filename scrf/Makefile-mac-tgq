@@ -1,0 +1,152 @@
+# ============= Makefile for srcf program ======================
+#=========================================================================
+# PART 0: Define directory paths
+#========================================================================
+
+# Define core directory below which everything resides
+F_MASTER = /Users/localuser/Github/GMET
+
+# Core directory that contains source code
+F_SRC_DIR = $(F_MASTER)/scrf
+
+# Location of the compiled modules
+MOD_PATH = $(F_MASTER)/scrf
+
+# Define the directory for the executables
+EXE_PATH = $(F_MASTER)/scrf
+#
+#========================================================================
+# PART 1: Assemble all of the various sub-routines
+#========================================================================
+
+# Define directories
+DRIVER_DIR = $(F_SRC_DIR)/driver
+NUMREC_DIR = $(F_MASTER)/from_NR
+MOD_DIR    = $(F_SRC_DIR)/share
+
+# Numerical Recipes utilities
+SCRF_NRUTIL= \
+		nrtype.f90 \
+		nrutil.f90 \
+		nr.f90 \
+		ran_state_modified_NR.f90
+
+NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(SCRF_NRUTIL))
+
+# Numerical recipes procedures
+SCRF_NRPROC= \
+		ran1.f90 \
+		gser.f90 \
+		gcf.f90 \
+		gamdev.f90 \
+		gammln.f90 \
+		gammp.f90 \
+		gammq.f90 \
+		lubksb.f90 \
+		ludcmp.f90 \
+		erf.f90 \
+		erfc.f90 \
+		erfcc.f90\
+		gasdev.f90
+NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(SCRF_NRPROC))
+
+# Data modules
+SCRF_DATAMS= \
+		gridweight.f90 \
+		linkstruct.f90 \
+		dat_2dgrid.f90 \
+		inputdat2d.f90 \
+		namelist_module.f90
+DATAMS = $(patsubst %, $(MOD_DIR)/%, $(SCRF_DATAMS))
+
+# Routines taken from or modifed versions of Jason Craig's old Prob QPE code
+prob_qpe= \
+		utim.f90 \
+		precmod.f90 \
+		stringmod.f90 \
+		save_precip.f90 \
+		save_vars.f90 \
+		read_nc_grid.f90 \
+		read_grid_list.f90 \
+		read_climo_precip.f90 \
+		read_climo_temp.f90 \
+		read_climo_uncertainty.f90
+qpe = $(patsubst %, $(F_SRC_DIR)/%, $(prob_qpe))
+
+# Define routines for SCRF code
+# A. Wood, added the rand seed initialization here (last one)
+#     called by  a modified version of a num_rec code, ran_state
+SCRF_GEN = \
+		trig_degrees.f90 \
+		erfinv.f90 \
+		exit_scrf.f90 \
+		field_rand.f90 \
+		spcorr_grd.f90 \
+                init_rand_seed_I4B.f90
+
+GEN = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_GEN))
+
+# ... and stitch it all together...
+SCRF_ALL = $(NRUTIL) $(NRPROC) $(DATAMS) $(qpe) $(GEN)
+
+#========================================================================
+# PART 2: Define the libraries, driver programs, flags, and executables
+#========================================================================
+
+# fortran compiler
+FC = gfortran
+
+# NetCDF libraries
+PATHNETCDF = /usr/local/Cellar/netcdf/4.6.3_1
+LIBNETCDF = -L$(PATHNETCDF)/lib -lnetcdff
+INCNETCDF = -I$(PATHNETCDF)/include
+
+# define compiler flags
+FLAGS = -p -g -Wall -ffree-line-length-none -fmax-errors=0 -fbacktrace -fcheck=bounds
+
+# Define the driver routine
+SCRF_DRIVER= \
+	generate_ensembles.f90
+DRIVER = $(patsubst %, $(DRIVER_DIR)/%, $(SCRF_DRIVER))
+
+# name of executable
+EXE = generate_ensemble.exe
+
+#========================================================================
+# PART 3: Checks
+#======================================================================
+# make sure that the paths are defined. These are just some high level checks
+ifndef F_MASTER
+ $(error F_MASTER is undefined)
+endif
+ifndef FC
+ $(error FC is undefined: Specify your compiler)
+endif
+ifndef FLAGS
+ $(error Specify flags for your compiler: $(FC))
+endif
+ifndef PATHNETCDF
+ $(error PATHNETCDF is undefined)
+endif
+
+#========================================================================
+# PART 4: Compile the puppy
+#========================================================================
+
+# Compile
+all: compile install clean 
+
+
+
+# compile SCRF code
+compile:
+	$(FC) $(FLAGS) $(SCRF_ALL) $(DRIVER) \
+	$(LIBNETCDF) $(INCNETCDF) -o $(EXE)
+
+install:
+
+# Remove object files
+clean:
+	@rm -f *.o
+	@rm -f *.mod
+	@rm -f *__genmod.f90
