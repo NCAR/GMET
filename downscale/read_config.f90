@@ -33,17 +33,18 @@ subroutine read_config (fname, n, config_names, values)
   config_names(11) = "VARIABLE_NAME"
   config_names(12) = "OUTPUT_FILE"
   config_names(13) = "GRID_LIST"
-  config_names(14) = "MAX_DISTANCE"
-  config_names(15) = "SITE_VAR_T" !modified AJN Sept 2013
-  config_names(16) = "DATA_DIRECTORY" ! AWW-feb2016, free data dir from site list path
-  config_names(17) = "STN_START_DATE" ! AWW-apr2016, add station period limits
-  config_names(18) = "STN_END_DATE"   !  
-  config_names(19) = "GEN_STA_WEIGHTS"   !  
-  config_names(20) = "STA_WEIGHT_NAME"   !  
-  config_names(21) = "NPREDICT"          !total number of predictors (6+number of NWP predictors)
-  config_names(22) = "NWP_VAR_NAMES"      !Variable list for NWP predictors
-  config_names(23) = "NWP_PRCP_VAR_NAME"  !Variable name of NWP precipitation predictor
-  config_names(24) = "NWP_INPUT_FILE_LIST"   !list of NWP input files
+  config_names(14) = "NUM_STATIONS" !number of stations considered for each grid point
+  config_names(15) = "MAX_DISTANCE"
+  config_names(16) = "SITE_VAR_T" !modified AJN Sept 2013
+  config_names(17) = "DATA_DIRECTORY" ! AWW-feb2016, free data dir from site list path
+  config_names(18) = "STN_START_DATE" ! AWW-apr2016, add station period limits
+  config_names(19) = "STN_END_DATE"   !  
+  config_names(20) = "GEN_STA_WEIGHTS"   !  
+  config_names(21) = "STA_WEIGHT_NAME"   !  
+  config_names(22) = "NPREDICT"          !total number of predictors (6+number of NWP predictors)
+  config_names(23) = "NWP_VAR_NAMES"      !Variable list for NWP predictors
+  config_names(24) = "NWP_PRCP_VAR_NAME"  !Variable name of NWP precipitation predictor
+  config_names(25) = "NWP_INPUT_FILE_LIST"   !list of NWP input files
 
  
   do i = 1, n, 1

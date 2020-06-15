@@ -1,7 +1,7 @@
 ! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
-subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
@@ -197,6 +197,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   end interface
   ! =========== end interfaces, start code =============
 
+  integer (i4b), intent(in) :: sta_limit           ! number of stations considered at each grid point
   real (dp), intent (inout) :: x (:, :), z (:, :)  ! station and grid point description arrays
   real (dp), intent (in) :: maxdistance         ! max distance for weight function
   integer (i4b), intent (in) :: ngrid           ! number of grid points
@@ -287,7 +288,6 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   logical                   :: no_precip = .false.
 
   ! variables for tracking closest N stations for precipitation
-  integer (i4b), parameter :: sta_limit = 30
   integer (i4b), allocatable :: close_loc (:, :)
   integer (i4b), allocatable :: close_count (:)
   real (dp), allocatable :: close_weights (:, :)
