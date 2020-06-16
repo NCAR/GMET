@@ -1,5 +1,5 @@
 subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &
-                                   sta_limit,sta_data,tair_data, &
+                                   n_training_stns,sta_data,tair_data, &
                                    close_meta,close_meta_t,close_loc,close_loc_t, &
                                    close_count,close_count_t,close_weights,close_weights_t,error)
 
@@ -17,7 +17,7 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
   real(DP), intent(in)          :: Z(:,:)              !grid metadata array
   real(DP), intent(in)          :: X(:,:)              !station metadata array
   real(DP), intent(in)          :: search_distance     !default station search distance
-  integer(I4B), intent(in)      :: sta_limit           !maximum number of stations for a grid point
+  integer(I4B), intent(in)      :: n_training_stns     !maximum number of stations for a grid point
   real(DP), intent(in)          :: sta_data(:,:)       !station data values for precipitation
   real(DP), intent(in)          :: tair_data(:,:,:)    !station air temperature data
 
@@ -68,7 +68,7 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
       min_weight = 0.0d0
 
       if(w_base(g,i) .gt. min_weight .and. sta_data(i,1) .gt. -1.0d0) then
-        if(close_count(g) .le. sta_limit) then
+        if(close_count(g) .le. n_training_stns) then
 
           close_weights(g,close_count(g)) = w_base(g,i)
           close_loc(g,close_count(g))  = i
@@ -99,7 +99,7 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
       min_weight_t = 0.0d0
 
       if(w_base(g,i) .gt. min_weight_t .and. tair_data(1,i,1) .gt. -200.0d0) then
-        if(close_count_t(g) .le. sta_limit) then
+        if(close_count_t(g) .le. n_training_stns) then
   
           close_weights_t(g,close_count_t(g)) = w_base(g,i)
           close_loc_t(g,close_count_t(g))  = i

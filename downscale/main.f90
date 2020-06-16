@@ -89,7 +89,7 @@ program gmet
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
 
-    subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+    subroutine estimate_forcing_regression (n_training_stns, nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
    & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
@@ -102,7 +102,7 @@ program gmet
       character (len=100), intent(in)      :: nwp_prcp_var           !name of nwp precipitation predictor
       integer(i4b), intent(inout)          :: nPredict               ! number of total predictors
       integer(i4b), intent(in)             :: n_nwp                  ! number of NWP predictors
-      integer(i4b), intent(in)             :: sta_limit              ! number of stations considered at each grid point
+      integer(i4b), intent(in)             :: n_training_stns        ! number of stations considered at each grid point
       real (dp), intent (inout) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
       integer (i4b), intent (in) :: ngrid
@@ -204,7 +204,7 @@ program gmet
  
   real (dp), allocatable :: x (:, :), z (:, :)   !station attribute matrix (x); grid attribute matrix (z)
   integer :: ngrid                               !number of grid points
-  integer(i4b) :: sta_limit                      !number of stations considered for each grid point
+  integer(i4b) :: n_training_stns                      !number of stations considered for each grid point
 
  
   integer (i4b) :: nx, ny, ntimes
@@ -428,8 +428,8 @@ program gmet
     maxdistance = maxdistance * 0.539957   ! AWW...why?
  
     !number of stations for regression
-    call value (config_values(14),sta_limit,error)
-    print *, "Number of stations in regression = ",sta_limit
+    call value (config_values(14),n_training_stns,error)
+    print *, "Number of stations in regression = ",n_training_stns
     if (error /= 0) then
       print *,"Error reading NUM_STATIONS"
       stop
@@ -526,7 +526,7 @@ program gmet
     allocate (y_max(ngrid, ntimes))
     allocate (y_min(ngrid, ntimes))
  
-    call estimate_forcing_regression (sta_limit,nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+    call estimate_forcing_regression (n_training_stns,nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
    & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &

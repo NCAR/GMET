@@ -1,7 +1,7 @@
 ! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
-subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+subroutine estimate_forcing_regression (n_training_stns, nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
@@ -38,7 +38,7 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
     end subroutine read_station
 
     subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &
-                                   sta_limit,sta_data,tair_data, &
+                                   n_training_stns,sta_data,tair_data, &
                                    close_meta,close_meta_t,close_loc,close_loc_t, &
                                    close_count,close_count_t,close_weights,close_weights_t,error)
       use type
@@ -49,7 +49,7 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
       real(DP), intent(in)          :: Z(:,:)              !grid metadata array
       real(DP), intent(in)          :: X(:,:)              !station metadata array
       real(DP), intent(in)          :: search_distance     !default station search distance
-      integer(I4B), intent(in)      :: sta_limit           !maximum number of stations for a grid point
+      integer(I4B), intent(in)      :: n_training_stns     !maximum number of stations for a grid point
       real(DP), intent(in)          :: sta_data(:,:)       !station data values for precipitation
       real(DP), intent(in)          :: tair_data(:,:,:)    !station air temperature data
       !in/out
@@ -197,7 +197,7 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
   end interface
   ! =========== end interfaces, start code =============
 
-  integer (i4b), intent(in) :: sta_limit           ! number of stations considered at each grid point
+  integer (i4b), intent(in) :: n_training_stns     ! number of stations considered at each grid point
   real (dp), intent (inout) :: x (:, :), z (:, :)  ! station and grid point description arrays
   real (dp), intent (in) :: maxdistance         ! max distance for weight function
   integer (i4b), intent (in) :: ngrid           ! number of grid points
@@ -333,17 +333,17 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
   allocate (y_tmean(nstns), y_trange(nstns))
   allocate (prcp_data(nstns, ntimes))
   allocate (tair_data(2, nstns, ntimes))
-  allocate (w_pcp_red(sta_limit, sta_limit))
-  allocate (w_temp_red(sta_limit, sta_limit))
-  allocate (y_red(sta_limit))
-  allocate (y_tmean_red(sta_limit), y_trange_red(sta_limit))
-  allocate (x_red(sta_limit, xsize))
-  allocate (tmp_x_red(sta_limit, xsize))
-  allocate (x_red_t(sta_limit, xsize))
-  allocate (w_pcp_1d(sta_limit))
-  allocate (w_temp_1d(sta_limit))
-  allocate (w_pcp_1d_loc(sta_limit))
-  allocate (w_temp_1d_loc(sta_limit))
+  allocate (w_pcp_red(n_training_stns, n_training_stns))
+  allocate (w_temp_red(n_training_stns, n_training_stns))
+  allocate (y_red(n_training_stns))
+  allocate (y_tmean_red(n_training_stns), y_trange_red(n_training_stns))
+  allocate (x_red(n_training_stns, xsize))
+  allocate (tmp_x_red(n_training_stns, xsize))
+  allocate (x_red_t(n_training_stns, xsize))
+  allocate (w_pcp_1d(n_training_stns))
+  allocate (w_temp_1d(n_training_stns))
+  allocate (w_pcp_1d_loc(n_training_stns))
+  allocate (w_temp_1d_loc(n_training_stns))
   allocate (tmp(nPredict, nPredict))
   allocate (vv(nPredict))
   allocate (pcp(ngrid, ntimes))
@@ -363,18 +363,18 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
   allocate (auto_corr(nstns))
   allocate (t_p_corr(nstns))
   allocate (yp(nstns))
-  allocate (yp_red(sta_limit))
+  allocate (yp_red(n_training_stns))
 
   ! station limit arrays (precip)
-  allocate (close_weights(ngrid, sta_limit))
-  allocate (close_loc(ngrid, sta_limit))
-  allocate (close_meta(5, ngrid, sta_limit))
+  allocate (close_weights(ngrid, n_training_stns))
+  allocate (close_loc(ngrid, n_training_stns))
+  allocate (close_meta(5, ngrid, n_training_stns))
   allocate (close_count(ngrid))
 
   ! station limit arrays (temp)
-  allocate (close_weights_t(ngrid, sta_limit))
-  allocate (close_loc_t(ngrid, sta_limit))
-  allocate (close_meta_t(5, ngrid, sta_limit))
+  allocate (close_weights_t(ngrid, n_training_stns))
+  allocate (close_loc_t(ngrid, n_training_stns))
+  allocate (close_meta_t(5, ngrid, n_training_stns))
   allocate (close_count_t(ngrid))
 
   ! base weight array
@@ -498,7 +498,7 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
   if(gen_sta_weights .eq. "TRUE" .or. gen_sta_weights .eq. "true") then
     call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, & !input
-                                 sta_limit,prcp_data,tair_data, & !input
+                                 n_training_stns,prcp_data,tair_data, & !input
                                  close_meta,close_meta_t,close_loc,close_loc_t, &  !output
                                  close_count,close_count_t,close_weights,close_weights_t,error) !output
 
@@ -524,10 +524,10 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
 
   ! AWW-Feb2016:  just allocate grids once time, and re-use in code below
-  allocate (twx_red(nPredict, sta_limit))    ! these have dim1 = 6
-  allocate (tx_red(nPredict, sta_limit))
-  allocate (twx_red_2(nPredict-2, sta_limit))  ! these are for no slope calcs, have dim1 = 4
-  allocate (tx_red_2(nPredict-2, sta_limit))
+  allocate (twx_red(nPredict, n_training_stns))    ! these have dim1 = 6
+  allocate (tx_red(nPredict, n_training_stns))
+  allocate (twx_red_2(nPredict-2, n_training_stns))  ! these are for no slope calcs, have dim1 = 4
+  allocate (tx_red_2(nPredict-2, n_training_stns))
 
 
   !open NWP predcitor file list
@@ -606,8 +606,8 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
       deallocate (twx_red)
       deallocate (tx_red)
-      allocate (twx_red(nPredict, sta_limit))! these have dim1 = 6
-      allocate (tx_red(nPredict, sta_limit))
+      allocate (twx_red(nPredict, n_training_stns))! these have dim1 = 6
+      allocate (tx_red(nPredict, n_training_stns))
 
       ! IF the elevation is valid for this grid cell
       ! (this starts a long section working first on precip, then temp)
@@ -618,7 +618,7 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
         ! call system_clock(t1,count_rate)
 
-        ! want to reset weights for closest sta_limit stations...
+        ! want to reset weights for closest n_training_stns stations...
         ! recalc calc_distance_weight function for selected stations
         ! set max_distance equal to the farthest station distance
 
@@ -779,12 +779,12 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
             tmp_x_red = x_red
             deallocate(x_red)
             !reallocate x_red
-            allocate(x_red(sta_limit, xsize-1))
+            allocate(x_red(n_training_stns, xsize-1))
             x_red = tmp_x_red(:,noPrcpPredicts)
             !x_red_t
             tmp_x_red = x_red_t
             deallocate(x_red_t)
-            allocate(x_red_t(sta_limit,xsize-1))
+            allocate(x_red_t(n_training_stns,xsize-1))
             x_red_t = tmp_x_red(:,noPrcpPredicts)
 
             !create final Z array (grid predictors) for regressions
@@ -851,8 +851,8 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
             deallocate(tx_red_2)   ! just testing
             deallocate(twx_red_2)
-            allocate(tx_red_2(nPredict-2, sta_limit))
-            allocate(twx_red_2(nPredict-2, sta_limit))
+            allocate(tx_red_2(nPredict-2, n_training_stns))
+            allocate(twx_red_2(nPredict-2, n_training_stns))
 
             tx_red_2 = x_red(:,noSlopePredicts)
             tx_red_2 = transpose(tx_red_2)
@@ -878,8 +878,8 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
           deallocate(twx_red)
           deallocate(tx_red)   ! just testing
-          allocate(twx_red(nPredict, sta_limit))
-          allocate(tx_red(nPredict, sta_limit))
+          allocate(twx_red(nPredict, n_training_stns))
+          allocate(tx_red(nPredict, n_training_stns))
 
           if(slope_flag_pcp .eq. 0) then
             pcp (g, t) = -999.
@@ -910,8 +910,8 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
           deallocate(tx_red_2)   ! just testing
           deallocate(twx_red_2)
-          allocate(tx_red_2(nPredict-2, sta_limit))
-          allocate(twx_red_2(nPredict-2, sta_limit))
+          allocate(tx_red_2(nPredict-2, n_training_stns))
+          allocate(twx_red_2(nPredict-2, n_training_stns))
 
           ! AWW note that these use the 2nd set of T* variables (different dimension)
           tx_red_2 = transpose (x_red(:, noSlopePredicts))
@@ -978,8 +978,8 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
           deallocate(tx_red_2)   ! just testing
           deallocate(twx_red_2)
-          allocate(tx_red_2(nPredict-2, sta_limit))
-          allocate(twx_red_2(nPredict-2, sta_limit))
+          allocate(tx_red_2(nPredict-2, n_training_stns))
+          allocate(twx_red_2(nPredict-2, n_training_stns))
 
           ! AWW note that these use the 2nd set of T* variables
           tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
@@ -1003,8 +1003,8 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
           deallocate(tx_red)   ! just testing
           deallocate(twx_red)
-          allocate(tx_red(nPredict, sta_limit))
-          allocate(twx_red(nPredict, sta_limit))
+          allocate(tx_red(nPredict, n_training_stns))
+          allocate(twx_red(nPredict, n_training_stns))
 
           ! AWW note that these use the 1st set of T* variables
           tx_red = transpose (x_red_t)
@@ -1026,8 +1026,8 @@ subroutine estimate_forcing_regression (sta_limit, nPredict, gen_sta_weights, st
 
           deallocate(tx_red_2)   ! just testing
           deallocate(twx_red_2)
-          allocate(tx_red_2(nPredict-2, sta_limit))
-          allocate(twx_red_2(nPredict-2, sta_limit))
+          allocate(tx_red_2(nPredict-2, n_training_stns))
+          allocate(twx_red_2(nPredict-2, n_training_stns))
 
           ! AWW note that these use the 2nd set of T* variables
           tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
