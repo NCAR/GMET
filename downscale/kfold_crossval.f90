@@ -29,11 +29,13 @@ subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combina
   real(dp)                  :: weightSum             ! summation of all station weights in error estimate
   real(dp)                  :: errorSum              ! summation of errors from kfold trials
   real(dp)                  :: varTmp                ! temporary variable value
+  real(dp)                  :: meanVal               ! mean value of withheld obs
   real(dp), allocatable     :: x_xval(:,:)           ! station predictor array for kfold xval
   real(dp), allocatable     :: y_xval(:)             ! station variable values for kfold xval
   real(dp), allocatable     :: w_xval(:,:)           ! diagonal weight matrix for trial stations
   real(dp), allocatable     :: tx_xval(:,:)          ! transposed station predictor array for kfold xval
   real(dp), allocatable     :: twx_xval(:,:)         ! transposed matmul(tx,w) array for kfold xval
+  real(dp), allocatable     :: vv(:)                 ! temporary matrix to test for singularities
   real(dp), allocatable     :: B(:)                  ! regression coefficients for predictors
 
   integer(I4B)              :: i, j                  ! counter variables
@@ -64,6 +66,7 @@ subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combina
   allocate(tx_xval(nPredict,kfold_nsamp-kfold_hold))
   allocate(twx_xval(nPredict,kfold_nsamp-kfold_hold))
   allocate(B(nPredict))
+  allocate(vv(nPredict))
 
   !initalize other variables
   do i = 1,kfold_nsamp,1
@@ -73,6 +76,7 @@ subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combina
 
   !loop through the kfold trials
   do i = 1,kfold_trials
+!  print *,'kfold:', i
     !current kfold trial sampling combination
     xval_sta_list = xval_combinations(i,:)
     !create a zero padded vector of above
@@ -82,8 +86,6 @@ subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combina
     tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
     withheld_sta_list = tmp_inds(1:kfold_hold)
 
-    !create weight sum of in regression station weights
-    weightSum = weightSum + sum(W_1d(withheld_sta_list))
 
     !station predictor array
     x_xval = X(xval_sta_list,:)
@@ -94,14 +96,27 @@ subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combina
     !create transposed matrices for least squares
     tx_xval  = transpose(x_xval)
     twx_xval = matmul(tx_xval,w_xval)
+    
+    vv = maxval(abs(twx_xval),dim=2)
 
-    do j = 1,kfold_hold
-      call least_squares(x_xval,y_xval,twx_xval,B)
-      !regression precip
-      varTmp = real( dot_product( X(withheld_sta_list(j),:),B ), kind(sp) )
-      !error total
-      errorSum = errorSum + w_1d(withheld_sta_list(j))*(varTmp - Y(withheld_sta_list(j)))**2
-    end do
+    if(any(vv==0.0)) then 
+       meanVal = sum(Y(withheld_sta_list))/kfold_hold
+       do j = 1,kfold_hold
+         errorSum = errorSum + w_1d(withheld_sta_list(j))*(meanVal - Y(withheld_sta_list(j)))**2
+       end do
+       weightSum = weightSum + sum(W_1d(withheld_sta_list))
+    else
+      do j = 1,kfold_hold
+        call least_squares(x_xval,y_xval,twx_xval,B)
+        !regression precip
+        varTmp = real( dot_product( X(withheld_sta_list(j),:),B ), kind(sp) )
+        !error total
+        errorSum = errorSum + w_1d(withheld_sta_list(j))*(varTmp - Y(withheld_sta_list(j)))**2
+      end do
+
+      !create weight sum of in regression station weights
+      weightSum = weightSum + sum(W_1d(withheld_sta_list))
+    end if
   end do
   !mean uncertainty estimate from all kfold trials
   varUncert = real((errorSum/weightSum)**(1.0/2.0),kind(sp))
