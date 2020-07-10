@@ -159,9 +159,7 @@ subroutine normalize_y (texp, y)
 
     if(Y(t) > 0) then
 !      y (t) = y (t) ** (1.0d0/texp)
-      print *, "Before transfm y(t) : ",  y (t)
       y (t) = ((y (t) ** (1.0d0/texp)) - 1)*texp !Hongli add box-cox
-      print *, "After  transfm y(t) : ",  y (t)
     else
       y (t) = 0
     end if 
