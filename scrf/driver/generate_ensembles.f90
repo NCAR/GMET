@@ -534,7 +534,8 @@ program generate_ensembles
           ! check thresholds of slope fields to see which regression to use
 
           ! For precipitation only
-          if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then
+          !if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then # hongli
+          if (abs(slp_n(isp1, isp2)) .le. 0.3 .and. abs(slp_e(isp1, isp2)) .le. 0.3) then
             pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
             pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
             pcp_error (isp1, isp2, istep) = pcp_error_2 (isp1, isp2, istep)
