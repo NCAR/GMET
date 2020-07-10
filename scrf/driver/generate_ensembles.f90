@@ -534,7 +534,8 @@ program generate_ensembles
           ! check thresholds of slope fields to see which regression to use
 
           ! For precipitation only
-          !if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then # hongli
+          !if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then 
+          ! hongli change slope threshold from 3.6 to 0.3 for nldas application
           if (abs(slp_n(isp1, isp2)) .le. 0.3 .and. abs(slp_e(isp1, isp2)) .le. 0.3) then
             pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
             pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
@@ -575,17 +576,27 @@ program generate_ensembles
            & kind(dp)) * rn * real (pcp_error(isp1, isp2, istep), kind(dp))
  
             if (ra .gt. 0.0) then
-              ra = ra ** transform
+              !ra = ra ** transform
+              ! Hongli changed for box-cox back-transformation              
+              ra = (ra*(1.0d0/transform)+1) ** transform 
             else
               ra = 0.01
             end if
  
  
+            !! limit max value to y_max + pcp_error (max station value + some portion of error)
+            !if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
+           !& istep), kind(dp)))**transform) then
+           !   ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
+           !  & kind(dp))) ** transform
+           ! end if
+            
             ! limit max value to y_max + pcp_error (max station value + some portion of error)
-            if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
-           & istep), kind(dp)))**transform) then
-              ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
-             & kind(dp))) ** transform
+            ! Hongli changed for box-cox back-transformation
+            if (ra .gt. ((real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
+           & istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
+              ra = ((real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
+             & kind(dp)))*(1.0d0/transform)+1) ** transform
             end if
  
  
