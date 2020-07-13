@@ -130,7 +130,33 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
  
 end subroutine normalize_xv
  
+! Hongli add
+subroutine max_x (x, smax)
+  use type
+  implicit none
  
+  real (dp), intent (inout) :: x (:)
+  real (dp), intent (out) :: smax
+ 
+  integer (i4b) :: t
+  integer (i4b) :: ntimes
+ 
+  ntimes = size (x) 
+  smax = 0.0
+
+  do t = 1, ntimes, 1
+    if (x(t) > 0.0) then
+      if (x(t) .ge. smax) then
+        smax = x (t)
+      end if 
+    end if
+  end do
+ 
+  return
+ 
+end subroutine max_x
+ 
+  
 !
 ! Normalize a vector.
 ! Input :
