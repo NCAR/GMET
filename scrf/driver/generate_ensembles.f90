@@ -162,11 +162,13 @@ program generate_ensembles
   real (dp), allocatable :: times (:)!time vector from qpe code
   real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation vector from qpe code
   real (dp), allocatable :: tpc_corr (:)!temp-precip correlation vector from qpe code
-  real (dp), allocatable :: y_mean (:, :, :) !mean of transformed non-0 pcp (at each timestep)
-  real (dp), allocatable :: y_std (:, :, :) !stdev of transformed non-0 pcpp (at each t-step)
-  real (dp), allocatable :: y_std_all (:, :, :) !stddev of transf. non-0 pcp (at each tstep)
-  real (dp), allocatable :: y_min (:, :, :) !min of normalized transf. non-0 pcp (each tstep)
-  real (dp), allocatable :: y_max (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
+  ! Hongli remove
+  !real (dp), allocatable :: y_mean (:, :, :) !mean of transformed non-0 pcp (at each timestep)
+  !real (dp), allocatable :: y_std (:, :, :) !stdev of transformed non-0 pcpp (at each t-step)
+  !real (dp), allocatable :: y_std_all (:, :, :) !stddev of transf. non-0 pcp (at each tstep)
+  !real (dp), allocatable :: y_min (:, :, :) !min of normalized transf. non-0 pcp (each tstep)
+  !real (dp), allocatable :: y_max (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
+  real (dp), allocatable :: obs_max_pcp (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
   real (sp), allocatable :: pcp_out (:, :, :)!
   real (sp), allocatable :: tmean_out (:, :, :)!
   real (sp), allocatable :: trange_out (:, :, :)!
@@ -235,11 +237,13 @@ program generate_ensembles
   allocate (trange_2(nx, ny, ntimes))
   allocate (trange_error_2(nx, ny, ntimes))
  
-  allocate (y_mean(nx, ny, ntimes))
-  allocate (y_std(nx, ny, ntimes))
-  allocate (y_std_all(nx, ny, ntimes))
-  allocate (y_min(nx, ny, ntimes))
-  allocate (y_max(nx, ny, ntimes))
+  ! Hongli remove
+  !allocate (y_mean(nx, ny, ntimes))
+  !allocate (y_std(nx, ny, ntimes))
+  !allocate (y_std_all(nx, ny, ntimes))
+  !allocate (y_min(nx, ny, ntimes))
+  !allocate (y_max(nx, ny, ntimes))
+  allocate (obs_max_pcp(nx, ny, ntimes))
  
   allocate (times(ntimes))
   allocate (auto_corr(ntimes))
@@ -366,38 +370,46 @@ program generate_ensembles
  & ny, ntimes /))
   if (ierr /= 0) stop
  
-  var_name = 'ymean'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_mean, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
- & ntimes /))
-  if (ierr /= 0) stop
+  ! Hongli remove
+  !var_name = 'ymean'
+  !error = nf90_inq_varid (ncid, var_name, varid)
+  !if (ierr /= 0) stop
+  !error = nf90_get_var (ncid, varid, y_mean, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
+ !& ntimes /))
+ ! if (ierr /= 0) stop
  
-  var_name = 'ystd'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_std, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
- & /))
-  if (ierr /= 0) stop
+  !var_name = 'ystd'
+  !error = nf90_inq_varid (ncid, var_name, varid)
+  !if (ierr /= 0) stop
+  !error = nf90_get_var (ncid, varid, y_std, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
+ !& /))
+  !if (ierr /= 0) stop
  
-  var_name = 'ystd_all'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_std_all, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
- & ntimes /))
-  if (ierr /= 0) stop
+  !var_name = 'ystd_all'
+  !error = nf90_inq_varid (ncid, var_name, varid)
+  !if (ierr /= 0) stop
+  !error = nf90_get_var (ncid, varid, y_std_all, start= (/ 1, 1, start_time /), count= (/ nx, ny, &
+ !& ntimes /))
+  !if (ierr /= 0) stop
  
-  var_name = 'ymin'
-  error = nf90_inq_varid (ncid, var_name, varid)
-  if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_min, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
- & /))
-  if (ierr /= 0) stop
+  !var_name = 'ymin'
+  !error = nf90_inq_varid (ncid, var_name, varid)
+  !if (ierr /= 0) stop
+  !error = nf90_get_var (ncid, varid, y_min, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
+ !& /))
+  !if (ierr /= 0) stop
  
-  var_name = 'ymax'
+  !var_name = 'ymax'
+  !error = nf90_inq_varid (ncid, var_name, varid)
+  !if (ierr /= 0) stop
+  !error = nf90_get_var (ncid, varid, y_max, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
+ !& /))
+  !if (ierr /= 0) stop
+
+  var_name = 'obs_max_pcp'
   error = nf90_inq_varid (ncid, var_name, varid)
   if (ierr /= 0) stop
-  error = nf90_get_var (ncid, varid, y_max, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
+  error = nf90_get_var (ncid, varid, obs_max_pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes &
  & /))
   if (ierr /= 0) stop
  
@@ -571,9 +583,11 @@ program generate_ensembles
             end if
  
  
-            ra = (real(pcp(isp1, isp2, istep), kind(dp))*real(y_std(isp1, isp2, istep), kind(dp))) &
-           & + real (y_mean(isp1, isp2, istep), kind(dp)) + real (y_std(isp1, isp2, istep), &
-           & kind(dp)) * rn * real (pcp_error(isp1, isp2, istep), kind(dp))
+           ! ra = (real(pcp(isp1, isp2, istep), kind(dp))*real(y_std(isp1, isp2, istep), kind(dp))) &
+           !& + real (y_mean(isp1, isp2, istep), kind(dp)) + real (y_std(isp1, isp2, istep), &
+           !& kind(dp)) * rn * real (pcp_error(isp1, isp2, istep), kind(dp))
+           ! Hongli modify
+           ra = real(pcp(isp1, isp2, istep), kind(dp)) + rn * real(pcp_error(isp1, isp2, istep), kind(dp))           
  
             if (ra .gt. 0.0) then
               !ra = ra ** transform
@@ -588,17 +602,16 @@ program generate_ensembles
             !if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
            !& istep), kind(dp)))**transform) then
            !   ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
-           !  & kind(dp))) ** transform
+           !  //////(dp))) ** transform
            ! end if
             
-            ! limit max value to y_max + pcp_error (max station value + some portion of error)
+            ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
             ! Hongli changed for box-cox back-transformation
-            if (ra .gt. ((real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
+            if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
            & istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
-              ra = ((real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
+              ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
              & kind(dp)))*(1.0d0/transform)+1) ** transform
             end if
- 
  
             pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
  

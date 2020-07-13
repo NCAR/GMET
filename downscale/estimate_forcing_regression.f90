@@ -2,10 +2,12 @@
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
 subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
-  & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
+  & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, &
+  & trange, trange_err, mean_autocorr, mean_tp_corr, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
+  ! Hongli remove output y_mean, y_std, y_std_all, y_min, y_max.
+  ! Hongli add obs_max_pcp.
   ! ==============================================================================================
   ! This routine is called during MODE 2 usage:  creates gridded ensembles from station/point data
   ! ==============================================================================================
@@ -104,18 +106,24 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     end subroutine normalize_x
 
     ! added AJN Sept 2013
-    subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
+    !subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
+      !use type
+      !real (dp), intent (inout) :: x (:)
+      !real (dp), intent (in) :: weight (:)
+      !real (dp), intent (out) :: mean
+      !real (dp), intent (out) :: stdev
+      !real (dp), intent (out) :: stdev_all
+      !real (dp), intent (out) :: smin
+      !real (dp), intent (out) :: smax
+      !integer (i4b), intent (out) :: yp (:)
+    !end subroutine normalize_xv
+
+    subroutine max_x (x, smax)
       use type
       real (dp), intent (inout) :: x (:)
-      real (dp), intent (in) :: weight (:)
-      real (dp), intent (out) :: mean
-      real (dp), intent (out) :: stdev
-      real (dp), intent (out) :: stdev_all
-      real (dp), intent (out) :: smin
       real (dp), intent (out) :: smax
-      integer (i4b), intent (out) :: yp (:)
-    end subroutine normalize_xv
-
+    end subroutine max_x
+    
     subroutine normalize_y (texp, y)
       use type
       real (dp), intent (in) :: texp !transform exponent
@@ -195,9 +203,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
 
   ! vary at each grid point and time step
-  real (dp), intent (out) :: y_mean (:, :), y_std (:, :)!std and mean of time step precipitation
-  real (dp), intent (out) :: y_std_all (:, :)!std of time step precip including stations with zero precip
-  real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min & max  of normalized time step precipitation
+  !real (dp), intent (out) :: y_mean (:, :), y_std (:, :)!std and mean of time step precipitation
+  !real (dp), intent (out) :: y_std_all (:, :)!std of time step precip including stations with zero precip
+  !real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min & max  of normalized time step precipitation
+  real (dp), intent (out) :: obs_max_pcp (:, :) !max of normalized time step precipitation
 
   real (dp), allocatable :: y (:), b (:)
   !real (dp), allocatable :: twx (:, :), tx (:, :) ! not used
@@ -228,7 +237,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
   real (dp) :: errsum, wgtsum, sta_temp
   real (dp) :: auto_corr_sum, tp_corr_sum
-  real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
+  !real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
+  real (dp) :: step_max ! timestep statistics !Hongli change
   real (dp) :: ss_tot, ss_res ! r-squared and variance correction
 
   integer (i4b) :: xsize !size of second dimension of input X array
@@ -550,14 +560,19 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           end if
         end do
 
-        call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
-       & yp_red)
+        ! Hongli remove standardization
+        !call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
+       !& yp_red)
 
-        y_mean (g, t) = step_mean
-        y_std (g, t) = step_std
-        y_std_all (g, t) = step_std_all
-        y_min (g, t) = step_min
-        y_max (g, t) = step_max
+        !y_mean (g, t) = step_mean
+        !y_std (g, t) = step_std
+        !y_std_all (g, t) = step_std_all
+        !y_min (g, t) = step_min
+        !y_max (g, t) = step_max
+       
+        ! Hongli add 
+        call max_x (y_red, step_max)
+        obs_max_pcp(g, t) = step_max     
 
         ! ---- second, TEMPERATURES ----
 
