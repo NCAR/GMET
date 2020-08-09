@@ -14,7 +14,7 @@
 #========================================================================
 
 # Define core directory below which everything resides (GMET/ dir)
-F_MASTER =
+F_MASTER = 
 
 # Core directory that contains source code
 F_SRC_DIR = $(F_MASTER)/build/src/scrf/
@@ -24,6 +24,9 @@ F_SRC_DIR = $(F_MASTER)/build/src/scrf/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)/bin/
+
+# Name the executable
+EXE = generate_ensemble.exe
 
 # Define the Fortran Compiler
 #FC  = pgf90
@@ -36,7 +39,7 @@ FC  = gfortran
 
 # Define directories
 MAIN_DIR   = $(F_SRC_DIR)
-NUMREC_DIR = $(F_SRC_DIR)/from_NR/
+NUMREC_DIR = $(F_MASTER)/build/src/from_NR/
 
 # Numerical Recipes utilities
 SCRF_NRUTIL= \
@@ -101,9 +104,6 @@ SCRF_DRIVER= \
 		scrf_driver.f90
 DRIVER = $(patsubst %, $(MAIN_DIR)/%, $(SCRF_DRIVER))
 
-# Name the executable
-EXE = generate_ensemble.exe
-
 
 #========================================================================
 # PART 2: Define the libraries and compiler settings
@@ -167,15 +167,15 @@ endif
 # PART 4: Compile the puppy (code & driver)
 #========================================================================
 
-#all: compile_scrf link clean install
-all: compile_scrf link clean 
+all: compile_scrf link clean install
+
 check:
 	echo test
 	echo $(FC)
 
 # compile SCRF code
 compile_scrf:
-	$(FC) $(FLAGS) -c $(NRUTIL) $(NRPROC) $(DATAMS) $(QPE) $(GEN) $(DRIVER) $(INCNETCDF)
+	$(FC) $(FLAGS) -c $(NRUTIL) $(NRPROC) $(DATAMS) $(QPE) $(GEN) $(DRIVER)
 
 # link routines
 link:
