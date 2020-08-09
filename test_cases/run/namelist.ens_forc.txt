@@ -1,0 +1,10 @@
+&PARAMS
+start_time	= 1
+ntimes		= 31
+start_ens	= 1
+stop_ens	= 3
+clen		= 150.0
+grid_name	= "../inputs/gridinfo.0625.w_subset.nc"
+out_forc_name_base	= "../outputs/ens_forc.w_subset"
+in_regr_name	= "../outputs/regress_ts.w_subset.nc"
+/

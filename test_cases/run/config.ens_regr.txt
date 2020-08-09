@@ -1,0 +1,27 @@
+! TEMPLATE for year long runs of regression code (smaller basins)
+! sets mode in regression code  1 = analog downscaling, 2 = interpolation for ensemble forcing
+MODE = 2
+! start date of regression  YYYYMMDD
+START_DATE = 19700101
+! end date of regression  YYYYMMDD   
+END_DATE = 19700131
+! The file containing the lists of sites to process
+SITE_LIST = ../inputs/stnlist_slope.w_subset.txt
+! give the primary variable (this needs redoing)
+SITE_VAR = prcp
+! The Variable string used within each station timeseries file that identifies precipitation
+STATION_VAR = prcp
+! Grid information, Used only in mode 2
+GRID_LIST = ../inputs/gridinfo.0625.w_subset.nc
+! Initial Search Distance in km
+MAX_DISTANCE = 100.0
+! Output file name
+OUTPUT_FILE = ../outputs/regress_ts.w_subset.nc
+! Controls whether or not to check for temperature data
+SITE_VAR_T = T
+! Location of input station or grid data (without trailing "/")
+DATA_DIRECTORY = ../stndata
+! start date of input station data (YYYYMMDD)
+STN_START_DATE = 19700101
+! end date of input station data (YYYYMMDD)
+STN_END_DATE = 19700131

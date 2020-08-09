@@ -1,17 +1,17 @@
-#git ignore file for GMET code
+# git ignore file for GMET code
 
-#no .a or .o files
+# no .a or .o files
 *.[oa]
 
-#no .mod files
+# no .mod files
 *.mod
 *genmod*
 
-#no text editor temp files
+# no text editor temp files
 *~
 *swp
 
-#no image files
+# no image files
 *.tif
 *.gif
 *.tiff
@@ -19,14 +19,11 @@
 *.jpg
 *.png
 
-#not the bin directory and executables
-bin/
+# no executables
 *.exe
 
-# others
-from_NR/*.f90
-downscale/numrec.f90
-from_NR.tgz
+# external codes (eg numerical recipes)
+build/src/from_NR/*.f90
 
 # no text files (OK)
 # *.txt
@@ -38,7 +35,7 @@ from_NR.tgz
 *.zip
 *.Z
 
-#no local makefiles
+# don't update local Makefiles; use Makefile-*local when compiling
 *local
 
 # bash scripts (OK)
@@ -47,12 +44,10 @@ from_NR.tgz
 # misc notes files
 LASTNEXT
 
-# not the run directory
-run/
-scripts/
+# ipynotebook files and directories
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+*/*/.ipynb_checkpoints/
+*/*/*/.ipynb_checkpoints/
+*ipnb*
 
-# not a devel code dir
-downscale/alt/
-
-# don't update main Makefile; use Makefile-local
-Makefile-*

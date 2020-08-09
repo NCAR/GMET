@@ -1,0 +1,11 @@
+GMET example case
+A. Wood, 20180701
+
+Details:
+  - 2 degree domain subset domain:  39 to 41N, 107.5 to 109.5 W
+  - 1 month of daily station input data
+  - link executables for 'downscale/' and 'scrf/' programs into run/ directory
+  - run ensemble regression with
+    ~> downscale.exe config.ens_regr.txt
+  - run ensemble generation with
+    ~> generate_ensemble.exe namelist.ens_forc.txt

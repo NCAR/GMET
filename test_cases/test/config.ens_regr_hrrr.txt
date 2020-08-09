@@ -1,0 +1,33 @@
+! TEMPLATE for year long runs of regression code (smaller basins)
+! sets mode in regression code  1 = analog downscaling, 2 = interpolation for ensemble forcing
+MODE = 2
+! start date of output regression -- fmt YYYYMMDD
+START_DATE = 20170201
+! end date of output regression -- fmt YYYYMMDD   
+END_DATE = 20170228
+! The file containing the lists of sites to process
+SITE_LIST = /glade/u/home/ptwbunn/repos/GMET/dynamic_predictors/inputs/CALI.screened_stn_list_slope.v3.txt
+! give the primary variable (this needs redoing)
+SITE_VAR = prcp
+! The Variable string used within each station timeseries file that identifies precipitation
+STATION_VAR = prcp
+! Grid information, Used only in mode 2
+GRID_LIST = /glade/u/home/ptwbunn/repos/GMET/dynamic_predictors/inputs/CALI.gridinfo.0625_v3.nc
+! Initial Search Distance in km
+MAX_DISTANCE = 100.0
+! Output file name
+!OUTPUT_FILE = ../outputs/regress_ts.w_subset.nc
+OUTPUT_FILE = ./regress_ts.w_subset.nc
+! Controls whether or not to check for temperature data?
+SITE_VAR_T = T
+! Location of input station or grid data (without trailing "/")
+DATA_DIRECTORY = /glade/u/home/ptwbunn/repos/GMET/dynamic_predictors/stndata
+! start date of input station data (YYYYMMDD)
+STN_START_DATE = 19700101
+! end date of input station data (YYYYMMDD)
+STN_END_DATE = 20191231
+! Do we want to generate station weights?
+GEN_STA_WEIGHTS = TRUE
+! Name of station weight file
+STA_WEIGHT_NAME = ./station_weights.bin
+
