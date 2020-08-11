@@ -741,7 +741,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
             call least_squares (x_red, y_red, twx_red, b)
             pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
-            deallocate (b)  !AWW-seems to be missing
+            !deallocate (b)  !AWW-seems to be missing !Hongli delete
 
             wgtsum = 0.0
             errsum = 0.0
@@ -749,8 +749,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             ss_res = 0.0
             do i = 1, (close_count(g)-1), 1
               wgtsum = wgtsum + w_pcp_red (i, i)
-              errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)
+              !errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)
+              errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, :), b), kind(sp))-y_red(i))**2) ! Hongli add
             end do
+            deallocate (b)  !Hongli add
 
             pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           end if
@@ -775,7 +777,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           ss_res = 0.0
           do i = 1, (close_count(g)-1), 1
             wgtsum = wgtsum + w_pcp_red (i, i)
-            errsum = errsum + (w_pcp_red(i, i)*(pcp_2(g, t)-y_red(i))**2)
+            !errsum = errsum + (w_pcp_red(i, i)*(pcp_2(g, t)-y_red(i))**2)
+            errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, 1:4), b), kind(sp))-y_red(i))**2) ! Hongli
           end do
 
           pcperr_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
@@ -814,7 +817,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           wgtsum = 0.0
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
-            errsum = errsum + (w_temp_red(i, i)*(tmean(g, t)-y_tmean_red(i))**2)
+            !errsum = errsum + (w_temp_red(i, i)*(tmean(g, t)-y_tmean_red(i))**2)
+            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, :), b), kind(sp))-y_tmean_red(i))**2) !Hongli
           end do
           tmean_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
@@ -837,7 +841,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           wgtsum = 0.0
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
-            errsum = errsum + (w_temp_red(i, i)*(tmean_2(g, t)-y_tmean_red(i))**2)
+            !errsum = errsum + (w_temp_red(i, i)*(tmean_2(g, t)-y_tmean_red(i))**2)
+            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, 1:4), b), kind(sp))-y_tmean_red(i))**2) !Hongli
           end do
           tmean_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
@@ -862,7 +867,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           wgtsum = 0.0
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
-            errsum = errsum + (w_temp_red(i, i)*(trange(g, t)-y_trange_red(i))**2)
+            !errsum = errsum + (w_temp_red(i, i)*(trange(g, t)-y_trange_red(i))**2)
+            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, :), b), kind(sp))-y_trange_red(i))**2) !Hongli
           end do
           trange_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
@@ -886,7 +892,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
             sta_temp = real (dot_product(x_red_t(i, 1:4), b), kind(sp))
-            errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)
+            !errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)
+            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, 1:4), b), kind(sp))-y_trange_red(i))**2) !Hongli
           end do
           trange_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)  !AWW-seems to be missing
