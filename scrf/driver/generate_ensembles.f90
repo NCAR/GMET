@@ -547,7 +547,7 @@ program generate_ensembles
 
           ! For precipitation only
           !if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then 
-          ! hongli change slope threshold from 3.6 to 0.3 for nldas application
+          ! hongli change slope threshold from 3.6 to 0.3 for nldas application ONLY
           if (abs(slp_n(isp1, isp2)) .le. 0.3 .and. abs(slp_e(isp1, isp2)) .le. 0.3) then
             pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
             pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
@@ -621,13 +621,18 @@ program generate_ensembles
  
  
           ! tmean
-          ra = real (tmean(isp1, isp2, istep), kind(dp)) + real (tmean_random(isp1, isp2), &
-         & kind(dp)) * real (tmean_error(isp1, isp2, istep)/3.0, kind(dp))
-          tmean_out (isp1, isp2, istep) = real (ra, kind(sp))
+          !ra = real (tmean(isp1, isp2, istep), kind(dp)) + real (tmean_random(isp1, isp2), &
+         !& kind(dp)) * real (tmean_error(isp1, isp2, istep)/3.0, kind(dp))! Hongli removed division of 3 as suggested by Andy Newman
+         
+         ra = real (tmean(isp1, isp2, istep), kind(dp)) + real (tmean_random(isp1, isp2), &
+         & kind(dp)) * real (tmean_error(isp1, isp2, istep), kind(dp))
+          tmean_out (isp1, isp2, istep) = real (ra, kind(sp)) 
  
           ! trange
-          ra = real (trange(isp1, isp2, istep), kind(dp)) + real (trange_random(isp1, isp2), &
-         & kind(dp)) * real (trange_error(isp1, isp2, istep)/3.0, kind(dp))
+          !ra = real (trange(isp1, isp2, istep), kind(dp)) + real (trange_random(isp1, isp2), &
+         !& kind(dp)) * real (trange_error(isp1, isp2, istep)/3.0, kind(dp))! Hongli removed division of 3 as suggested by Andy Newman
+         ra = real (trange(isp1, isp2, istep), kind(dp)) + real (trange_random(isp1, isp2), &
+         & kind(dp)) * real (trange_error(isp1, isp2, istep), kind(dp))
           trange_out (isp1, isp2, istep) = real (ra, kind(sp))
  
           ! using +/- 3 std dev of uncertainty for temp gives unrealistic min and max ensemble 
