@@ -142,10 +142,11 @@ subroutine max_x (x, smax)
   integer (i4b) :: ntimes
  
   ntimes = size (x) 
-  smax = 0.0
+  smax = -4
 
   do t = 1, ntimes, 1
-    if (x(t) > 0.0) then
+    ! when x=0, y=-4.
+    if (x(t) > -4) then
       if (x(t) .ge. smax) then
         smax = x (t)
       end if 
