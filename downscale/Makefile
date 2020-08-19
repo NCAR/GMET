@@ -38,7 +38,7 @@ endif
 
 ifeq ($(FC),gfortran)
 #	FCFLAGS = -g
-        #FCFLAGS = -O2
+        FCFLAGS = -O3 -ffree-line-length-none
 
         # flags forall (e.g. look for system .mod files, required in gfortran)
 #	FCFLAGS += -I/usr/local.net/netcdf-4.3.0/gcc-4.7.2/include
@@ -55,7 +55,7 @@ endif
 ifeq ($(FC),ifort)
 #        FCFLAGS = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0 -heap_arrays
         FCFLAGS = -O2 -warn all -FR -auto -WB -fltconsistency -fpe1 -heap_arrays
-        
+
 
 #       FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
         #FCFLAGS = -O2 -Mbackslash -fPIC
@@ -92,13 +92,12 @@ $(EXE):	type.o \
 	write_nc.o \
         stats_routines.o \
         regression_routines.o \
-        compute_station_weights.o \
-        read_station_weights.o \
+        station_weights.o \
         estimate_coefficients.o \
         estimate_forcing_regression.o \
 	main.o
 
-	$(FC) $(FCFLAGS) $(LDFLAGS) -o $@ $^ 
+	$(FC) $(FCFLAGS) $(LDFLAGS) -o $@ $^
 
 %.o: %.f90
 	$(FC) $(FCFLAGS) $(LDFLAGS) -c $<

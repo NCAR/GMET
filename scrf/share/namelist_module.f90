@@ -18,24 +18,32 @@ module namelist_module
   save
 contains
  
-    ! AWW-16 - updated to process namelist file given as argument
+  ! AWW-16 - updated to process namelist file given as argument
   subroutine read_namelist (namelist_filename)
     implicit none
  
-      !input variables
+    !input variables
     character (len=200), intent (in) :: namelist_filename !AWW-2016
  
-      !local variables
+    !local variables
     integer :: ierr
+    logical :: file_exists ! T/F if namelist is found
+
+    INQUIRE(FILE=namelist_filename, EXIST=file_exists)
+  
+    if (file_exists) then
  
-    open (unit=30, file=namelist_filename, form="FORMATTED")
- 
-    read (unit=30, nml=params, iostat=ierr)
-    if (ierr /= 0) then
-      write (*, '(/," ***** ERROR: Problem reading namelist PARAMS",/)')
-      rewind (unit=30)
-      read (unit=30, nml=params)
-      stop " ***** ERROR: Problem reading namelist PARAMS"
+      open (unit=30, file=namelist_filename, form="FORMATTED")
+      read (unit=30, nml=params, iostat=ierr)
+      if (ierr /= 0) then
+        write (*, '(/," ***** ERROR: Problem reading namelist PARAMS",/)')
+        rewind (unit=30)
+        read (unit=30, nml=params)
+        stop " ***** ERROR: Problem reading namelist PARAMS"
+      end if
+
+    else
+        stop " ***** ERROR: Cannot find  namelist file: "//trim(namelist_filename)
     end if
  
     return

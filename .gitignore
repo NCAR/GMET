@@ -5,7 +5,7 @@
 
 #no .mod files
 *.mod
-*genmod.f90
+*genmod*
 
 #no text editor temp files
 *~
@@ -53,3 +53,6 @@ scripts/
 
 # not a devel code dir
 downscale/alt/
+
+# don't update main Makefile; use Makefile-local
+Makefile-*

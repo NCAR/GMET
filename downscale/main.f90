@@ -85,14 +85,13 @@ program gmet
       integer, intent (out) :: error
     end subroutine save_coefficients
  
-    !modified AJN Sept 2013
+    !modified AJN Sept 2013, replaced AWW 2016
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
 
     subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
-   & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, &
-   & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+   & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
       ! Hongli remove y_mean, y_std, y_std_all, y_min, y_max.
       ! Hongli add obs_max_pcp.
       use type
@@ -115,22 +114,18 @@ program gmet
       integer, intent (out) :: error
       real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
       real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
-      !real (dp), intent (out) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)!std and mean of transformed time step precipitation
-      !real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min,max of normalized time step precip
       real (dp), intent (out) :: obs_max_pcp (:, :)!max of normalized time step precip
 
     end subroutine estimate_forcing_regression
-    !end subroutine estimate_precip  ! AWW-Feb2016 renamed to be more descriptive
+    ! end subroutine estimate_precip  ! AWW-Feb2016 renamed to be more descriptive
  
-    !modified AJN Sept 2013
-    !subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
+    ! modified AJN Sept 2013
+    ! subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
     ! AWW Feb2016, renamed to be more descriptive.  Note did NOT call scrf/save_precip.f90 subroutine
     subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, &
    & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
    & file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
    & trange_err_2)
-      ! Hongli remove y_mean, y_std, y_std_all,y_min, y_max.
-      ! Hongli add obs_max_pcp.
       use netcdf
       use type
       real (sp), intent (in) :: pcp (:, :), pop (:, :), pcperror (:, :)
@@ -148,7 +143,7 @@ program gmet
       character (len=500), intent (in) :: file
       integer, intent (out) :: error
     end subroutine save_forcing_regression
-    !end subroutine save_precip
+    ! end subroutine save_precip
  
   end interface
   ! === end of interface, start the program ====
@@ -184,11 +179,6 @@ program gmet
   !modified AJN Sept 2013
   real (dp), allocatable :: mean_autocorr (:)!mean auto correlation for all stations over entire time period
   real (dp), allocatable :: mean_tp_corr (:)!mean correlation between precip and trange (31-day moving avg anomaly)
-  !real (dp), allocatable :: y_mean (:, :)
-  !real (dp), allocatable :: y_std (:, :)
-  !real (dp), allocatable :: y_std_all (:, :)
-  !real (dp), allocatable :: y_max (:, :)
-  !real (dp), allocatable :: y_min (:, :)
   real (dp), allocatable :: obs_max_pcp (:, :)
  
   !added for grid netcdf read  Oct 2015 AJN
@@ -198,7 +188,6 @@ program gmet
   real (dp), allocatable :: grad_n (:, :)
   real (dp), allocatable :: grad_e (:, :)
   real (dp), allocatable :: mask (:, :)
- 
  
   real (dp), allocatable :: x (:, :), z (:, :)
   integer :: ngrid
@@ -244,25 +233,26 @@ program gmet
     stop
   end if
  
-  startdate      = config_values(2)
-  enddate        = config_values(3)
-  site_list      = config_values(4)
-  site_var       = config_values(5)
-  station_var    = config_values(6)
-  output_file    = config_values(12)
-  site_var_t     = config_values(15)
-  directory      = config_values(16)
-  stn_startdate  = config_values(17)
-  stn_enddate    = config_values(18)
-  gen_sta_weights= config_values(19)
-  sta_weight_name= config_values(20)
+  ! store rest of config file values (ordered)
+  startdate       = config_values(2)
+  enddate         = config_values(3)
+  site_list       = config_values(4)
+  site_var        = config_values(5)
+  station_var     = config_values(6)
+  output_file     = config_values(12)
+  site_var_t      = config_values(15)
+  directory       = config_values(16)
+  stn_startdate   = config_values(17)
+  stn_enddate     = config_values(18)
+  gen_sta_weights = config_values(19)
+  sta_weight_name = config_values(20)
 
-  !check to see if output file path is valid
-  !create the output file and see if an error occurs
+  ! check to see if output file path is valid
+  ! create the output file and see if an error occurs
   output_file_tmp = trim(output_file) // ".txt"
   open(unit=34,file=trim(output_file_tmp),form='unformatted',iostat=error)
     
-  !check to see if it was created
+  ! check to see if it was created
   if(error /= 0) then
     print *, "Error: Output path is not valid." 
     print *, trim(output_file_tmp), " cannot be created in output directory"
@@ -288,7 +278,7 @@ program gmet
   print *, 'startdate=', startdate, 'enddate=', enddate, 'ntimes=', ntimes  ! YYYYMMDD dates
   print *, "---------"
 
-  !translate times to a start and end record for station files
+  ! translate times to a start and end record for station files
 
   ! NOTE: the station file start & end dates are given in the config file so that this calculation 
   !   doesn't have to be done for every single station (ie reading st/end from the station file
@@ -296,17 +286,19 @@ program gmet
   !   not all have to be the same lengths
 
   ! --- station data start and end utimes are now derived from config file dates
-  st_stndata_utime = date_to_unix (stn_startdate) ! returns secs-since-1970 for st date of station files
+  st_stndata_utime  = date_to_unix (stn_startdate) ! returns secs-since-1970 for st date of station files
   end_stndata_utime = date_to_unix (stn_enddate)  ! returns secs-since-1970 for end date of station files
 
   ! calculate start & end recs for processing station data files 
-  st_rec = floor ((times(1)-st_stndata_utime)/86400) + 1
-  end_rec = floor ((times(ntimes)-st_stndata_utime)/86400) + 1
+  st_rec  = floor((times(1)-st_stndata_utime)/86400) + 1
+  end_rec = floor((times(ntimes)-st_stndata_utime)/86400) + 1
   print *, 'st_rec and end_rec days since 1970/1/1: ', st_rec, end_rec
   ! --- end AWW add ---
  
  
   ! === CHOOSE BETWEEN MODE 1 and MODE 2 ====
+  !   1) ens. source is gridded variables
+  !   2) ens. source is station data
   if (mode == 1) then
 
     ! =================== Ensemble Source Is Gridded Model Variables =================
@@ -402,6 +394,8 @@ program gmet
     !   an internal subroutine wants them and may use them in the future
     !   also Mode 1 has not be used much with this program, and may be removed as it's been 
     !   superceded by GARD
+    !   lastly some of the subroutines (eg save_coefficients & estimate_coefficients are 
+    !   now duplicated by the save... and estimate... routines called in mode2
  
   else if (mode == 2) then
  
@@ -426,13 +420,13 @@ program gmet
     ! read grid domain file 
     grid_list = config_values (13)
     if (len(trim(grid_list)) == 0) then
-      print *, "ERROR: Failed to read GRID_LIST name"
+      print *, "ERROR: Failed to read GRID_LIST (domain grid) name"
       stop
     end if
 
     call read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
     if(error /= 0) then
-      print *, "ERROR: Failed to read station list ... quitting", error
+      print *, "ERROR: Failed to read domain grid ... quitting", error
       stop
     end if
 
@@ -470,28 +464,8 @@ program gmet
     z(:, 5) = grd_slp_n (:)
     z(:, 6) = grd_slp_e (:)
  
-    !       call get_time_list(startdate, enddate, Times)
-    !	ntimes = size(Times)
-    !        print *,'startdate=',startdate,'enddate=',enddate,'ntimes=',ntimes
-  
-    ! -- AWW:  translate times to a start and end record for station files
-    !        st_stndata_utime = date_to_unix('19800101')   ! returns secs-since-1970 for enddate of stn files
-                                                       ! hardwired for testing
-    !        end_stndata_utime = date_to_unix('20141231')   ! returns secs-since-1970 for enddate of stn files
-                                                       ! hardwired for testing
-    !        st_rec  = FLOOR((Times(1) - st_stndata_utime)/86400) + 1
-    !        end_rec = FLOOR((Times(ntimes) - st_stndata_utime)/86400) + 1
-    !        print*, 'st_rec and end_rec =', st_rec, end_rec
-    ! -- AWW:  end addition
- 
-    ! modified AJN Sept 2013
     allocate (mean_autocorr(ntimes))
     allocate (mean_tp_corr(ntimes))
-    !allocate (y_mean(ngrid, ntimes))
-    !allocate (y_std(ngrid, ntimes))
-    !allocate (y_std_all(ngrid, ntimes))
-    !allocate (y_max(ngrid, ntimes))
-    !allocate (y_min(ngrid, ntimes))
     allocate (obs_max_pcp(ngrid, ntimes))
  
     call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
@@ -499,8 +473,6 @@ program gmet
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, &
    & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
    
-    ! Hongli remove y_mean, y_std, y_std_all, y_min,y_max.
-    ! Hongli add obs_max_pcp.
     if (error /= 0) then
       print *, "ERROR: subroutine estimate_forcing_regression() returned error", error
       stop
@@ -508,20 +480,16 @@ program gmet
  
     print *, 'Creating output file'
  
-    ! call save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
-
     call save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, nx, &
    & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
-   & output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
-   & trange_err_2)
-    !Hongli remove y_mean, y_std, y_std_all,y_min, y_max.
-    !Hongli add obs_max_pcp.
+   & output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+
     if (error /= 0) then
       print *, "ERROR: subroutine save_forcing_regression() returned error", error
       stop
     end if
     
-    ! end Mode 2:  ensemble regression
+    ! ===== end Mode 2:  ensemble regression
  
   else
 
