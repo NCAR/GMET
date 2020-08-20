@@ -1,0 +1,32 @@
+! TEMPLATE for year long runs of regression code (smaller basins)
+! sets mode in regression code  1 = analog downscaling, 2 = interpolation for ensemble forcing
+MODE = 2
+! start date of output regression -- fmt YYYYMMDD
+START_DATE = 20160101
+! end date of output regression -- fmt YYYYMMDD   
+END_DATE = 20160801
+! The file containing the lists of sites to process
+SITE_LIST = /home/andywood/proj/overtheloop/scripts/ens_forc/info/lists/station_list_slope.ghcnIDs.PNW.v2.trim.txt
+! give the primary variable (this needs redoing)
+SITE_VAR = prcp
+! The Variable string used within each station timeseries file that identifies precipitation
+STATION_VAR = prcp
+! Grid information, Used only in mode 2
+GRID_LIST = /home/andywood/proj/overtheloop/scripts/ens_forc/info/grids/PNW.gridinfo.0625.nc
+! Initial Search Distance in km
+MAX_DISTANCE = 100.0
+! Output file name
+OUTPUT_FILE = /d3/hydrofcst/overtheloop/data/forcing/spinup/PNW/regr/regress_ts.PNW.2016.nc
+! Controls whether or not to check for temperature data?
+SITE_VAR_T = T
+! Location of input station or grid data (without trailing "/")
+DATA_DIRECTORY = /d3/hydrofcst/overtheloop/data/stn_obs/spinup_fill.v2
+! start date of input station data (YYYYMMDD)
+STN_START_DATE = 20160101
+! end date of input station data (YYYYMMDD)
+STN_END_DATE = 20160831
+! Do we want to generate station weights or read then in from a previous run?
+GEN_STA_WEIGHTS = TRUE
+! Name of station weight file
+STA_WEIGHT_NAME = ./station_weights.WEST.bin
+

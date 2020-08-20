@@ -17,10 +17,7 @@
 F_MASTER = 
 
 # Core directory that contains source code
-F_SRC_DIR = $(F_MASTER)/build/src/scrf/
-
-# Location of the compiled modules
-#MOD_PATH = $(F_MASTER)/build/src/scrf/
+F_SRC_DIR = $(F_MASTER)/build/source/scrf/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)/bin/
@@ -38,8 +35,8 @@ FC  = gfortran
 #========================================================================
 
 # Define directories
-MAIN_DIR   = $(F_SRC_DIR)
-NUMREC_DIR = $(F_MASTER)/build/src/from_NR/
+MAIN_DIR = $(F_SRC_DIR)
+NR_DIR = $(F_MASTER)/build/source/from_NR/
 
 # Numerical Recipes utilities
 SCRF_NRUTIL= \
@@ -49,7 +46,7 @@ SCRF_NRUTIL= \
 		ran_state_modified_NR.f90
 #		ran_state.f90
 
-NRUTIL = $(patsubst %, $(NUMREC_DIR)/%, $(SCRF_NRUTIL))
+NRUTIL = $(patsubst %, $(NR_DIR)/%, $(SCRF_NRUTIL))
 
 # Numerical recipes procedures
 SCRF_NRPROC= \

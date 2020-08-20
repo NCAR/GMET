@@ -20,8 +20,13 @@ OUTPUT_FILE = ../outputs/regress_ts.w_subset.nc
 ! Controls whether or not to check for temperature data
 SITE_VAR_T = T
 ! Location of input station or grid data (without trailing "/")
-DATA_DIRECTORY = ../stndata
+DATA_DIRECTORY = ../stndata/
 ! start date of input station data (YYYYMMDD)
 STN_START_DATE = 19700101
 ! end date of input station data (YYYYMMDD)
 STN_END_DATE = 19700131
+! Do we want to generate station weights or read then in from a previous run?
+GEN_STA_WEIGHTS = TRUE
+! Name of station weight file
+STA_WEIGHT_NAME = ../inputs/stn_weights.0625.w_subset.bin
+

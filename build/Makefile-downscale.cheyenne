@@ -7,18 +7,18 @@
 #========================================================================
 
 # Define core directory below which everything resides (GMET/ dir)
-F_MASTER =
+F_MASTER = 
 
 # Core directory that contains source code
-F_SRC_DIR = $(F_MASTER)/build/src/downscale/
+F_SRC_DIR = $(F_MASTER)/build/source/downscale/
 
 # Numerical Recipes directory
-NR_DIR = $(F_MASTER)/build/src/from_NR/
+NR_DIR = $(F_MASTER)/build/source/from_NR/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)/bin/
 
-EXE = downscale.exe
+EXE = downscale.2.exe
 
 # Define the Fortran Compiler
 FC = gfortran
@@ -124,12 +124,12 @@ SRC = $(patsubst %, $(F_SRC_DIR)/%, $(SRC_FILES))
 
     
 #========================================================================
-# PART 3: Compile it
+# PART 3: Compile & link it
 #========================================================================
 
 # "make" builds and links all by default
 
-all: compile link install clean
+all: compile link clean install
 
 compile:
 	$(FC) $(FCFLAGS) -c $(UTILS) $(NR) $(SRC) $(INCNETCDF)
@@ -137,9 +137,10 @@ compile:
 link:
 	$(FC) $(FCFLAGS) $(LIBRARIES) -o $(EXE) *.o
 
+clean:
+	rm -f *.o *.mod *.MOD
+
 install:
 	mv $(EXE) $(EXE_PATH)
         
-clean:
-	rm -f *.o *.mod *.MOD
 
