@@ -2,12 +2,10 @@
 !   renamed from estimate_precip; add also 'directory' var, changed some var names
 
 subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, &
-  & trange, trange_err, mean_autocorr, mean_tp_corr, error, &
+  & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, &
+  & trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
-  ! Hongli remove output y_mean, y_std, y_std_all, y_min, y_max.
-  ! Hongli add obs_max_pcp.
   ! ==============================================================================================
   ! This routine is called during MODE 2 usage:  creates gridded ensembles from station/point data
   ! ==============================================================================================
@@ -106,24 +104,18 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
     end subroutine normalize_x
 
     ! added AJN Sept 2013
-    !subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
-      !use type
-      !real (dp), intent (inout) :: x (:)
-      !real (dp), intent (in) :: weight (:)
-      !real (dp), intent (out) :: mean
-      !real (dp), intent (out) :: stdev
-      !real (dp), intent (out) :: stdev_all
-      !real (dp), intent (out) :: smin
-      !real (dp), intent (out) :: smax
-      !integer (i4b), intent (out) :: yp (:)
-    !end subroutine normalize_xv
-
-    subroutine max_x (x, smax)
+    subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
       use type
       real (dp), intent (inout) :: x (:)
+      real (dp), intent (in) :: weight (:)
+      real (dp), intent (out) :: mean
+      real (dp), intent (out) :: stdev
+      real (dp), intent (out) :: stdev_all
+      real (dp), intent (out) :: smin
       real (dp), intent (out) :: smax
-    end subroutine max_x
-    
+      integer (i4b), intent (out) :: yp (:)
+    end subroutine normalize_xv
+
     subroutine normalize_y (texp, y)
       use type
       real (dp), intent (in) :: texp !transform exponent
@@ -203,10 +195,9 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
 
   ! vary at each grid point and time step
-  !real (dp), intent (out) :: y_mean (:, :), y_std (:, :)!std and mean of time step precipitation
-  !real (dp), intent (out) :: y_std_all (:, :)!std of time step precip including stations with zero precip
-  !real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min & max  of normalized time step precipitation
-  real (dp), intent (out) :: obs_max_pcp (:, :) !max of normalized time step precipitation
+  real (dp), intent (out) :: y_mean (:, :), y_std (:, :)!std and mean of time step precipitation
+  real (dp), intent (out) :: y_std_all (:, :)!std of time step precip including stations with zero precip
+  real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min & max  of normalized time step precipitation
 
   real (dp), allocatable :: y (:), b (:)
   !real (dp), allocatable :: twx (:, :), tx (:, :) ! not used
@@ -237,8 +228,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
   real (dp) :: errsum, wgtsum, sta_temp
   real (dp) :: auto_corr_sum, tp_corr_sum
-  !real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
-  real (dp) :: step_max ! timestep statistics !Hongli change
+  real (dp) :: step_mean, step_std, step_std_all, step_min, step_max ! timestep statistics
   real (dp) :: ss_tot, ss_res ! r-squared and variance correction
 
   integer (i4b) :: xsize !size of second dimension of input X array
@@ -560,19 +550,14 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           end if
         end do
 
-        ! Hongli remove standardization
-        !call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
-       !& yp_red)
+        call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
+       & yp_red)
 
-        !y_mean (g, t) = step_mean
-        !y_std (g, t) = step_std
-        !y_std_all (g, t) = step_std_all
-        !y_min (g, t) = step_min
-        !y_max (g, t) = step_max
-       
-        ! Hongli add 
-        call max_x (y_red, step_max)
-        obs_max_pcp(g, t) = step_max     
+        y_mean (g, t) = step_mean
+        y_std (g, t) = step_std
+        y_std_all (g, t) = step_std_all
+        y_min (g, t) = step_min
+        y_max (g, t) = step_max
 
         ! ---- second, TEMPERATURES ----
 
@@ -612,12 +597,18 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           y_trange_red (i) = y_trange (close_loc_t(g, i))
           x_red_t (i, :) = x (close_loc_t(g, i), :)
 
-          if (y_tmean(close_loc_t(g, i)) .gt.-100.0) then
+          if (y_tmean(close_loc_t(g, i)) .gt. -100.0) then
             ndata_t = ndata_t + 1    ! count data points with valid temperature
           else
             nodata_t = nodata_t + 1  ! count data points with invalid temperature
           end if
         end do
+        
+! debug        if (t .eq. 1) then
+!          write (*, '(A,40I6)') "close_loc_t: ", g, (close_loc_t(g, i), i=1,close_count_t(g)-1)
+!          write (*, '(A,I6,40f6.3)') "weight: ", g, (w_temp_1d(i), i=1,close_count_t(g)-1)
+!          print *, ' '
+!        end if
 
         ! ---- checks on station availability for precip and temp
 
@@ -741,7 +732,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
             call least_squares (x_red, y_red, twx_red, b)
             pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
-            !deallocate (b)  !AWW-seems to be missing !Hongli delete
+            deallocate (b)  !AWW-seems to be missing
 
             wgtsum = 0.0
             errsum = 0.0
@@ -749,10 +740,9 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
             ss_res = 0.0
             do i = 1, (close_count(g)-1), 1
               wgtsum = wgtsum + w_pcp_red (i, i)
-              !errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)
-              errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, :), b), kind(sp))-y_red(i))**2) ! Hongli add
+              !errsum = errsum + (w_pcp_red(i, i)*(pcp(g, t)-y_red(i))**2)  AW
+              errsum = errsum + (w_pcp_red(i, i)*(pcp(close_loc(g, i), t)-y_red(i))**2)
             end do
-            deallocate (b)  !Hongli add
 
             pcperr (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           end if
@@ -777,8 +767,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           ss_res = 0.0
           do i = 1, (close_count(g)-1), 1
             wgtsum = wgtsum + w_pcp_red (i, i)
-            !errsum = errsum + (w_pcp_red(i, i)*(pcp_2(g, t)-y_red(i))**2)
-            errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, 1:4), b), kind(sp))-y_red(i))**2) ! Hongli
+            !errsum = errsum + (w_pcp_red(i, i)*(pcp_2(g, t)-y_red(i))**2)   AW
+            errsum = errsum + (w_pcp_red(i, i)*(pcp_2(close_loc(g, i), t)-y_red(i))**2)            
           end do
 
           pcperr_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
@@ -817,8 +807,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           wgtsum = 0.0
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
-            !errsum = errsum + (w_temp_red(i, i)*(tmean(g, t)-y_tmean_red(i))**2)
-            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, :), b), kind(sp))-y_tmean_red(i))**2) !Hongli
+            !errsum = errsum + (w_temp_red(i, i)*(tmean(g, t)-y_tmean_red(i))**2)  AW
+            errsum = errsum + (w_temp_red(i, i)*(tmean(close_loc_t(g, i), t)-y_tmean_red(i))**2)
           end do
           tmean_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
@@ -841,8 +831,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           wgtsum = 0.0
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
-            !errsum = errsum + (w_temp_red(i, i)*(tmean_2(g, t)-y_tmean_red(i))**2)
-            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, 1:4), b), kind(sp))-y_tmean_red(i))**2) !Hongli
+            !errsum = errsum + (w_temp_red(i, i)*(tmean_2(g, t)-y_tmean_red(i))**2)  AW
+            errsum = errsum + (w_temp_red(i, i)*(tmean_2(close_loc_t(g, i), t)-y_tmean_red(i))**2)
           end do
           tmean_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
@@ -867,8 +857,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           wgtsum = 0.0
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
-            !errsum = errsum + (w_temp_red(i, i)*(trange(g, t)-y_trange_red(i))**2)
-            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, :), b), kind(sp))-y_trange_red(i))**2) !Hongli
+            !errsum = errsum + (w_temp_red(i, i)*(trange(g, t)-y_trange_red(i))**2)  AW
+            errsum = errsum + (w_temp_red(i, i)*(trange(close_loc_t(g, i), t)-y_trange_red(i))**2)
           end do
           trange_err (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)
@@ -892,8 +882,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           do i = 1, (close_count_t(g)-1), 1
             wgtsum = wgtsum + w_temp_red (i, i)
             sta_temp = real (dot_product(x_red_t(i, 1:4), b), kind(sp))
-            !errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)
-            errsum = errsum + (w_temp_red(i, i)*(real (dot_product(x_red_t(i, 1:4), b), kind(sp))-y_trange_red(i))**2) !Hongli
+            !errsum = errsum + (w_temp_red(i, i)*(trange_2(g, t)-y_trange_red(i))**2)  AW
+            errsum = errsum + (w_temp_red(i, i)*(trange_2(close_loc_t(g, i), t)-y_trange_red(i))**2)
           end do
           trange_err_2 (g, t) = real ((errsum/wgtsum)**(1.0/2.0), kind(sp))
           deallocate (b)  !AWW-seems to be missing
