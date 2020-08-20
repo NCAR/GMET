@@ -239,10 +239,10 @@ end subroutine save_coefficients
  
 ! ==== subroutine save_forcing_regression:  saves the forcing regression parameters for use by the SCRF 
 !      program in generating ensemble forcings
-subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, trange, trange_error, &
-    & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
-    & y_min, y_max, file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_error_2, trange_2, &
-    & trange_error_2)
+subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_error, trange, trange_error, &
+& nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
+& file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_error_2, trange_2, trange_error_2)
+
   use netcdf
   use type
   implicit none
@@ -257,8 +257,9 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   real (dp), intent (in) :: times(:)
   real (dp), intent (in) :: mean_autocorr(:), mean_tp_corr(:)
  
-  real (dp), intent (in) :: y_mean (:,:), y_std(:,:), y_min(:,:), y_max(:,:), y_std_all(:,:)
-  character (len=500), intent (in) :: file      ! filename
+  real (dp), intent (in) :: obs_max_pcp(:, :)
+  character (len=500), intent (in) :: file
+
   integer, intent (out) :: error
  
   ! Dimension names
@@ -279,11 +280,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   character (len=*), parameter :: tmean_error_name = "tmean_error"
   character (len=*), parameter :: trange_name = "trange"
   character (len=*), parameter :: trange_error_name = "trange_error"
-  character (len=*), parameter :: y_mean_name = "ymean"
-  character (len=*), parameter :: y_std_name = "ystd"
-  character (len=*), parameter :: y_stdall_name = "ystd_all"
-  character (len=*), parameter :: y_min_name = "ymax"
-  character (len=*), parameter :: y_max_name = "ymin"
+  character (len=*), parameter :: obs_max_pcp_name = "obs_max_pcp"
   character (len=*), parameter :: pcp_name_2 = "pcp_2"
   character (len=*), parameter :: pop_name_2 = "pop_2"
   character (len=*), parameter :: pcp_error_name_2 = "pcp_error_2"
@@ -303,10 +300,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   character (len=*), parameter :: trange_error_long_name = "error in estimated diurnal range"
   character (len=*), parameter :: autoc_long_name = "Lag-1 autocorrelation of temperature"
   character (len=*), parameter :: tpc_long_name = "Correlation of diurnal range and precipitation"
-  character (len=*), parameter :: y_mean_long_name = "mean of transformed non-zero precip"
-  character (len=*), parameter :: y_std_long_name = "std. dev. of transformed non-zero precip"
-  character (len=*), parameter :: y_max_long_name = "max of normalized transformed non-zero precip"
-  character (len=*), parameter :: y_min_long_name = "min of normalized transformed non-zero precip"
+  character (len=*), parameter :: obs_max_pcp_long_name = "Maximum obseved precipitation (transformed)"
   character (len=*), parameter :: pcp_long_name_2 = "estimated precip in normal space (no slope)"
   character (len=*), parameter :: pop_long_name_2 = "probability of precipitation occurrence (no slope)"
   character (len=*), parameter :: pcp_error_long_name_2 = "error in estimated precip (no slope)"
@@ -326,10 +320,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   character (len=*), parameter :: trange_units = "deg_C"
   character (len=*), parameter :: tmean_error_units = "deg_C"
   character (len=*), parameter :: trange_error_units = "deg_C"
-  character (len=*), parameter :: y_mean_units = ""
-  character (len=*), parameter :: y_std_units = ""
-  character (len=*), parameter :: y_max_units = ""
-  character (len=*), parameter :: y_min_units = ""
+  character (len=*), parameter :: obs_max_pcp_units = ""
  
   character (len=*), parameter :: lat_units = "degrees_north"
   character (len=*), parameter :: lon_units = "degrees_east"
@@ -344,8 +335,9 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   integer :: lat_varid, lon_varid, autoc_varid, alt_varid, time_varid, pcp_varid, pop_varid, &
              & pcp_error_varid, tpc_varid
   integer :: tmean_varid, tmean_error_varid, trange_varid, trange_error_varid
-  integer :: ymean_varid, ystd_varid, ymax_varid, ymin_varid, ystdall_varid
+  integer :: obs_max_pcp_varid
   integer :: count1(1), start1(1), count2(2), start2(2), count3(3), start3(3), dimids2(2), dimids3(3)
+
   integer :: trec, nrecs, file_nx, file_ny, file_ntimes, i
  
   integer :: pcp_varid_2, pop_varid_2, pcp_error_varid_2
@@ -414,16 +406,12 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
     call check (nf90_def_var(ncid, trange_error_name_2, nf90_float, dimids3, trange_error_varid_2), "trange error var def error", error)
     if (error /= 0) return
  
-    ! Transformed mean, std variables, min, max of normalized y
-    call check (nf90_def_var(ncid, y_mean_name, nf90_float, dimids3, ymean_varid), "y_mean var def error", error)
-    call check (nf90_def_var(ncid, y_std_name, nf90_float, dimids3, ystd_varid), "y_std var def error", error)
-    call check (nf90_def_var(ncid, y_max_name, nf90_float, dimids3, ymax_varid), "y_max var def error", error)
-    call check (nf90_def_var(ncid, y_min_name, nf90_float, dimids3, ymin_varid), "y_min var def error", error)
-    call check (nf90_def_var(ncid, y_stdall_name, nf90_float, dimids3, ystdall_varid), "y_std_all var def error", error)
+   call check (nf90_def_var(ncid, obs_max_pcp_name, nf90_double, dimids3, obs_max_pcp_varid), "obs_max_pcp var def er&
+   &ror", error)
  
-    ! ==== Add attributes.
+    ! Add attributes.
  
-    ! Long names
+     !long names
     call check (nf90_put_att(ncid, pcp_varid, long_name, pcp_long_name), "pcp long_name attribute error", error)
     call check (nf90_put_att(ncid, pop_varid, long_name, pop_long_name), "pcp long_name attribute error", error)
     call check (nf90_put_att(ncid, pcp_error_varid, long_name, pcp_error_long_name), "pcp_error long_name attribute error", error)
@@ -442,50 +430,43 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
     call check (nf90_put_att(ncid, trange_varid_2, long_name, trange_long_name_2), "trange long_name attribute error", error)
     call check (nf90_put_att(ncid, trange_error_varid_2, long_name, trange_error_long_name_2), "trange long_name attribute error", error)
  
-    ! Correlation variable attributes
+    call check (nf90_put_att(ncid, obs_max_pcp_varid, long_name, obs_max_pcp_long_name), "obs_max_pcp long_name attribute error", error)
+
+    ! correlation variables
     call check (nf90_put_att(ncid, autoc_varid, long_name, autoc_long_name), "auto_corr long_name attribute error", error)
     call check (nf90_put_att(ncid, tpc_varid, long_name, tpc_long_name), "tp_corr long_name attribute error", error)
- 
-    ! Transformed mean, std variables, min, max of normalized y
-    call check (nf90_put_att(ncid, ymean_varid, long_name, y_mean_long_name), "ymean long_name attribute error", error)
-    call check (nf90_put_att(ncid, ystd_varid, long_name, y_std_long_name), "ystd long_name attribute error", error)
-    call check (nf90_put_att(ncid, ystdall_varid, long_name, y_std_long_name), "ystd_all long_name attribute error", error)
-    call check (nf90_put_att(ncid, ymax_varid, long_name, y_max_long_name), "ymax long_name attribute error", error)
-    call check (nf90_put_att(ncid, ymin_varid, long_name, y_min_long_name), "ymin long_name attribute error", error)
-
-    ! Units
+   
+    ! units
     call check (nf90_put_att(ncid, lat_varid, units, lat_units), "lat units attribute error", error)
     call check (nf90_put_att(ncid, lon_varid, units, lon_units), "lon units attribute error", error)
     call check (nf90_put_att(ncid, alt_varid, units, alt_units), "alt units attribute error", error)
     call check (nf90_put_att(ncid, time_varid, units, time_units), "time units attribute error", error)
+ 
     call check (nf90_put_att(ncid, pcp_varid, units, pcp_units), "pcp units attribute error", error)
     call check (nf90_put_att(ncid, pop_varid, units, pop_units), "pcp units attribute error", error)
     call check (nf90_put_att(ncid, pcp_error_varid, units, pcp_error_units), "pcp_error units attribute error", error)
+ 
     call check (nf90_put_att(ncid, tmean_varid, units, tmean_units), "tmean units attribute error", error)
     call check (nf90_put_att(ncid, tmean_error_varid, units, tmean_error_units), "tmean_error units attribute error", error)
     call check (nf90_put_att(ncid, trange_varid, units, trange_units), "trange units attribute error", error)
     call check (nf90_put_att(ncid, trange_error_varid, units, trange_error_units), "trange_error units attribute error", error)
+ 
     call check (nf90_put_att(ncid, pcp_varid_2, units, pcp_units), "pcp units attribute error", error)
     call check (nf90_put_att(ncid, pop_varid_2, units, pop_units), "pcp units attribute error", error)
     call check (nf90_put_att(ncid, pcp_error_varid_2, units, pcp_error_units), "pcp_error units attribute error", error)
+ 
     call check (nf90_put_att(ncid, tmean_varid_2, units, tmean_units), "tmean units attribute error", error)
     call check (nf90_put_att(ncid, tmean_error_varid_2, units, tmean_error_units), "tmean_error units attribute error", error)
     call check (nf90_put_att(ncid, trange_varid_2, units, trange_units), "trange units attribute error", error)
     call check (nf90_put_att(ncid, trange_error_varid_2, units, trange_error_units), "trange_error units attribute error", error)
  
-    ! Correlation variables
+    ! correlation variables
     call check (nf90_put_att(ncid, autoc_varid, units, autoc_units), "auto correlation units attribute error", error)
     call check (nf90_put_att(ncid, tpc_varid, units, tpc_units), "tp correlation units attribute error", error)
  
-    ! Transformed mean,std variables, min, max of normalized y
-    call check (nf90_put_att(ncid, ymean_varid, units, y_mean_units), "ymean units attribute error", error)
-    call check (nf90_put_att(ncid, ystd_varid, units, y_std_units), "ystd units attribute error", error)
-    call check (nf90_put_att(ncid, ystdall_varid, units, y_std_units), "ystd_all units attribute error", error)
-    call check (nf90_put_att(ncid, ymax_varid, units, y_max_units), "ymax units attribute error", error)
-    call check (nf90_put_att(ncid, ymin_varid, units, y_min_units), "ymin units attribute error", error)
- 
+    call check (nf90_put_att(ncid, obs_max_pcp_varid, units, obs_max_pcp_units), "obs_max_pcp units attribute error", error)
     if (error /= 0) return
- 
+
     ! End define mode.
     call check (nf90_enddef(ncid), "end define mode error", error)
     if (error /= 0) return
@@ -531,11 +512,8 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
     call check (nf90_inq_varid(ncid, autoc_name, autoc_varid), "autoc var inq error", error)
     call check (nf90_inq_varid(ncid, tpc_name, tpc_varid), "tpc var inq error", error)
  
-    call check (nf90_inq_varid(ncid, y_mean_name, ymean_varid), "ymean var inq error", error)
-    call check (nf90_inq_varid(ncid, y_std_name, ystd_varid), "ystd var inq error", error)
-    call check (nf90_inq_varid(ncid, y_stdall_name, ystdall_varid), "ystd_all var inq error", error)
-    call check (nf90_inq_varid(ncid, y_max_name, ymax_varid), "ymax var inq error", error)
-    call check (nf90_inq_varid(ncid, y_min_name, ymin_varid), "ymin var inq error", error)
+    call check (nf90_inq_varid(ncid, obs_max_pcp_name, obs_max_pcp_varid), "obs_max_pcp var inq error", error)
+
     if (error /= 0) return
  
     call check (nf90_inquire_dimension(ncid, x_dimid, len=file_nx), "x dim len error", error)
@@ -598,6 +576,10 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   if (error /= 0) return
   call check (nf90_put_var(ncid, pcp_error_varid, real(pcperror, kind(dp)), start=start3, count=count3), "put pcp_error error", error)
   if (error /= 0) return
+
+  call check (nf90_put_var(ncid, obs_max_pcp_varid, obs_max_pcp, start=start3, count=count3), "put obs_max_pcp error", error)
+  if (error /= 0) return
+
   call check (nf90_put_var(ncid, tmean_varid, real(tmean, kind(dp)), start=start3, count=count3), "put tmean error", error)
   if (error /= 0) return
   call check (nf90_put_var(ncid, tmean_error_varid, real(tmean_error, kind(dp)), start=start3, count=count3), "put tmean_error error", error)
@@ -621,18 +603,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_error, tran
   call check (nf90_put_var(ncid, trange_error_varid_2, real(trange_error_2, kind(dp)), start=start3, count=count3), "put trange_error error", error)
   if (error /= 0) return
   
- 
-!transformed mean,std variables, min & max of normalized y
-  call check (nf90_put_var(ncid, ymean_varid, y_mean, start=start3, count=count3), "put ymean error", error)
-  if (error /= 0) return
-  call check (nf90_put_var(ncid, ystd_varid, y_std, start=start3, count=count3), "put ystd error", error)
-  if (error /= 0) return
-  call check (nf90_put_var(ncid, ystdall_varid, y_std_all, start=start3, count=count3), "put ystd_all error", error)
-  if (error /= 0) return
-  call check (nf90_put_var(ncid, ymax_varid, y_min, start=start3, count=count3), "put ymax error", error)
-  if (error /= 0) return
-  call check (nf90_put_var(ncid, ymin_varid, y_max, start=start3, count=count3), "put ymin error", error)
-  if (error /= 0) return
   call check (nf90_close(ncid), "closing file error", error)
  
  

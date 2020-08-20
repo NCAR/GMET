@@ -7,7 +7,9 @@ program generate_ensembles
 !                   -- no longer hardwired; clean formatting
 !                   -- adding documentation
 !                   -- altered namelist args to specify ens range
-!   Andy Wood, 2020 -- fixing bugs in variable and file checks
+!   A. Wood, 2020   -- fixing bugs in variable and file checks
+!   H. Liu / AW, 2020 -- adding box-cox transform, removing standardization, fixing
+!                        error calcs, daylighting constants, documenting
 ! -----------------------------------------------------------------------------
 ! Purpose:
 !   Driver for spatially correlated random field code from Martyn Clark
@@ -15,12 +17,12 @@ program generate_ensembles
 !   For version 0 of CONUS ensemble product.  See Newman et al. 2015 JHM
 ! -----------------------------------------------------------------------------
  
-  use netcdf !netcdf
-  use nrtype ! Numerical recipies types
-  use linkstruct !structure from topnet model for grid information
-  use gridweight !grid structure used by spcorr
-  use nr, only: erf, erfcc ! Numerical Recipies error function
-  use namelist_module, only: read_namelist !namelist module
+  use netcdf 
+  use nrtype                               ! Numerical recipies types
+  use linkstruct                           ! structure from topnet model for grid information
+  use gridweight                           ! grid structure used by spcorr
+  use nr, only: erf, erfcc                 ! Numerical Recipies error function
+  use namelist_module, only: read_namelist ! namelist module
   ! use namelist_module, only: nens, ntimes, start_time AW edited
   use namelist_module, only: start_ens, stop_ens, ntimes, start_time
   use namelist_module, only: out_forc_name_base, in_regr_name, grid_name, clen
@@ -94,27 +96,27 @@ program generate_ensembles
   ! ================== END of INTERFACES ===============
  
   ! Local variables
-  integer (i4b) :: i, j, k, igrd, istep, iens !counter variables
-  integer (i4b) :: nens  ! AW number of ensemble members to generate
-  integer (i4b), dimension (1:2) :: order1 = (/ 2, 1 /)!order for reshape array
-  integer (i4b) :: ierr, jerr !error variables for various error checks
-  integer (i4b) :: nspl1 ! # points (1st spatial dimension)
-  integer (i4b) :: nspl2 ! # points (2nd spatial dimension)
-  integer (i4b) :: isp1  ! first grid dimension location
-  integer (i4b) :: isp2  ! second grid dimension location
-  real (dp), dimension (:, :), allocatable :: rho ! temporal correlation parameter
-  real (dp), dimension (:, :), allocatable :: old_random ! previous correlated random field
-  real (dp), dimension (:, :), allocatable :: pcp_random ! new correlated random field for pcp
-  real (dp), dimension (:, :), allocatable :: tmean_random ! new correlated rand field, tmean
-  real (dp), dimension (:, :), allocatable :: trange_random ! new correlated rand field, trange
+  integer (i4b) :: i, j, k, igrd, istep, iens                  ! counter variables
+  integer (i4b) :: nens                                        ! # ensemble members to generate
+  integer (i4b), dimension (1:2) :: order1 = (/ 2, 1 /)        ! order for reshape array
+  integer (i4b) :: ierr, jerr                                  ! variables for error checks
+  integer (i4b) :: nspl1                                       ! # points (1st spatial dimension)
+  integer (i4b) :: nspl2                                       ! # points (2nd spatial dimension)
+  integer (i4b) :: isp1                                        ! first grid dimension location
+  integer (i4b) :: isp2                                        ! second grid dimension location
+  real (dp), dimension (:, :), allocatable :: rho              ! temporal correlation parameter
+  real (dp), dimension (:, :), allocatable :: old_random       ! previous correlated random field
+  real (dp), dimension (:, :), allocatable :: pcp_random       ! new correlated random field for pcp
+  real (dp), dimension (:, :), allocatable :: tmean_random     ! new correlated rand field, tmean
+  real (dp), dimension (:, :), allocatable :: trange_random    ! new correlated rand field, trange
  
-  real (sp) :: acorr !value from scrf
-  real (sp) :: aprob !probability from scrf
+  real (sp) :: acorr    ! value from scrf
+  real (sp) :: aprob    ! probability from scrf
   real (sp) :: a_ra
   real (sp) :: aprob_ra
  
-  real (dp) :: cprob !cdf value from scrf
-  real (dp) :: amult !multiplier value to get actual precip from normalized value                                 ::
+  real (dp) :: cprob    ! cdf value from scrf
+  real (dp) :: amult    ! multiplier value to get actual precip from normalized value                                 ::
   real (dp) :: rn
   real (dp) :: ra
   real (dp) :: ra_err
@@ -124,27 +126,27 @@ program generate_ensembles
   real (dp), allocatable :: transform_exp (:)
   real (dp) :: transform
  
-  integer :: f ! AWW for command line argument read
+  integer :: f                ! for command line argument read
   character (len=200) :: namelist_filename !AWW now an argument to the program
   character (len=1024) :: arg ! AWW command line arg for configuration file
-  character (len=1024) :: out_name !base output name for netcdf files
-  character (len=128) :: suffix !suffix for ensemble member output
-  character (len=1024) :: var_name !name of netcdf variable grabbed from jason's netcdf file
-  real (dp), allocatable :: lon_out (:)! lon output to netcdf
-  real (dp), allocatable :: lat_out (:)! lat output to netcdf
-  real (dp), allocatable :: hgt_out (:)! hgt output to netcdf
+  character (len=1024) :: out_name        ! base output name for netcdf files
+  character (len=128) :: suffix           ! suffix for ensemble member output
+  character (len=1024) :: var_name        ! name of netcdf variable grabbed from jason's netcdf file
+  real (dp), allocatable :: lon_out (:)   ! lon output to netcdf
+  real (dp), allocatable :: lat_out (:)   ! lat output to netcdf
+  real (dp), allocatable :: hgt_out (:)   ! hgt output to netcdf
   real (dp), allocatable :: lat (:, :)
   real (dp), allocatable :: lon (:, :)
   real (dp), allocatable :: hgt (:, :)
   real (dp), allocatable :: slp_e (:, :)
   real (dp), allocatable :: slp_n (:, :)
   real (dp), allocatable :: mask (:, :)
-  real (dp), allocatable :: weight (:, :)!weights from spcorr
-  real (dp), allocatable :: std (:, :)!std from spcorr
-  real (dp), allocatable :: var (:, :, :)!generic variable
-  real (dp), allocatable :: pcp (:, :, :)!output from qpe code, normalized precip
-  real (dp), allocatable :: pop (:, :, :)!output from qpe code, normalized pop
-  real (dp), allocatable :: pcp_error (:, :, :)!error from ols regression in qpe code
+  real (dp), allocatable :: weight (:, :)       ! weights from spcorr
+  real (dp), allocatable :: std (:, :)          ! std from spcorr
+  real (dp), allocatable :: var (:, :, :)       ! generic variable
+  real (dp), allocatable :: pcp (:, :, :)       ! output from qpe code, normalized precip
+  real (dp), allocatable :: pop (:, :, :)       ! output from qpe code, normalized pop
+  real (dp), allocatable :: pcp_error (:, :, :) ! error from ols regression in qpe code
   real (dp), allocatable :: tmean (:, :, :)
   real (dp), allocatable :: tmean_error (:, :, :)
   real (dp), allocatable :: trange (:, :, :)
@@ -163,11 +165,7 @@ program generate_ensembles
   real (dp), allocatable :: times (:)!time vector from qpe code
   real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation vector from qpe code
   real (dp), allocatable :: tpc_corr (:)!temp-precip correlation vector from qpe code
-  real (dp), allocatable :: y_mean (:, :, :) !mean of transformed non-0 pcp (at each timestep)
-  real (dp), allocatable :: y_std (:, :, :) !stdev of transformed non-0 pcpp (at each t-step)
-  real (dp), allocatable :: y_std_all (:, :, :) !stddev of transf. non-0 pcp (at each tstep)
-  real (dp), allocatable :: y_min (:, :, :) !min of normalized transf. non-0 pcp (each tstep)
-  real (dp), allocatable :: y_max (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
+  real (dp), allocatable :: obs_max_pcp (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
   real (sp), allocatable :: pcp_out (:, :, :)!
   real (sp), allocatable :: tmean_out (:, :, :)!
   real (sp), allocatable :: trange_out (:, :, :)!
@@ -234,11 +232,7 @@ program generate_ensembles
   allocate (trange_2(nx, ny, ntimes))
   allocate (trange_error_2(nx, ny, ntimes))
  
-  allocate (y_mean(nx, ny, ntimes))
-  allocate (y_std(nx, ny, ntimes))
-  allocate (y_std_all(nx, ny, ntimes))
-  allocate (y_min(nx, ny, ntimes))
-  allocate (y_max(nx, ny, ntimes))
+  allocate (obs_max_pcp(nx, ny, ntimes))
  
   allocate (times(ntimes))
   allocate (auto_corr(ntimes))
@@ -334,33 +328,12 @@ program generate_ensembles
   error = nf90_get_var (ncid, varid, trange_error_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
   if (error /= 0) stop "Cannot read netcdf variable "//var_name
  
-  var_name = 'ymean'
-  error = nf90_inq_varid (ncid, var_name, varid); if (error /= 0) stop "Cannot find netcdf id for "//var_name
-  error = nf90_get_var (ncid, varid, y_mean, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
-  if (error /= 0) stop "Cannot read netcdf variable "//var_name
+  var_name = 'obs_max_pcp'
+  error = nf90_inq_varid (ncid, var_name, varid); if (ierr /= 0) stop "Cannot find netcdf id for "//var_name
+  error = nf90_get_var (ncid, varid, obs_max_pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
+  if (ierr /= 0) stop "Cannot read netcdf variable "//var_name
  
-  var_name = 'ystd'
-  error = nf90_inq_varid (ncid, var_name, varid); if (error /= 0) stop "Cannot find netcdf id for "//var_name
-  error = nf90_get_var (ncid, varid, y_std, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
-  if (error /= 0) stop "Cannot read netcdf variable "//var_name
- 
-  var_name = 'ystd_all'
-  error = nf90_inq_varid (ncid, var_name, varid); if (error /= 0) stop "Cannot find netcdf id for "//var_name
-  error = nf90_get_var (ncid, varid, y_std_all, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
-  if (error /= 0) stop "Cannot read netcdf variable "//var_name
- 
-  var_name = 'ymin'
-  error = nf90_inq_varid (ncid, var_name, varid); if (error /= 0) stop "Cannot find netcdf id for "//var_name
-  error = nf90_get_var (ncid, varid, y_min, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
-  if (error /= 0) stop "Cannot read netcdf variable "//var_name
- 
-  var_name = 'ymax'
-  error = nf90_inq_varid (ncid, var_name, varid); if (error /= 0) stop "Cannot find netcdf id for "//var_name
-  error = nf90_get_var (ncid, varid, y_max, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
-  if (error /= 0) stop "Cannot read netcdf variable "//var_name
- 
-  error = nf90_close (ncid)
-  if (error /= 0) stop "Cannot close regression netcdf file in generate_ensembles()"
+  error = nf90_close (ncid); if (error /= 0) stop "Cannot close regression netcdf file in generate_ensembles()"
  
   ! set up a few variables for spcorr structure
   nspl1 = nx
@@ -429,13 +402,10 @@ program generate_ensembles
  
   ! --------------------------------------------------------------------------------------
   ! allocate space for spatial arrays in grid structure
-  allocate (grid%lat(spl1_count, spl2_count), grid%lon(spl1_count, spl2_count), &
- & grid%elv(spl1_count, spl2_count), stat=jerr)
-  if (ierr .ne. 0 .or. jerr .ne. 0) call exit_scrf (1, ' problem allocating space for&
- & lat-lon-elev coordinates ')
+  allocate (grid%lat(spl1_count, spl2_count), grid%lon(spl1_count, spl2_count), grid%elv(spl1_count, spl2_count), stat=jerr)
+  if (ierr .ne. 0 .or. jerr .ne. 0) call exit_scrf (1, ' problem allocating space for lat-lon-elev coordinates ')
  
-  allocate (pcp_out(nx, ny, ntimes), tmean_out(nx, ny, ntimes), trange_out(nx, ny, ntimes), &
- & stat=ierr)
+  allocate (pcp_out(nx, ny, ntimes), tmean_out(nx, ny, ntimes), trange_out(nx, ny, ntimes), stat=ierr)
   if (ierr .ne. 0) call exit_scrf (1, 'problem allocating for 2-d output variables')
   
   pcp_out = 0.0
@@ -458,7 +428,7 @@ program generate_ensembles
   call field_rand (nspl1, nspl2, pcp_random)
  
   ! setup sp_corr structure for temperature with larger correlation length
-  clen = 800.0 !rough estimate based on observations
+  clen = 800.0                                     ! rough estimate based on observations
   call spcorr_grd (nspl1, nspl2, grid)
   sp_temp = spcorr
  
@@ -492,83 +462,81 @@ program generate_ensembles
           ! check thresholds of slope fields to see which regression to use
 
           ! For precipitation only
-          if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then
+          !if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then 
+          ! hongli change slope threshold from 3.6 to 0.3 for nldas application ONLY
+          if (abs(slp_n(isp1, isp2)) .le. 0.3 .and. abs(slp_e(isp1, isp2)) .le. 0.3) then
             pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
             pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
             pcp_error (isp1, isp2, istep) = pcp_error_2 (isp1, isp2, istep)
           end if
  
           ! For temperature don't use regression that included slope --
-          !   only lat,lon,elevation based regression
+          !   only lat, lon, elevation based regression
           tmean (isp1, isp2, istep) = tmean_2 (isp1, isp2, istep)
           tmean_error (isp1, isp2, istep) = tmean_error_2 (isp1, isp2, istep)
           trange (isp1, isp2, istep) = trange_2 (isp1, isp2, istep)
           trange_error (isp1, isp2, istep) = trange_error_2 (isp1, isp2, istep)
  
+          ! depending on PoP, decide whether to generate precip or not
           if (cprob .lt. (1.0_dp-real(pop(isp1, isp2, istep), kind(dp)))) then 
+          
             ! Don't generate precip
             pcp_out (isp1, isp2, istep) = 0.0d0
  
-          else 
-            ! generate a precip amount
+          else     ! generate a precip amount
  
             ! scale cumulative probability by regression pop
             cs = (cprob-(1.0_dp-real(pop(isp1, isp2, istep), kind(dp)))) / real (pop(isp1, isp2, &
            & istep), kind(dp))
  
             ! convert cs to a z-score from standard normal
-            ! use erfinv
             if (cs .le. 3e-5) then
-              rn = - 3.99
+              rn = -3.99
             else if (cs .ge. 0.99997) then
               rn = 3.99
             else
               rn = sqrt (2._sp) * erfinv ((2._sp*real(cs, kind(sp)))-1.0_sp)
             end if
  
- 
-            ra = (real(pcp(isp1, isp2, istep), kind(dp))*real(y_std(isp1, isp2, istep), kind(dp))) &
-           & + real (y_mean(isp1, isp2, istep), kind(dp)) + real (y_std(isp1, isp2, istep), &
-           & kind(dp)) * rn * real (pcp_error(isp1, isp2, istep), kind(dp))
+            ! estimate ensemble pcp (normalized space), then back-transform
+            ra = real(pcp(isp1, isp2, istep), kind(dp)) + rn * real(pcp_error(isp1, isp2, istep), kind(dp))           
  
             if (ra .gt. 0.0) then
-              ra = ra ** transform
+              !ra = ra ** transform
+              ra = (ra*(1.0d0/transform)+1) ** transform  ! HL switched to box-cox back-transformation              
             else
               ra = 0.01
             end if
  
- 
-            ! limit max value to y_max + pcp_error (max station value + some portion of error)
-            if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
-           & istep), kind(dp)))**transform) then
-              ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
-             & kind(dp))) ** transform
+            !! limit max value to y_max + pcp_error (max station value + some portion of error)
+            !if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
+            !& istep), kind(dp)))**transform) then
+            !   ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
+            !  //////(dp))) ** transform
+            ! end if
+            
+            ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
+            ! Hongli changed for box-cox back-transformation
+            if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
+           & istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
+              ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
+             & kind(dp)))*(1.0d0/transform)+1) ** transform
             end if
- 
- 
+  
             pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
- 
- 
+  
           end if 
-          ! end IF statement for precip generation
- 
- 
+          ! end IF statement else case for precip generation
+  
           ! tmean
           ra = real (tmean(isp1, isp2, istep), kind(dp)) + real (tmean_random(isp1, isp2), &
-         & kind(dp)) * real (tmean_error(isp1, isp2, istep)/3.0, kind(dp))
-          tmean_out (isp1, isp2, istep) = real (ra, kind(sp))
+         &       kind(dp)) * real (tmean_error(isp1, isp2, istep), kind(dp))
+           tmean_out (isp1, isp2, istep) = real (ra, kind(sp)) 
  
           ! trange
           ra = real (trange(isp1, isp2, istep), kind(dp)) + real (trange_random(isp1, isp2), &
-         & kind(dp)) * real (trange_error(isp1, isp2, istep)/3.0, kind(dp))
+         &       kind(dp)) * real (trange_error(isp1, isp2, istep), kind(dp))
           trange_out (isp1, isp2, istep) = real (ra, kind(sp))
- 
-          ! using +/- 3 std dev of uncertainty for temp gives unrealistic min and max ensemble 
-          ! member temps and diurnal ranges
-          ! ad hoc fix is to limit temp ensemble to roughly +/- 1 uncertainty range.  
-          ! needs to be looked at further in future releases but
-          ! this at least gives reasonable temp results and covers the daymet, 
-          ! nldas, maurer spread for basins we've looked at
  
           ! check for unrealistic and non-physical trange values
           if (trange_out(isp1, isp2, istep) .gt. 40.0) then

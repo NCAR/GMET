@@ -85,14 +85,15 @@ program gmet
       integer, intent (out) :: error
     end subroutine save_coefficients
  
-    !modified AJN Sept 2013
+    !modified AJN Sept 2013, replaced AWW 2016
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
     ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
 
     subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, stnvar, directory, pcp, pop, pcperr, tmean, tmean_err, trange, &
-   & trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, y_max, error, pcp_2, &
-   & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+   & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
+   & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+      ! Hongli remove y_mean, y_std, y_std_all, y_min, y_max.
+      ! Hongli add obs_max_pcp.
       use type
       character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
       character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
@@ -113,17 +114,17 @@ program gmet
       integer, intent (out) :: error
       real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
       real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
-      real (dp), intent (out) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)!std and mean of transformed time step precipitation
-      real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min,max of normalized time step precip
+      real (dp), intent (out) :: obs_max_pcp (:, :)!max of normalized time step precip
+
     end subroutine estimate_forcing_regression
-    !end subroutine estimate_precip  ! AWW-Feb2016 renamed to be more descriptive
+    ! end subroutine estimate_precip  ! AWW-Feb2016 renamed to be more descriptive
  
-    !modified AJN Sept 2013
-    !subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
+    ! modified AJN Sept 2013
+    ! subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
     ! AWW Feb2016, renamed to be more descriptive.  Note did NOT call scrf/save_precip.f90 subroutine
-    subroutine save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
-   & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
-   & y_min, y_max, file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
+    subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, &
+   & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
+   & file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
    & trange_err_2)
       use netcdf
       use type
@@ -136,12 +137,13 @@ program gmet
       real (dp), intent (in) :: grdlat (:), grdlon (:), grdalt (:)
       real (dp), intent (in) :: times (:)
       real (dp), intent (in) :: mean_autocorr (:), mean_tp_corr (:)
-      real (dp), intent (in) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)
-      real (dp), intent (in) :: y_min (:, :), y_max (:, :)
+      !real (dp), intent (in) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)
+      !real (dp), intent (in) :: y_min (:, :), y_max (:, :)
+      real (dp), intent (in) :: obs_max_pcp (:, :)
       character (len=500), intent (in) :: file
       integer, intent (out) :: error
     end subroutine save_forcing_regression
-    !end subroutine save_precip
+    ! end subroutine save_precip
  
   end interface
   ! === end of interface, start the program ====
@@ -177,11 +179,7 @@ program gmet
   !modified AJN Sept 2013
   real (dp), allocatable :: mean_autocorr (:)!mean auto correlation for all stations over entire time period
   real (dp), allocatable :: mean_tp_corr (:)!mean correlation between precip and trange (31-day moving avg anomaly)
-  real (dp), allocatable :: y_mean (:, :)
-  real (dp), allocatable :: y_std (:, :)
-  real (dp), allocatable :: y_std_all (:, :)
-  real (dp), allocatable :: y_max (:, :)
-  real (dp), allocatable :: y_min (:, :)
+  real (dp), allocatable :: obs_max_pcp (:, :)
  
   !added for grid netcdf read  Oct 2015 AJN
   real (dp), allocatable :: lat (:, :)
@@ -190,7 +188,6 @@ program gmet
   real (dp), allocatable :: grad_n (:, :)
   real (dp), allocatable :: grad_e (:, :)
   real (dp), allocatable :: mask (:, :)
- 
  
   real (dp), allocatable :: x (:, :), z (:, :)
   integer :: ngrid
@@ -281,7 +278,7 @@ program gmet
   print *, 'startdate=', startdate, 'enddate=', enddate, 'ntimes=', ntimes  ! YYYYMMDD dates
   print *, "---------"
 
-  !translate times to a start and end record for station files
+  ! translate times to a start and end record for station files
 
   ! NOTE: the station file start & end dates are given in the config file so that this calculation 
   !   doesn't have to be done for every single station (ie reading st/end from the station file
@@ -469,16 +466,13 @@ program gmet
  
     allocate (mean_autocorr(ntimes))
     allocate (mean_tp_corr(ntimes))
-    allocate (y_mean(ngrid, ntimes))
-    allocate (y_std(ngrid, ntimes))
-    allocate (y_std_all(ngrid, ntimes))
-    allocate (y_max(ngrid, ntimes))
-    allocate (y_min(ngrid, ntimes))
+    allocate (obs_max_pcp(ngrid, ntimes))
  
     call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, station_var, directory, pcp, pop, pcperror, tmean, &
-   & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, y_min, &
-   & y_max, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+   & stnid, station_var, directory, pcp, pop, pcperror, obs_max_pcp, tmean, &
+   & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, &
+   & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+   
     if (error /= 0) then
       print *, "ERROR: subroutine estimate_forcing_regression() returned error", error
       stop
@@ -486,16 +480,16 @@ program gmet
  
     print *, 'Creating output file'
  
-    call save_forcing_regression (pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, nx, &
-   & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, y_mean, y_std, y_std_all, &
-   & y_min, y_max, output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
-   & trange_err_2)
+    call save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, nx, &
+   & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
+   & output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+
     if (error /= 0) then
       print *, "ERROR: subroutine save_forcing_regression() returned error", error
       stop
     end if
     
-    ! end Mode 2:  ensemble regression
+    ! ===== end Mode 2:  ensemble regression
  
   else
 
