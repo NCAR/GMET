@@ -55,3 +55,5 @@ LASTNEXT
 */*/*/.ipynb_checkpoints/
 *ipnb*
 
+# expanded examples
+test_cases/example*/
