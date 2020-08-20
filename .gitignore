@@ -27,7 +27,7 @@
 *.exe
 
 # external codes (eg numerical recipes)
-build/src/from_NR/*.f90
+build/source/from_NR/*.f90
 
 # no text files (OK)
 # *.txt
