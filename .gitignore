@@ -3,6 +3,10 @@
 # no .a or .o files
 *.[oa]
 
+# no .nc or bin files  (eg from expanded test case)
+*.nc
+*.bin
+
 # no .mod files
 *.mod
 *genmod*
