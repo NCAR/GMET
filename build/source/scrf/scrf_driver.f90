@@ -508,22 +508,17 @@ program generate_ensembles
               ra = 0.01
             end if
  
-            !! limit max value to y_max + pcp_error (max station value + some portion of error)
+            ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
+            !     HL changed for box-cox back-transformation
             !if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
             !& istep), kind(dp)))**transform) then
             !   ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
             !  //////(dp))) ** transform
-            ! end if
-            
-            ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
-            ! Hongli changed for box-cox back-transformation
-
-            ! AW: turn this adjustment off until this can be made an option
-            !if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
-           !& istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
-            !  ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
-            ! & kind(dp)))*(1.0d0/transform)+1) ** transform
-            !end if
+            if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
+           & istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
+              ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
+             & kind(dp)))*(1.0d0/transform)+1) ** transform
+            end if
 
             pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
   
