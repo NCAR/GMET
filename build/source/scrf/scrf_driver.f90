@@ -13,7 +13,7 @@ program generate_ensembles
 ! -----------------------------------------------------------------------------
 ! Purpose:
 !   Driver for spatially correlated random field code from Martyn Clark
-!   Generates ensebles of precipitation and temperature from regression step
+!   Generates ensembles of precipitation and temperature from regression step
 !   For version 0 of CONUS ensemble product.  See Newman et al. 2015 JHM
 ! -----------------------------------------------------------------------------
  
@@ -94,6 +94,10 @@ program generate_ensembles
   
   end interface
   ! ================== END of INTERFACES ===============
+
+  ! Parameters
+  real (dp), parameter :: slope_threshold = 3.6       ! switch between using slopes as predictors (def=3.6)
+                                                      ! 0.3 for NLDAS application (H. Liu)
  
   ! Local variables
   integer (i4b) :: i, j, k, igrd, istep, iens                  ! counter variables
@@ -109,7 +113,7 @@ program generate_ensembles
   real (dp), dimension (:, :), allocatable :: pcp_random       ! new correlated random field for pcp
   real (dp), dimension (:, :), allocatable :: tmean_random     ! new correlated rand field, tmean
   real (dp), dimension (:, :), allocatable :: trange_random    ! new correlated rand field, trange
- 
+
   real (sp) :: acorr    ! value from scrf
   real (sp) :: aprob    ! probability from scrf
   real (sp) :: a_ra
@@ -175,8 +179,11 @@ program generate_ensembles
   integer (i4b) :: tot_times
   integer       :: ncid, varid, error
  
-  type (coords), pointer :: grid !coordinate structure for grid
+  type (coords), pointer :: grid                              ! coordinate structure for grid
   type (splnum), dimension (:, :), pointer :: sp_pcp, sp_temp ! structures of spatially correlated random field weights
+
+  integer (i4b) :: pcp_cap_count  ! counter for precip cap application
+  integer (i4b) :: pcp_val_count  ! counter for total values in grid*times (a convenience)
 
   ! ========== code starts below ==============================
  
@@ -389,7 +396,6 @@ program generate_ensembles
   allocate (trange_random(nspl1, nspl2), stat=ierr)
   if (ierr .ne. 0) call exit_scrf (1, 'problem allocating space for trange_random ')
  
- 
   nullify (grid)
   allocate (grid, stat=ierr)
   if (ierr .ne. 0) call exit_scrf (1, 'problem allocating structure grid')
@@ -441,6 +447,8 @@ program generate_ensembles
   ! ============ loop through the ensemble members ============
   ! do iens = 1, nens
   do iens = start_ens, stop_ens
+
+    pcp_cap_count = 0; pcp_val_count = 0
  
     ! Loop through time
     do istep = 1, ntimes
@@ -453,6 +461,8 @@ program generate_ensembles
  
         ! only compute values for valid grid points
         if (grid%elv(isp1, isp2) .gt.-300.0) then
+
+          pcp_val_count = pcp_val_count + 1
  
           ! find cumulative probability
           acorr = real (pcp_random(isp1, isp2), kind(sp)) / sqrt (2._sp)
@@ -460,18 +470,14 @@ program generate_ensembles
           cprob = (2.d0-real(aprob, kind(dp))) / 2.d0
  
           ! check thresholds of slope fields to see which regression to use
-
-          ! For precipitation only
-          !if (abs(slp_n(isp1, isp2)) .le. 3.6 .and. abs(slp_e(isp1, isp2)) .le. 3.6) then 
-          ! hongli change slope threshold from 3.6 to 0.3 for nldas application ONLY
-          if (abs(slp_n(isp1, isp2)) .le. 0.3 .and. abs(slp_e(isp1, isp2)) .le. 0.3) then
+          ! For precipitation only, switch regression to using slope or not depending on threshold
+          if (abs(slp_n(isp1, isp2)) .le. slope_threshold .and. abs(slp_e(isp1, isp2)) .le. slope_threshold) then 
             pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
             pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
             pcp_error (isp1, isp2, istep) = pcp_error_2 (isp1, isp2, istep)
           end if
  
-          ! For temperature don't use regression that included slope --
-          !   only lat, lon, elevation based regression
+          ! For temperature don't use regression that included slope -- only lat, lon, elev based regression
           tmean (isp1, isp2, istep) = tmean_2 (isp1, isp2, istep)
           tmean_error (isp1, isp2, istep) = tmean_error_2 (isp1, isp2, istep)
           trange (isp1, isp2, istep) = trange_2 (isp1, isp2, istep)
@@ -508,6 +514,8 @@ program generate_ensembles
               ra = 0.01
             end if
  
+            ! AW: revisit how this is done; make an option for the user
+            
             !! limit max value to y_max + pcp_error (max station value + some portion of error)
             !if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
             !& istep), kind(dp)))**transform) then
@@ -521,6 +529,7 @@ program generate_ensembles
            & istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
               ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
              & kind(dp)))*(1.0d0/transform)+1) ** transform
+              pcp_cap_count = pcp_cap_count + 1
             end if
   
             pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
@@ -579,12 +588,14 @@ program generate_ensembles
       pcp_random = trange_random * tpc_corr (1) + sqrt (1-tpc_corr(1)*tpc_corr(1)) * pcp_random
  
     end do !end time step loop
- 
+
     ! ============ now WRITE out the data file ============
     print *, 'Done with ensemble member: ', iens
     write (suffix, '(I3.3)') iens
     ! print *, 'Done with ensemble member: ', iens + start_ens - 1
     ! write (suffix, '(I3.3)') iens + start_ens - 1
+
+    print*, '--- pcp_cap_count = ', pcp_cap_count, ' pcp_val_count = ', pcp_val_count
  
     ! setup output name
     out_name = trim (out_name) // '.' // trim (suffix) // '.nc'

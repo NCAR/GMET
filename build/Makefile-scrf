@@ -63,7 +63,7 @@ SCRF_NRPROC= \
 		erfc.f90 \
 		erfcc.f90\
 		gasdev.f90
-NRPROC = $(patsubst %, $(NUMREC_DIR)/%, $(SCRF_NRPROC))
+NRPROC = $(patsubst %, $(NR_DIR)/%, $(SCRF_NRPROC))
 
 # Data modules
 SCRF_DATAMS= \
