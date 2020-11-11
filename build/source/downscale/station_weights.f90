@@ -3,27 +3,28 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
                                    close_meta,close_meta_t,close_loc,close_loc_t, &
                                    close_count,close_count_t,close_weights,close_weights_t,error)
 
-  !subroutine to compute the grid - station weight matrix for every grid point for all stations considered for each grid point
+  ! subroutine to compute the grid - station weight matrix for every grid point for all stations considered for 
+  !   each grid point
 
   use type
-
   implicit none
 
-  !declarations
-  !inputs
-  character(len=500),intent(in) :: sta_weight_name     !name of station weight binary file
-  integer(I4B), intent(in)      :: ngrid               !number of grid points
-  integer(I4B), intent(in)      :: nstns               !number of stations
-  real(DP), intent(in)          :: Z(:,:)              !grid metadata array
-  real(DP), intent(in)          :: X(:,:)              !station metadata array
-  real(DP), intent(in)          :: search_distance     !default station search distance
-  integer(I4B), intent(in)      :: sta_limit           !maximum number of stations for a grid point
-  real(DP), intent(in)          :: sta_data(:,:)       !station data values for precipitation
-  real(DP), intent(in)          :: tair_data(:,:,:)    !station air temperature data
+  ! variable declarations
+  ! inputs
+  character(len=500),intent(in) :: sta_weight_name     ! name of station weight binary file
+  integer(I4B), intent(in)      :: ngrid               ! number of grid points
+  integer(I4B), intent(in)      :: nstns               ! number of stations
+  real(DP), intent(in)          :: Z(:,:)              ! grid metadata array (1,lat,lon,elev,slpN,slpE)
+  real(DP), intent(in)          :: X(:,:)              ! station metadata array (ditto)
+  real(DP), intent(in)          :: search_distance     ! default station search distance
+  integer(I4B), intent(in)      :: sta_limit           ! maximum number of stations for a grid point
+  real(DP), intent(in)          :: sta_data(:,:)       ! station data values for precipitation
+  real(DP), intent(in)          :: tair_data(:,:,:)    ! station air temperature data
 
-  !in/out
-  real(DP), intent(inout)     :: close_meta(:,:,:)
-  real(DP), intent(inout)     :: close_meta_t(:,:,:)
+  ! in/out
+  real(DP), intent(inout)     :: close_meta(:,:,:)     ! metadata (type,grid_ndx,stn_ndx)
+                                                       !  type(1-5):  stnlat,stnlon,grdlat,grdlon,distance(n.mi)
+  real(DP), intent(inout)     :: close_meta_t(:,:,:)   ! same
   integer(I4B), intent(inout) :: close_loc(:,:)
   integer(I4B), intent(inout) :: close_loc_t(:,:)
   integer(I4B), intent(inout) :: close_count(:)
@@ -32,7 +33,7 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
   real(DP), intent(inout)     :: close_weights_t(:,:)
   integer(I4B), intent(inout) :: error
   
-  !local variables
+  ! local variables
   real(DP)                    :: min_weight_t
   real(DP)                    :: min_weight
   real(DP), allocatable       :: w_base(:,:)
@@ -40,14 +41,13 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
   integer(I4B)                :: out_loc_t
   integer(I4B)                :: i,g        ! counter variables
 
-  !code starts below
+  ! ====================== CODE starts below =====================================
   
-  !allocate base weight array
+  ! allocate base weight array
   allocate(w_base(ngrid,nstns),stat=error)
   if(error/=0)then; print *,'Error allocating w_base',error; return; endif
 
-  !set to zero
-  w_base = 0.0d0
+  w_base = 0.0d0     ! initialize
 
   do g = 1, ngrid, 1
     if(z(g,4) > -400.) then
@@ -61,8 +61,8 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
 
       ! for current grid cell, loop through stations, find distance
       do i = 1, nstns, 1
-        !setup distinct weight matrices for precip and temperature
-        ! x() are station lonlat; z() are grid lonlat; returns weight (w_base) for grd-to-stn
+        ! set up distinct weight matrices for precip and temperature
+        ! x() are station lonlat; Z() are grid lonlat; returns weight (w_base) for grd-to-stn
         call calc_distance_weight(search_distance, X(i,2), X(i,3), Z(g,2), Z(g,3), w_base(g,i))
 
         !Precipitation
@@ -74,10 +74,11 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
             close_weights(g,close_count(g)) = w_base(g,i)
             close_loc(g,close_count(g))  = i
 
-            close_meta(1,g,close_count(g)) = X(i,2)
-            close_meta(2,g,close_count(g)) = X(i,3)
-            close_meta(3,g,close_count(g)) = Z(g,2)
-            close_meta(4,g,close_count(g)) = Z(g,3)
+            close_meta(1,g,close_count(g)) = X(i,2)  # stn lat
+            close_meta(2,g,close_count(g)) = X(i,3)  # stn lon
+            close_meta(3,g,close_count(g)) = Z(g,2)  # grd lat
+            close_meta(4,g,close_count(g)) = Z(g,3)  # grd lon
+            # close_meta(5,...) is for distance from stn to grid in nautical miles
             call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta(5,g,close_count(g)))
 
             close_count(g) = close_count(g) + 1
@@ -96,7 +97,7 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
           endif
         endif
 
-        !need to repeat above for temperature since that data is independent of precipitation
+        ! need to repeat above for temperature since that data is independent of precipitation
         min_weight_t = 0.0d0
 
         if(w_base(g,i) .gt. min_weight_t .and. tair_data(1,i,1) .gt. -200.0d0) then
@@ -128,26 +129,22 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
             endif
           endif
         endif
-      enddo  !end station loop
-    endif    !end grid point elevation check
-  enddo      !end grid point loop
+      enddo  ! end station loop
+    endif    ! end grid point elevation check
+  enddo      ! end grid point loop
 
 end subroutine compute_station_weights
 
-
-subroutine write_station_weights(sta_weight_name, & !input
-                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !input
-                                close_weights_t,close_count,close_count_t,error) !input
-
-  !subroutine to write the grid-station weight matrix to a fortran binary file
-
+! subroutine to write the grid-station weight matrix to a fortran binary file
+subroutine write_station_weights(sta_weight_name, &                                            ! input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,&  ! input
+                                close_weights_t,close_count,close_count_t,error)               ! input
   use type
-
   implicit none
 
-  !declarations
-  !inputs
-  character(len=500),intent(in) :: sta_weight_name     !name of station weight binary file
+  ! variable declarations
+  ! inputs
+  character(len=500),intent(in) :: sta_weight_name     ! name of station weight binary file
   real(DP), intent(in)     :: close_meta(:,:,:)
   real(DP), intent(in)     :: close_meta_t(:,:,:)
   integer(I4B), intent(in) :: close_loc(:,:)
@@ -156,10 +153,11 @@ subroutine write_station_weights(sta_weight_name, & !input
   integer(I4B), intent(in) :: close_count_t(:)
   real(DP), intent(in)     :: close_weights(:,:)
   real(DP), intent(in)     :: close_weights_t(:,:)
-  !in/out
+
+  ! in/out
   integer(I4B), intent(inout) :: error
 
-  !output weight variables to file
+  ! output weight variables to file
   open(unit=34,file=trim(sta_weight_name),form='unformatted',iostat=error)
 
   if(error .ne. 0) then; print *, 'Error opening station weight file ', trim(sta_weight_name), ' ', error; stop; end if
@@ -173,19 +171,18 @@ subroutine write_station_weights(sta_weight_name, & !input
 
 end subroutine write_station_weights
 
-subroutine read_station_weights(sta_weight_name, & !input
-                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
-                                close_weights_t,close_count,close_count_t,error) !output
-
-  !subroutine to read the grid-station weight matrix from fortran binary file
-
+! subroutine to read the grid-station weight matrix from fortran binary file
+subroutine read_station_weights(sta_weight_name, &                                              ! input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,&   ! output
+                                close_weights_t,close_count,close_count_t,error)                ! output
   use type
   implicit none
 
-  !input
+  ! variable declarations
+  ! input
   character(len=500), intent(in)    :: sta_weight_name
 
-  !output
+  ! output
   real(DP), intent(out)      :: close_meta(:,:,:)
   real(DP), intent(out)      :: close_meta_t(:,:,:)
   integer(I4B), intent(out)  :: close_loc(:,:)
@@ -195,10 +192,10 @@ subroutine read_station_weights(sta_weight_name, & !input
   integer(I4B), intent(out)  :: close_count(:)
   integer(I4B), intent(out)  :: close_count_t(:)
 
-  !in/out
+  ! in/out
   integer(I4B), intent(inout):: error
 
-  !code starts below
+  ! ----- code -------
 
   open(unit=34,file=trim(sta_weight_name),form='unformatted',iostat=error)
 
@@ -207,9 +204,7 @@ subroutine read_station_weights(sta_weight_name, & !input
   read(unit=34,iostat=error) close_meta,close_loc,close_weights,close_count, &
                              close_meta_t,close_loc_t,close_weights_t,close_count_t
 
-
   if(error .ne. 0) then; print *, 'Error reading station weight file ', trim(sta_weight_name), ' ', error; stop; end if
-
   close(unit=34)
 
 end subroutine read_station_weights

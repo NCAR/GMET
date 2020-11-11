@@ -2,7 +2,7 @@
 
 ! Subroutine to save the 
 subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, times, site_list, &
-& stnid, stnlat, stnlon, stnalt, forecast, file, error)
+& stnid, stnlat, stnlon, stnelev, forecast, file, error)
   use netcdf
   use type
   implicit none
@@ -11,7 +11,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   integer, intent (in) :: n_vars, forecast
   character (len=100), intent (in) :: startdate, enddate
   character (len=500), intent (in) :: file, site_list
-  real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
+  real (dp), intent (in) :: stnlat (:), stnlon (:), stnelev (:)
   real (dp), intent (in) :: coefs (:, :, :)
   real (dp), intent (in) :: times (:)
  
@@ -29,7 +29,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   character (len=*), parameter :: stn_id_name = "station_id"
   character (len=*), parameter :: stn_lat_name = "station_latitude"
   character (len=*), parameter :: stn_lon_name = "station_longitude"
-  character (len=*), parameter :: stn_alt_name = "station_altitude"
+  character (len=*), parameter :: stn_elev_name = "station_elevation"
   character (len=*), parameter :: forecast_name = "forecast_hr"
   character (len=*), parameter :: startdate_name = "run_start_date"
   character (len=*), parameter :: enddate_name = "run_end_date"
@@ -41,7 +41,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   character (len=*), parameter :: coefs_units = "linear_equation_coefficient"
   character (len=*), parameter :: lat_units = "degrees_north"
   character (len=*), parameter :: lon_units = "degrees_east"
-  character (len=*), parameter :: alt_units = "feet"
+  character (len=*), parameter :: elev_units = "feet"
   character (len=*), parameter :: forecast_units = "hours"
   character (len=*), parameter :: date_units = "YYYYMMDD"
   character (len=*), parameter :: time_units = "seconds since 1970-01-01 00:00:00.0 0:00"
@@ -50,7 +50,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   integer :: n_stns, n_chars, n_times
   integer :: ncid, stn_dimid, vars_dimid, char_dimid, time_dimid, rec_dimid
   integer :: coefs_varid, time_varid, vars_varid, forecast_varid, startdate_varid, enddate_varid
-  integer :: stn_id_varid, stn_lat_varid, stn_lon_varid, stn_alt_varid
+  integer :: stn_id_varid, stn_lat_varid, stn_lon_varid, stn_elev_varid
   integer :: charids (2)
   integer :: dimids (4)
   integer :: count4 (4), start4 (4), count2 (2), start2 (2), count1 (1), start1 (1)
@@ -88,7 +88,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
     call check (nf90_def_var(ncid, stn_id_name, nf90_char, charids, stn_id_varid), "station_id var def error", error)
     call check (nf90_def_var(ncid, stn_lat_name, nf90_double, stn_dimid, stn_lat_varid), "station_latitude var def error", error)
     call check (nf90_def_var(ncid, stn_lon_name, nf90_double, stn_dimid, stn_lon_varid), "station_longitude var def error", error)
-    call check (nf90_def_var(ncid, stn_alt_name, nf90_double, stn_dimid, stn_alt_varid), "station_altitude var def error", error)
+    call check (nf90_def_var(ncid, stn_elev_name, nf90_double, stn_dimid, stn_elev_varid), "station_elevation var def error", error)
     if (error /= 0) return
  
     charids = (/ char_dimid, rec_dimid /)
@@ -105,7 +105,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
      ! Add attributes.
     call check (nf90_put_att(ncid, stn_lat_varid, units, lat_units), "station_lat units attribute error", error)
     call check (nf90_put_att(ncid, stn_lon_varid, units, lon_units), "station_lon units attribute error", error)
-    call check (nf90_put_att(ncid, stn_alt_varid, units, alt_units), "station_alt units attribute error", error)
+    call check (nf90_put_att(ncid, stn_elev_varid, units, elev_units), "station_elevation units attribute error", error)
     call check (nf90_put_att(ncid, startdate_varid, units, date_units), "start_date units attribute error", error)
     call check (nf90_put_att(ncid, enddate_varid, units, date_units), "end_date units attribute error", error)
     call check (nf90_put_att(ncid, forecast_varid, units, forecast_units), "forecase units attribute error", error)
@@ -117,9 +117,9 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
     call check (nf90_enddef(ncid), "end define mode error", error)
     if (error /= 0) return
  
-    call check (nf90_put_var(ncid, stn_lat_varid, stnlat), "put staion_lat error", error)
-    call check (nf90_put_var(ncid, stn_lon_varid, stnlon), "put staion_lon error", error)
-    call check (nf90_put_var(ncid, stn_alt_varid, stnalt), "put staion_alt error", error)
+    call check (nf90_put_var(ncid, stn_lat_varid, stnlat), "put station_lat error", error)
+    call check (nf90_put_var(ncid, stn_lon_varid, stnlon), "put station_lon error", error)
+    call check (nf90_put_var(ncid, stn_elev_varid, stnelev), "put station_elevation error", error)
     call check (nf90_put_var(ncid, time_varid, times), "put times error", error)
  
     count2 = (/ 1, 1 /)
@@ -159,7 +159,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
     call check (nf90_inq_varid(ncid, stn_id_name, stn_id_varid), "station_id var inq error", error)
     call check (nf90_inq_varid(ncid, stn_lat_name, stn_lat_varid), "station_latitude var inq error", error)
     call check (nf90_inq_varid(ncid, stn_lon_name, stn_lon_varid), "station_longitude var inq error", error)
-    call check (nf90_inq_varid(ncid, stn_alt_name, stn_alt_varid), "station_altitude var inq error", error)
+    call check (nf90_inq_varid(ncid, stn_elev_name, stn_elev_varid), "station_elevation var inq error", error)
     call check (nf90_inq_varid(ncid, startdate_name, startdate_varid), "start_date var inq error", error)
     call check (nf90_inq_varid(ncid, enddate_name, enddate_varid), "end_date var inq error", error)
     call check (nf90_inq_varid(ncid, forecast_name, forecast_varid), "forecast var inq error", error)
@@ -240,7 +240,7 @@ end subroutine save_coefficients
 ! ==== subroutine save_forcing_regression:  saves the forcing regression parameters for use by the SCRF 
 !      program in generating ensemble forcings
 subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_error, trange, trange_error, &
-& nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
+& nx, ny, grdlat, grdlon, grdelev, times, mean_autocorr, mean_tp_corr, &
 & file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_error_2, trange_2, trange_error_2)
 
   use netcdf
@@ -253,7 +253,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
   real (sp), intent (in) :: tmean_2(:,:), tmean_error_2(:,:), trange_2(:,:), trange_error_2(:,:)
  
   integer (i4b), intent (in) :: nx, ny
-  real (dp), intent (in) :: grdlat(:), grdlon(:), grdalt(:)
+  real (dp), intent (in) :: grdlat(:), grdlon(:), grdelev(:)
   real (dp), intent (in) :: times(:)
   real (dp), intent (in) :: mean_autocorr(:), mean_tp_corr(:)
  
@@ -272,7 +272,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
   character (len=*), parameter :: lon_name = "longitude"
   character (len=*), parameter :: autoc_name = "auto_corr"
   character (len=*), parameter :: tpc_name = "tp_corr"
-  character (len=*), parameter :: alt_name = "altitude"
+  character (len=*), parameter :: elev_name = "elevation"
   character (len=*), parameter :: pcp_name = "pcp"
   character (len=*), parameter :: pop_name = "pop"
   character (len=*), parameter :: pcp_error_name = "pcp_error"
@@ -324,7 +324,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
  
   character (len=*), parameter :: lat_units = "degrees_north"
   character (len=*), parameter :: lon_units = "degrees_east"
-  character (len=*), parameter :: alt_units = "meters"
+  character (len=*), parameter :: elev_units = "meters"
   character (len=*), parameter :: time_units = "seconds since 1970-01-01 00:00:00.0 0:00"
   character (len=*), parameter :: fill = "_FillValue"
  
@@ -332,7 +332,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
  
   integer :: n_chars, n_times, inx, iny
   integer :: ncid, x_dimid, y_dimid, time_dimid
-  integer :: lat_varid, lon_varid, autoc_varid, alt_varid, time_varid, pcp_varid, pop_varid, &
+  integer :: lat_varid, lon_varid, autoc_varid, elev_varid, time_varid, pcp_varid, pop_varid, &
              & pcp_error_varid, tpc_varid
   integer :: tmean_varid, tmean_error_varid, trange_varid, trange_error_varid
   integer :: obs_max_pcp_varid
@@ -375,7 +375,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     ! AW
     call check (nf90_def_var(ncid, lat_name, nf90_float, dimids2, lat_varid), "lat var def error", error)
     call check (nf90_def_var(ncid, lon_name, nf90_float, dimids2, lon_varid), "lon var def error", error)
-    call check (nf90_def_var(ncid, alt_name, nf90_float, dimids2, alt_varid), "lon var def error", error)
+    call check (nf90_def_var(ncid, elev_name, nf90_float, dimids2, elev_varid), "lon var def error", error)
     call check (nf90_def_var(ncid, time_name, nf90_float, time_dimid, time_varid), "time var def error", error)
  
     ! Correlation variables
@@ -439,7 +439,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     ! units
     call check (nf90_put_att(ncid, lat_varid, units, lat_units), "lat units attribute error", error)
     call check (nf90_put_att(ncid, lon_varid, units, lon_units), "lon units attribute error", error)
-    call check (nf90_put_att(ncid, alt_varid, units, alt_units), "alt units attribute error", error)
+    call check (nf90_put_att(ncid, elev_varid, units, elev_units), "elev units attribute error", error)
     call check (nf90_put_att(ncid, time_varid, units, time_units), "time units attribute error", error)
  
     call check (nf90_put_att(ncid, pcp_varid, units, pcp_units), "pcp units attribute error", error)
@@ -474,9 +474,9 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     count2 = (/ inx, iny /)
     start2 = (/ 1, 1 /)
  
-    call check (nf90_put_var(ncid, lat_varid, grdlat, start=start2, count=count2), "put lat error", error)
-    call check (nf90_put_var(ncid, lon_varid, grdlon, start=start2, count=count2), "put lon error", error)
-    call check (nf90_put_var(ncid, alt_varid, grdalt, start=start2, count=count2), "put alt error", error)
+    call check (nf90_put_var(ncid, lat_varid, grdlat, start=start2, count=count2), "put lat grd error", error)
+    call check (nf90_put_var(ncid, lon_varid, grdlon, start=start2, count=count2), "put lon grd error", error)
+    call check (nf90_put_var(ncid, elev_varid, grdelev, start=start2, count=count2), "put elev grd error", error)
  
     trec = 1
     nrecs = 0

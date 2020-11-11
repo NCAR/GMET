@@ -147,7 +147,7 @@ subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, fo
 end subroutine read_refcst
  
  
-subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e, n_stations, &
+subroutine read_station_list (file_name, id, name, lat, lon, elev, sslp_n, sslp_e, n_stations, &
                               & error, vars)
   use string_mod
   use type
@@ -156,7 +156,7 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
   character (len=500), intent (in) :: file_name
   character (len=100), allocatable, intent (out) :: id (:), name (:)
   character (len=2), allocatable, intent (out) :: vars (:) ! AWW-feb2016 holds P/T flags
-  real (dp), allocatable, intent (out) :: lat (:), lon (:), alt (:), sslp_n (:), sslp_e (:)
+  real (dp), allocatable, intent (out) :: lat (:), lon (:), elev (:), sslp_n (:), sslp_e (:)
   integer (i4b), intent (out) :: n_stations
   integer, intent (out) :: error
  
@@ -197,7 +197,7 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
           allocate (name(n_stations))
           allocate (lat(n_stations))
           allocate (lon(n_stations))
-          allocate (alt(n_stations))
+          allocate (elev(n_stations))
           allocate (sslp_n(n_stations))
           allocate (sslp_e(n_stations))
           allocate (vars(n_stations))  !AWW-feb2016 holds P/T flags
@@ -214,8 +214,8 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
           if (err /= 0) lat (i) = - 999.99
           call value (settings(3), lon(i), err)
           if (err /= 0) lon (i) = - 999.99
-          call value (settings(4), alt(i), err)
-          if (err /= 0) alt (i) = - 999.99
+          call value (settings(4), elev(i), err)
+          if (err /= 0) elev (i) = - 999.99
           call value (settings(5), sslp_n(i), err)
           if (err /= 0) sslp_n (i) = - 999.99
           call value (settings(6), sslp_e(i), err)
@@ -225,7 +225,7 @@ subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e
             vars(i) = settings(8)  ! need to upgrade station list
           end if
          
-          ! print *, trim(id(i)), "  ", trim(name(i)), lat(i), lon(i), alt(i), vars[i]
+          ! print *, trim(id(i)), "  ", trim(name(i)), lat(i), lon(i), elev(i), vars[i]
           i = i + 1
         end if
  
@@ -424,13 +424,13 @@ subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_v
 end subroutine read_station
  
  
-subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
+subroutine read_grid_list (file_name, lats, lons, elevs, slp_n, slp_e, nx, ny, error)
   use string_mod
   use type
   implicit none
  
   character (len=500), intent (in) :: file_name
-  real (dp), allocatable, intent (out) :: lats (:), lons (:), alts (:), slp_n (:), slp_e (:)
+  real (dp), allocatable, intent (out) :: lats (:), lons (:), elevs (:), slp_n (:), slp_e (:)
   integer (i4b), intent (out) :: nx, ny
   integer, intent (out) :: error
  
@@ -475,7 +475,7 @@ subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, er
           ngrid = nx * ny
           allocate (lats(ngrid))
           allocate (lons(ngrid))
-          allocate (alts(ngrid))
+          allocate (elevs(ngrid))
           allocate (slp_n(ngrid))
           allocate (slp_e(ngrid))
         end if
@@ -488,7 +488,7 @@ subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, er
           ngrid = nx * ny
           allocate (lats(ngrid))
           allocate (lons(ngrid))
-          allocate (alts(ngrid))
+          allocate (elevs(ngrid))
           allocate (slp_n(ngrid))
           allocate (slp_e(ngrid))
         end if
@@ -523,13 +523,13 @@ subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, er
         if (err /= 0) lats (i) = - 999.99
         call value (settings(2), lons(i), err)
         if (err /= 0) lons (i) = - 999.99
-        call value (settings(3), alts(i), err)
-        if (err /= 0) alts (i) = - 999.99
+        call value (settings(3), elevs(i), err)
+        if (err /= 0) elevs (i) = - 999.99
         call value (settings(4), slp_n(i), err)
         if (err /= 0) slp_n (i) = - 999.99
         call value (settings(5), slp_e(i), err)
         if (err /= 0) slp_e (i) = - 999.99
-           !print *, lats(i), lons(i), alts(i)
+           !print *, lats(i), lons(i), elevs(i)
         i = i + 1
       end if
     end if

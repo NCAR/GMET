@@ -1,13 +1,10 @@
-! AWW-2016Jan, modifications to handle time subsetting and reduce mem alloc, and clean up
-!   renamed from estimate_precip; add also 'directory' var, changed some var names
+! Major routine for processing station data and calculating the spatial regression
 
-subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, &
+subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, &
+  & times, st_rec, end_rec, stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, &
   & trange, trange_err, mean_autocorr, mean_tp_corr, error, &
-  & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+  & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
 
-  ! Hongli remove output y_mean, y_std, y_std_all, y_min, y_max.
-  ! Hongli add obs_max_pcp.
   ! ==============================================================================================
   ! This routine is called during MODE 2 usage:  creates gridded ensembles from station/point data
   ! ==============================================================================================
@@ -54,7 +51,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       real(DP), intent(in)          :: sta_data(:,:)       ! station data values for precipitation
       real(DP), intent(in)          :: tair_data(:,:,:)    ! station air temperature data
       !in/out
-      real(DP), intent(inout)     :: close_meta(:,:,:)     !
+      real(DP), intent(inout)     :: close_meta(:,:,:)     ! 
       real(DP), intent(inout)     :: close_meta_t(:,:,:)
       integer(I4B), intent(inout) :: close_loc(:,:)        ! indices of nearest neighbors for pcp, dim (ngrid, sta_limit)
       integer(I4B), intent(inout) :: close_loc_t(:,:)      ! indices of nearest neighbors for pcp, dim (ngrid, sta_limit)
@@ -189,6 +186,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   character (len=500), intent (in) :: directory
   character (len = 500),intent(in) :: gen_sta_weights     ! flag for generating station weight file
   character (len = 500),intent(in) :: sta_weight_name     ! station weight file name
+  character (len = 500),intent(in) :: use_stn_weights     ! flag for doing distance weighted regression
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
@@ -208,6 +206,8 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   !real (dp), intent (out) :: y_min (:, :), y_max (:, :)!min & max  of normalized time step precipitation
   real (dp), intent (out) :: obs_max_pcp (:, :) !max of normalized time step precipitation
 
+  ! Local declarations
+
   real (dp), allocatable :: y (:), b (:)
   !real (dp), allocatable :: twx (:, :), tx (:, :) ! not used
 
@@ -220,10 +220,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   real (dp), allocatable :: twx_red_2 (:, :), tx_red_2 (:, :)!reduced matricies (dims 2)
 
   real (dp), allocatable :: w_base (:, :)!initial distance weight matrix
-  real (dp), allocatable :: w_pcp_1d (:), w_temp_1d (:)
-  integer (i4b), allocatable :: w_pcp_1d_loc (:), w_temp_1d_loc (:)
+!  real (dp), allocatable :: w_pcp_1d (:), w_temp_1d (:)    ! not used
+!  integer (i4b), allocatable :: w_pcp_1d_loc (:), w_temp_1d_loc (:)
   !real(DP), allocatable :: w_pcp(:,:), w_temp(:,:) !distance weight matrices for a specific grid point
-  real (dp), allocatable :: w_pcp_red (:, :), w_temp_red (:, :)!reduced distance weigth matricies
+  real (dp), allocatable :: w_pcp_red (:, :), w_temp_red (:, :)   ! reduced distance weight matricies
 
   real (dp), allocatable :: y_tmean (:), y_trange (:)!transformed station data arrays
   real (dp), allocatable :: y_tmean_red (:), y_trange_red (:)!transformed station data arrays
@@ -299,10 +299,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   allocate (y_tmean_red(sta_limit), y_trange_red(sta_limit))
   allocate (x_red(sta_limit, xsize))
   allocate (x_red_t(sta_limit, xsize))
-  allocate (w_pcp_1d(sta_limit))
-  allocate (w_temp_1d(sta_limit))
-  allocate (w_pcp_1d_loc(sta_limit))
-  allocate (w_temp_1d_loc(sta_limit))
+!  allocate (w_pcp_1d(sta_limit))    ! these 1d vars are not used
+!  allocate (w_temp_1d(sta_limit))
+!  allocate (w_pcp_1d_loc(sta_limit))
+!  allocate (w_temp_1d_loc(sta_limit))
   allocate (tmp(6, 6))
   allocate (vv(6))
   allocate (pcp(ngrid, ntimes))
@@ -327,7 +327,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   ! station limit arrays (precip)
   allocate (close_weights(ngrid, sta_limit))
   allocate (close_loc(ngrid, sta_limit))
-  allocate (close_meta(5, ngrid, sta_limit))
+  allocate (close_meta(5, ngrid, sta_limit))    ! 
   allocate (close_count(ngrid))
 
   ! station limit arrays (temp)
@@ -367,7 +367,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   expand_flag_t = 0
 
   ! ================= LOOP OVER STATIONS ============
-  ! this part calls subroutines that calc various  correlations
+  ! this part calls subroutines that calculate various correlations
   ! can do autocorrelations and correlation between temperature and precipitation
   ! uses an n-day moving average (window) to remove "monthly" cycle from temp
   ! and computes autocorrelation on the anomalies
@@ -421,13 +421,12 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   end do
   ! =========== end station read loop ============
 
-  error = 0 ! AWW:  why is this set?  not used again in subroutine
+  error = 0 ! initialize error code returned for function / subroutine calls
 
-  ! AWW: some checks
+  ! output some checks
   print *, 'auto_cnt, tp_cnt=', auto_cnt, tp_cnt
   if (auto_cnt == 0 .or. tp_cnt == 0) then
-    print *, 'ERROR:  autocorr or crosscorr (TxP) could not be calculated due to lack of matching p&
-   &airs'
+    print *, 'ERROR:  autocorr or crosscorr (TxP) could not be calculated due to lack of matching pairs'
     stop
   end if
   mean_autocorr = auto_corr_sum / real (auto_cnt, kind(dp))
@@ -443,28 +442,28 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   call system_clock (t1, count_rate)
 
   ! ========= LOOP OVER GRID CELLS ==================
-  !Create station-grid cell weight matrices before time stepping
-  print *, 'Generating base weight matrix and finding nearest stations for each gridpoint'
+  ! Create station-grid cell weight matrices before time stepping
+  print *, 'Finding nearest stations for each gridpoint and (optionally) generating base weight matrix
 
   if(gen_sta_weights .eq. "TRUE" .or. gen_sta_weights .eq. "true") then
-    call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, & !input
-                                 sta_limit,prcp_data,tair_data, & !input
-                                 close_meta,close_meta_t,close_loc,close_loc_t, &  !output
-                                 close_count,close_count_t,close_weights,close_weights_t,error) !output
+    call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &             ! input
+                                 sta_limit,prcp_data,tair_data, &                               ! input
+                                 close_meta,close_meta_t,close_loc,close_loc_t, &               ! output
+                                 close_count,close_count_t,close_weights,close_weights_t,error) ! output
 
     if(error /= 0) then
        return
     endif
-    call write_station_weights(sta_weight_name, & !input
-                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !input
-                                close_weights_t,close_count,close_count_t,error) !input
+    call write_station_weights(sta_weight_name, &                                               ! input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,&   ! input
+                                close_weights_t,close_count,close_count_t,error)                ! input
     if(error /= 0) then
        return
     endif
   else
-    call read_station_weights(sta_weight_name, & !input
-                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,& !output
-                                close_weights_t,close_count,close_count_t,error) !output
+    call read_station_weights(sta_weight_name, &                                                ! input
+                                close_meta,close_meta_t,close_loc,close_loc_t,close_weights,&   ! output
+                                close_weights_t,close_count,close_count_t,error)                ! output
     if(error /= 0) then
        return
     endif
@@ -473,7 +472,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   call system_clock (t2, count_rate)
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
 
-  ! AWW-Feb2016:  just allocate grids once time, and re-use in code below
+  ! AWW-Feb2016:  just allocate grids once and re-use in code below (saves ~Ms alloc/dealloc)
   allocate (twx_red(6, sta_limit))    ! these have dim1 = 6
   allocate (tx_red(6, sta_limit))
   allocate (twx_red_2(4, sta_limit))  ! these are for no slope calcs, have dim1 = 4
@@ -543,14 +542,20 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         ! reduced matrices for precip
         slope_flag_pcp = 0
         do i = 1, (close_count(g)-1)
-          call calc_distance_weight (max_distance, close_meta(1, g, i), close_meta(2, g, i), &
-         & close_meta(3, g, i), close_meta(4, g, i), tmp_weight)
 
-          w_pcp_red (i, i) = tmp_weight
-          w_pcp_1d (i) = tmp_weight
-          w_pcp_1d_loc (i) = close_loc (g, i)
-          y_red (i) = y (close_loc(g, i))
-          x_red (i, :) = x (close_loc(g, i), :)
+          # AWW 2020 allow for not using station weights
+          if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
+            call calc_distance_weight (max_distance, close_meta(1, g, i), close_meta(2, g, i), &
+              & close_meta(3, g, i), close_meta(4, g, i), tmp_weight)
+            w_pcp_red (i, i) = tmp_weight   # assign diagonal to square weight matrix (nstn X nstn)
+          else 
+            w_pcp_red (i, i) = 1.0   # assign diagonal to square weight matrix (nstn X nstn)
+          end if
+
+!          w_pcp_1d (i) = tmp_weight
+!          w_pcp_1d_loc (i) = close_loc (g, i)
+          y_red (i) = y(close_loc(g, i))
+          x_red (i, :) = x(close_loc(g, i), :)
 
           if (prcp_data(close_loc(g, i), t) .gt. 0.0) then
             ndata = ndata + 1    ! count data points with non-zero precip
@@ -560,17 +565,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           end if
         end do
 
-        ! Hongli remove standardization
-        !call normalize_xv (y_red, w_pcp_1d, step_mean, step_std, step_std_all, step_min, step_max, &
-       !& yp_red)
-
-        !y_mean (g, t) = step_mean
-        !y_std (g, t) = step_std
-        !y_std_all (g, t) = step_std_all
-        !y_min (g, t) = step_min
-        !y_max (g, t) = step_max
-       
-        ! Hongli add 
+        ! variables for box-cox transform
         call max_x (y_red, step_max)
         obs_max_pcp(g, t) = step_max     
 
@@ -603,11 +598,17 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         ! reduced matrices for temperature
         slope_flag_temp = 0
         do i = 1, (close_count_t(g)-1)
-          call calc_distance_weight (max_distance_t, close_meta_t(1, g, i), close_meta_t(2, g, i), &
-         & close_meta_t(3, g, i), close_meta_t(4, g, i), tmp_weight)
 
-          w_temp_red (i, i) = tmp_weight
-          w_temp_1d (i) = tmp_weight
+          # AWW 2020 allow for not using station weights
+          if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
+            call calc_distance_weight (max_distance_t, close_meta_t(1, g, i), close_meta_t(2, g, i), &
+              & close_meta_t(3, g, i), close_meta_t(4, g, i), tmp_weight)
+            w_temp_red (i, i) = tmp_weight
+          else
+            w_temp_red (i, i) = 1.0
+          end if
+
+!          w_temp_1d (i) = tmp_weight
           y_tmean_red (i) = y_tmean (close_loc_t(g, i))
           y_trange_red (i) = y_trange (close_loc_t(g, i))
           x_red_t (i, :) = x (close_loc_t(g, i), :)
@@ -666,7 +667,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
           ! original call
           ! TWX = matmul(TX, w_pcp)
 
-          ! tmp needs to be matmul(TX,X) where TX = TWX_red and X = X_red
+          ! tmp needs to be matmul(TX, X) where TX = TWX_red and X = X_red
           twx_red = matmul (transpose(x_red), w_pcp_red)
           tmp = matmul (twx_red, x_red)
           vv = maxval (abs(tmp), dim=2)

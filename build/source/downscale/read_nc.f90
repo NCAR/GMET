@@ -23,12 +23,11 @@ subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error
   ! Loop indices
   integer (i4b) :: i, time_index
  
-  !indicies for aggregating variables between forecast times
+  ! indicies for aggregating variables between forecast times
   integer (i4b) :: start_index
  
   integer (i4b) :: start (3), count (3)
  
-  !AJN
   real (dp), allocatable :: accum_var (:, :, :)
  
   error = 0
@@ -39,7 +38,7 @@ subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error
   if (error /= 0) return
  
   ! Get the varids of the latitude and longitude coordinate variables.
-  call check (nf90_inq_varid(ncid, lat_name, latid), "Latitutde name error", error)
+  call check (nf90_inq_varid(ncid, lat_name, latid), "Latitude name error", error)
   call check (nf90_inquire_variable(ncid, latid, ndims=ndims, dimids=dimids), "Latitutde inq error",&
  &  error)
   if (error /= 0 .or. ndims /= 1) return
@@ -98,8 +97,8 @@ subroutine read_nc_file (file_name, valid_time, var_name, var, lats, lons, error
  
     if (trim(var_name) == 'APCP_ens_mean_surface' .or. trim(var_name) == 'DSWRF_ens_mean_surface') &
    & then
-       !find fcst_time that is ~24 hours prior
-       !just find closest one that is either 24-hrs or less
+       ! find fcst_time that is ~24 hours prior
+       ! just find closest one that is either 24-hrs or less
  
       do i = 1, ntimes, 1
         if (fcst_times(i) >= valid_time-86400) then

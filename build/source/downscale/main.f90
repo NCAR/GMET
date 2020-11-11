@@ -1,9 +1,10 @@
-! Main program file for the Gridded Meteorological Ensemble Tool (GMET)
+! Main driver / program file for the ensemble regression component of the 
+! Gridded Meteorological Ensemble Tool (GMET)
 
 program gmet
   use type
   use string_mod
-  use utim ! AWW
+  use utim
   implicit none
  
   interface
@@ -25,21 +26,21 @@ program gmet
       integer, intent (out) :: error
     end subroutine read_refcst
  
-    subroutine read_station_list (file_name, id, name, lat, lon, alt, sslp_n, sslp_e, n_stations, &
+    subroutine read_station_list (file_name, id, name, lat, lon, elev, sslp_n, sslp_e, n_stations, &
    & error, vars) !AWW
       use type
       character (len=500), intent (in) :: file_name
       character (len=100), allocatable, intent (out) :: id (:), name (:)
       character (len=2), allocatable, intent (out) :: vars (:) !AWW holds PT identifiers
-      real (dp), allocatable, intent (out) :: lat (:), lon (:), alt (:), sslp_n (:), sslp_e (:)
+      real (dp), allocatable, intent (out) :: lat (:), lon (:), elev (:), sslp_n (:), sslp_e (:)
       integer (i4b), intent (out) :: n_stations
       integer, intent (out) :: error
     end subroutine read_station_list
  
-    subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
+    subroutine read_grid_list (file_name, lats, lons, elevs, slp_n, slp_e, nx, ny, error)
       use type
       character (len=500), intent (in) :: file_name
-      real (dp), allocatable, intent (out) :: lats (:), lons (:), alts (:), slp_n (:), slp_e (:)
+      real (dp), allocatable, intent (out) :: lats (:), lons (:), elevs (:), slp_n (:), slp_e (:)
       integer (i4b), intent (out) :: nx, ny
       integer, intent (out) :: error
     end subroutine read_grid_list
@@ -55,7 +56,6 @@ program gmet
       integer, intent (out) :: error
     end subroutine read_domain_grid
  
-    ! AWW modified feb-2016
     subroutine estimate_coefficients (d, nvars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
    & stnlon, stnvar, directory, c, poc, error)
       use type
@@ -72,30 +72,26 @@ program gmet
     end subroutine estimate_coefficients
  
     subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, times, site_list, &
-   & stnid, stnlat, stnlon, stnalt, forecast, file, error)
+   & stnid, stnlat, stnlon, stnelev, forecast, file, error)
       use netcdf
       use type
       character (len=100), intent (in) :: var_names (:), stnid (:)
       integer, intent (in) :: n_vars, forecast
       character (len=100), intent (in) :: startdate, enddate
       character (len=500), intent (in) :: file, site_list
-      real (dp), intent (in) :: stnlat (:), stnlon (:), stnalt (:)
+      real (dp), intent (in) :: stnlat (:), stnlon (:), stnelev (:)
       real (dp), intent (in) :: coefs (:, :, :)
       real (dp), intent (in) :: times (:)
       integer, intent (out) :: error
     end subroutine save_coefficients
  
-    !modified AJN Sept 2013, replaced AWW 2016
-    ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times,  &
-    ! subroutine estimate_precip(X, Z, nsta, ngrid, maxDistance, Times, st_rec, end_rec, &
-
     subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
-   & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
-      ! Hongli remove y_mean, y_std, y_std_all, y_min, y_max.
-      ! Hongli add obs_max_pcp.
+   & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, &
+   & use_stn_weights))
       use type
       character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
+      character (len=500), intent(in)  :: use_stn_weights            ! station weight usage option
       character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
       real (dp), intent (in) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
@@ -106,24 +102,22 @@ program gmet
       character (len=100), intent (in) :: stnvar
       character (len=500), intent (in) :: directory
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
-      real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
-      real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)!OLS trange estimate and error
       real (sp), allocatable, intent (out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
-      real (sp), allocatable, intent (out) :: tmean_2 (:, :), tmean_err_2 (:, :)!OLS tmean estimate and error
-      real (sp), allocatable, intent (out) :: trange_2 (:, :), trange_err_2 (:, :)!OLS trange estimate and error
+      real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)        ! OLS tmean estimate and error
+      real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)      ! OLS trange estimate and error
+      real (sp), allocatable, intent (out) :: tmean_2 (:, :), tmean_err_2 (:, :)    ! OLS tmean estimate and error
+      real (sp), allocatable, intent (out) :: trange_2 (:, :), trange_err_2 (:, :)  ! OLS trange estimate and error
       integer, intent (out) :: error
-      real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
-      real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
-      real (dp), intent (out) :: obs_max_pcp (:, :)!max of normalized time step precip
-
+      real (dp), intent (out) :: mean_autocorr (:)  ! mean autocorrelation from all stations over entire time period
+      real (dp), intent (out) :: mean_tp_corr (:)   ! mean correlation for mean temp and precip
+      real (dp), intent (out) :: obs_max_pcp (:, :) ! max of normalized time step precip
     end subroutine estimate_forcing_regression
-    ! end subroutine estimate_precip  ! AWW-Feb2016 renamed to be more descriptive
  
     ! modified AJN Sept 2013
     ! subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
     ! AWW Feb2016, renamed to be more descriptive.  Note did NOT call scrf/save_precip.f90 subroutine
     subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, &
-   & nx, ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
+   & nx, ny, grdlat, grdlon, grdelev, times, mean_autocorr, mean_tp_corr, &
    & file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
    & trange_err_2)
       use netcdf
@@ -134,7 +128,7 @@ program gmet
       real (sp), intent (in) :: tmean_2 (:, :), tmean_err_2 (:, :), trange_2 (:, :), trange_err_2 &
      & (:, :)
       integer (i4b), intent (in) :: nx, ny
-      real (dp), intent (in) :: grdlat (:), grdlon (:), grdalt (:)
+      real (dp), intent (in) :: grdlat (:), grdlon (:), grdelev (:)
       real (dp), intent (in) :: times (:)
       real (dp), intent (in) :: mean_autocorr (:), mean_tp_corr (:)
       !real (dp), intent (in) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)
@@ -143,10 +137,11 @@ program gmet
       character (len=500), intent (in) :: file
       integer, intent (out) :: error
     end subroutine save_forcing_regression
-    ! end subroutine save_precip
  
   end interface
   ! === end of interface, start the program ====
+
+  ! Local variables
  
   character (len=100) :: config_file
   integer, parameter  :: nconfigs = 20 
@@ -164,6 +159,7 @@ program gmet
 
   character (len = 500) :: gen_sta_weights     ! flag for generating station weight file
   character (len = 500) :: sta_weight_name     ! name of station weight file
+  character (len = 500) :: use_stn_weights     ! option for using station weights
  
   character (len=2000) :: arg !command line arg for configuration file
   character (len=2000) :: output_file_tmp !temporary output file name
@@ -174,7 +170,7 @@ program gmet
  
   real (dp), allocatable :: y (:, :, :), vals (:, :), lats (:), lons (:)
   real (dp), allocatable :: coefs (:, :, :), prob_coefs (:, :, :)
-  real (dp), allocatable :: stnlat (:), stnlon (:), stnalt (:), stn_slp_n (:), stn_slp_e (:)
+  real (dp), allocatable :: stnlat (:), stnlon (:), stnelev (:), stn_slp_n (:), stn_slp_e (:)
   real (dp), allocatable :: times (:)
   !modified AJN Sept 2013
   real (dp), allocatable :: mean_autocorr (:)!mean auto correlation for all stations over entire time period
@@ -197,7 +193,7 @@ program gmet
   integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec ! AWW
  
   real (dp) :: maxdistance
-  real (dp), allocatable :: grdlat (:), grdlon (:), grdalt (:), grd_slp_n (:), grd_slp_e (:), &
+  real (dp), allocatable :: grdlat (:), grdlon (:), grdelev (:), grd_slp_n (:), grd_slp_e (:), &
                             & mask_1d (:)
   real (sp), allocatable :: pcp (:, :), pop (:, :), pcperror (:, :)
   !modified AJN Sept 2013
@@ -246,6 +242,7 @@ program gmet
   stn_enddate     = config_values(18)
   gen_sta_weights = config_values(19)
   sta_weight_name = config_values(20)
+  use_stn_weights = config_values(21)
 
   ! check to see if output file path is valid
   ! create the output file and see if an error occurs
@@ -283,7 +280,7 @@ program gmet
   ! NOTE: the station file start & end dates are given in the config file so that this calculation 
   !   doesn't have to be done for every single station (ie reading st/end from the station file
   !   but it would be more flexible to do it for every station file, perhaps -- then they would
-  !   not all have to be the same lengths
+  !   not all have to be the same lengths when input
 
   ! --- station data start and end utimes are now derived from config file dates
   st_stndata_utime  = date_to_unix (stn_startdate) ! returns secs-since-1970 for st date of station files
@@ -297,8 +294,9 @@ program gmet
  
  
   ! === CHOOSE BETWEEN MODE 1 and MODE 2 ====
-  !   1) ens. source is gridded variables
-  !   2) ens. source is station data
+  !   1) ens. source is gridded variables --- NOT USED/Maintained -- superceded by GARD software
+  !   2) ens. source is station data (and optionally gridded predictors)
+
   if (mode == 1) then
 
     ! =================== Ensemble Source Is Gridded Model Variables =================
@@ -352,7 +350,7 @@ program gmet
       deallocate (vals)
     end do
  
-    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
+    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
    & stn_slp_e, nstations, error, vars)  ! AWW-feb2016 handled reading station variables
     if (error /= 0) then
       print*, "ERROR in reading station list: ", error
@@ -375,7 +373,7 @@ program gmet
  
       ! store PoP
       call save_coefficients (n_vars, var_name, prob_coefs, startdate, enddate, times, site_list, &
-     & stnid, stnlat, stnlon, stnalt, forecast, output_file2, error)
+     & stnid, stnlat, stnlon, stnelev, forecast, output_file2, error)
       if (error /= 0) then
         print*, "ERROR calling save_coefficients() subroutine, pop: ", error
         stop
@@ -384,7 +382,7 @@ program gmet
  
     ! store PCP  ( should this be inside the if block above?)
     call save_coefficients (n_vars, var_name, coefs, startdate, enddate, times, site_list, &
-   & stnid, stnlat, stnlon, stnalt, forecast, output_file, error)
+   & stnid, stnlat, stnlon, stnelev, forecast, output_file, error)
     if (error /= 0) then
       print*, "ERROR calling save_coefficients() subroutine, pcp: ", error
       stop
@@ -392,7 +390,7 @@ program gmet
  
     ! AWW: note Mode 1 has not been fully coded to use st_rec & end_rec ... just passed now because
     !   an internal subroutine wants them and may use them in the future
-    !   also Mode 1 has not be used much with this program, and may be removed as it's been 
+    !   also Mode 1 has not be used much with this program, and may be removed as it has been 
     !   superceded by GARD
     !   lastly some of the subroutines (eg save_coefficients & estimate_coefficients are 
     !   now duplicated by the save... and estimate... routines called in mode2
@@ -402,15 +400,15 @@ program gmet
     ! =================== Ensemble Forcing Generation =====================
  
     call value (config_values(14), maxdistance, error)  ! convert config str to number
-    print*, "Max Distance =", maxdistance
+    print*, "Max Distance = ", maxdistance
     if (error /= 0) then
-      !maxdistance = -1   ! AWW why not just stop (orig code)?
+      !maxdistance = -1   ! AWW why not just stop (orig code - replace)?
       print*, "Max Distance not correctly read ... quitting"
       stop
     end if
-    maxdistance = maxdistance * 0.539957   ! AWW...why?
+    maxdistance = maxdistance * 0.539957   ! convert from km to nautical miles
  
-    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnalt, stn_slp_n, &
+    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
    & stn_slp_e, nstations, error, vars) ! AWW added vars
     if (error /= 0) then
       print *, "ERROR: Failed to read station list ... quitting", error
@@ -434,7 +432,7 @@ program gmet
     print*, "allocating vector variables matching grids of nx= ",nx," by ny= ",ny
     allocate (grdlat(nx*ny))
     allocate (grdlon(nx*ny))
-    allocate (grdalt(nx*ny))
+    allocate (grdelev(nx*ny))
     allocate (grd_slp_n(nx*ny))
     allocate (grd_slp_e(nx*ny))
     allocate (mask_1d(nx*ny))
@@ -442,7 +440,7 @@ program gmet
     ! reshape the domain grids into vectors
     grdlat    = reshape (lat, (/ nx*ny /))
     grdlon    = reshape (lon, (/ nx*ny /))
-    grdalt    = reshape (elev, (/ nx*ny /))
+    grdelev    = reshape (elev, (/ nx*ny /))
     grd_slp_n = reshape (grad_n, (/ nx*ny /))
     grd_slp_e = reshape (grad_e, (/ nx*ny /))
     mask_1d   = reshape (mask, (/ nx*ny /))
@@ -453,14 +451,14 @@ program gmet
     x(:, 1) = 1.0
     x(:, 2) = stnlat (:)
     x(:, 3) = stnlon (:)
-    x(:, 4) = stnalt (:)
+    x(:, 4) = stnelev (:)
     x(:, 5) = stn_slp_n (:)
     x(:, 6) = stn_slp_e (:)
  
     z(:, 1) = 1.0               ! z arrays for grid variables
     z(:, 2) = grdlat (:)
     z(:, 3) = grdlon (:)
-    z(:, 4) = grdalt (:)
+    z(:, 4) = grdelev (:)
     z(:, 5) = grd_slp_n (:)
     z(:, 6) = grd_slp_e (:)
  
@@ -471,7 +469,7 @@ program gmet
     call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, station_var, directory, pcp, pop, pcperror, obs_max_pcp, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, &
-   & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
+   & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
    
     if (error /= 0) then
       print *, "ERROR: subroutine estimate_forcing_regression() returned error", error
@@ -481,7 +479,7 @@ program gmet
     print *, 'Creating output file'
  
     call save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, nx, &
-   & ny, grdlat, grdlon, grdalt, times, mean_autocorr, mean_tp_corr, &
+   & ny, grdlat, grdlon, grdelev, times, mean_autocorr, mean_tp_corr, &
    & output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
     if (error /= 0) then
@@ -500,8 +498,11 @@ program gmet
   end if
   
 end program gmet
- 
+
+
+! =============================================== 
 ! ================= SUBROUTINES =================
+! =============================================== 
  
 subroutine get_time_list (startdate, enddate, times)
   ! makes a list of data times in secs since 1970-1-1
