@@ -441,9 +441,10 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
 
   call system_clock (t1, count_rate)
 
-  ! ========= LOOP OVER GRID CELLS ==================
+  ! ========= PERFORM REGRESSION ==========================
+
   ! Create station-grid cell weight matrices before time stepping
-  print *, 'Finding nearest stations for each gridpoint and (optionally) generating base weight matrix
+  print *, 'Finding nearest stations for each gridpoint and (optionally) generating base weight matrix'
 
   if(gen_sta_weights .eq. "TRUE" .or. gen_sta_weights .eq. "true") then
     call compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distance, &             ! input
@@ -478,7 +479,15 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
   allocate (twx_red_2(4, sta_limit))  ! these are for no slope calcs, have dim1 = 4
   allocate (tx_red_2(4, sta_limit))
 
-  ! =========== now LOOP through all TIME steps and populate grids ===============
+  print*, ' '
+  if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
+    print*, 'using station distance weights'
+  else 
+    print*, 'setting station distance weights equal'
+  end if
+  print*, ' '
+
+  ! =========== now LOOP over all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
 
     call system_clock (tg1, count_rate)
@@ -491,24 +500,24 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
       y_trange (i) = abs (tair_data(2, i, t)-tair_data(1, i, t))
     end do
 
-    ! do power transformation on precip vector (AWW: consider alternate transforms)
-    call normalize_y (4.0d0, y)    ! SHOULD NOT BE HARDWIRED
+    ! do power transformation on precip vector
+    call normalize_y (4.0d0, y)    ! AWW SHOULD NOT BE HARDWIRED
 
-    ! -------- loop through all grid cells for a given time step --------
+    ! -------- loop over all grid cells, doing regression for each --------
     do g = 1, ngrid, 1
       ! call system_clock(tg1,count_rate)
 
       deallocate (twx_red)
       deallocate (tx_red)
-      allocate (twx_red(6, sta_limit))! these have dim1 = 6
+      allocate (twx_red(6, sta_limit))   ! these have dim1 = 6
       allocate (tx_red(6, sta_limit))
 
       ! IF the elevation is valid for this grid cell
       ! (this starts a long section working first on precip, then temp)
-      if (z(g, 4) .gt.-200) then
+      if (z(g, 4) .gt. -200) then
         ! call system_clock(t1,count_rate)
 
-        ! want to reset weights for closest sta_limit stations...
+        ! need to reset weights for closest sta_limit stations...
         ! recalc calc_distance_weight function for selected stations
         ! set max_distance equal to the farthest station distance
 
@@ -543,13 +552,16 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         slope_flag_pcp = 0
         do i = 1, (close_count(g)-1)
 
-          # AWW 2020 allow for not using station weights
+          ! AWW 2020 allow for not using station weights
           if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
             call calc_distance_weight (max_distance, close_meta(1, g, i), close_meta(2, g, i), &
               & close_meta(3, g, i), close_meta(4, g, i), tmp_weight)
-            w_pcp_red (i, i) = tmp_weight   # assign diagonal to square weight matrix (nstn X nstn)
+            w_pcp_red (i, i) = tmp_weight   ! assign diagonal to square weight matrix (nstn X nstn)
           else 
-            w_pcp_red (i, i) = 1.0   # assign diagonal to square weight matrix (nstn X nstn)
+            w_pcp_red (i, i) = 1.0
+          end if
+          if(t .eq. 1 .and. g .eq. 1) then
+            print*, 'close loc ',i,' weight ', w_pcp_red(i,i)
           end if
 
 !          w_pcp_1d (i) = tmp_weight
@@ -599,7 +611,7 @@ subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, 
         slope_flag_temp = 0
         do i = 1, (close_count_t(g)-1)
 
-          # AWW 2020 allow for not using station weights
+          ! AWW 2020 allow for not using station weights
           if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
             call calc_distance_weight (max_distance_t, close_meta_t(1, g, i), close_meta_t(2, g, i), &
               & close_meta_t(3, g, i), close_meta_t(4, g, i), tmp_weight)

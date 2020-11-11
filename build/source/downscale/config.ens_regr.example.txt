@@ -30,4 +30,4 @@ GEN_STA_WEIGHTS = TRUE
 ! Name of station weight file
 STA_WEIGHT_NAME = ./station_weights.WEST.bin
 ! Use distance weights for stations in regression? (TRUE/FALSE)
-USE_STN_WEIGHTS = .FALSE.
+USE_STN_WEIGHTS = FALSE

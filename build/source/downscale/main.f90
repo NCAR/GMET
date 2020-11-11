@@ -88,7 +88,7 @@ program gmet
     subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, &
-   & use_stn_weights))
+   & use_stn_weights)
       use type
       character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
       character (len=500), intent(in)  :: use_stn_weights            ! station weight usage option
@@ -144,7 +144,7 @@ program gmet
   ! Local variables
  
   character (len=100) :: config_file
-  integer, parameter  :: nconfigs = 20 
+  integer, parameter  :: nconfigs = 21
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list

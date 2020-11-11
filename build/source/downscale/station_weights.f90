@@ -74,11 +74,11 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
             close_weights(g,close_count(g)) = w_base(g,i)
             close_loc(g,close_count(g))  = i
 
-            close_meta(1,g,close_count(g)) = X(i,2)  # stn lat
-            close_meta(2,g,close_count(g)) = X(i,3)  # stn lon
-            close_meta(3,g,close_count(g)) = Z(g,2)  # grd lat
-            close_meta(4,g,close_count(g)) = Z(g,3)  # grd lon
-            # close_meta(5,...) is for distance from stn to grid in nautical miles
+            close_meta(1,g,close_count(g)) = X(i,2)  ! stn lat
+            close_meta(2,g,close_count(g)) = X(i,3)  ! stn lon
+            close_meta(3,g,close_count(g)) = Z(g,2)  ! grd lat
+            close_meta(4,g,close_count(g)) = Z(g,3)  ! grd lon
+            ! info: close_meta(5,...) is for distance from stn to grid in nautical miles
             call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta(5,g,close_count(g)))
 
             close_count(g) = close_count(g) + 1
