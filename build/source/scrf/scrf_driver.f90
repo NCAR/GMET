@@ -514,24 +514,20 @@ program generate_ensembles
               ra = 0.01
             end if
  
-            ! AW: revisit how this is done; make an option for the user
-            
-            !! limit max value to y_max + pcp_error (max station value + some portion of error)
+            ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
+            !     HL changed for box-cox back-transformation
             !if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
             !& istep), kind(dp)))**transform) then
             !   ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
             !  //////(dp))) ** transform
-            ! end if
-            
-            ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
-            ! Hongli changed for box-cox back-transformation
+
             if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
            & istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
               ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
              & kind(dp)))*(1.0d0/transform)+1) ** transform
               pcp_cap_count = pcp_cap_count + 1
             end if
-  
+
             pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
   
           end if 
