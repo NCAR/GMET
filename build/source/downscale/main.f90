@@ -85,15 +85,21 @@ program gmet
       integer, intent (out) :: error
     end subroutine save_coefficients
  
-    subroutine estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, stnvar, directory, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
-   & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, &
-   & use_stn_weights)
+    subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+   & stnid, stnvar, directory, kfold_trials, kfold_hold, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
+   & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, &
+   & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
       use type
-      character (len=500), intent(in)  :: gen_sta_weights            ! station weight generation flag
-      character (len=500), intent(in)  :: use_stn_weights            ! station weight usage option
-      character (len = 500), intent(in)        :: sta_weight_name    ! station weight file name
-      real (dp), intent (in) :: x (:, :), z (:, :)
+      character (len=500), intent(in)   :: gen_sta_weights        ! station weight generation flag
+      character (len = 500), intent(in) :: sta_weight_name        ! station weight file name
+      character (len=500), intent(in)   :: use_stn_weights        ! station weight usage option
+      character (len = 2000),intent(in) :: nwp_input_list         ! name of file containint list of NWP input files
+      character (len=100), intent(in)   :: nwp_vars(:)            !list of nwp predictor variables
+      character (len=100), intent(in)   :: nwp_prcp_var           !name of nwp precipitation predictor
+      integer(i4b), intent(inout)          :: nPredict            ! number of total predictors
+      integer(i4b), intent(in)             :: n_nwp               ! number of NWP predictors
+      real (dp), intent (inout) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
       integer (i4b), intent (in) :: ngrid
       real (dp), intent (in) :: times (:)
@@ -101,6 +107,8 @@ program gmet
       character (len=100), intent (in) :: stnid (:)
       character (len=100), intent (in) :: stnvar
       character (len=500), intent (in) :: directory
+      integer(I4B), intent(in)          :: kfold_trials        !number of kfold xval trials
+      integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
       real (sp), allocatable, intent (out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
       real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)        ! OLS tmean estimate and error
@@ -144,7 +152,7 @@ program gmet
   ! Local variables
  
   character (len=100) :: config_file
-  integer, parameter  :: nconfigs = 21
+  integer, parameter  :: nconfigs = 27
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
   character (len=500) :: site_list, output_file, output_file2, grid_list
@@ -154,6 +162,8 @@ program gmet
   character (len=20)  :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
   character (len=100) :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
+  character (len=100), allocatable :: nwp_vars(:)    !list of nwp predictor variables
+  character (len=100)         :: nwp_prcp_var = ''   !name of NWP precipitation predictor variable
   character (len=100), allocatable :: stnid (:), stnname (:)
   character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
 
@@ -164,6 +174,7 @@ program gmet
   character (len=2000) :: arg !command line arg for configuration file
   character (len=2000) :: output_file_tmp !temporary output file name
   character (len=2000) :: sys_str !string for system commands
+  character (len=2000) :: nwp_input_list !name of file containint list of NWP input files
 
   integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
   integer :: nstations, lenfile
@@ -185,11 +196,15 @@ program gmet
   real (dp), allocatable :: grad_e (:, :)
   real (dp), allocatable :: mask (:, :)
  
+  integer(I4B)           :: kfold_trials        !number of kfold xval trials
+  integer(I4B)           :: kfold_hold          !number of stations to withhold from regression
+
   real (dp), allocatable :: x (:, :), z (:, :)
   integer :: ngrid
  
   integer (i4b) :: nx, ny, ntimes
- 
+  integer (i4b) :: nPredict           ! total number of predictors for spatial regression
+  integer (i4b) :: n_nwp           ! number of NWP predictors for spatial regression
   integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec ! AWW
  
   real (dp) :: maxdistance
@@ -242,10 +257,16 @@ program gmet
   stn_enddate     = config_values(18)
   gen_sta_weights = config_values(19)
   sta_weight_name = config_values(20)
-  use_stn_weights = config_values(21)
+  use_stn_weights = config_values(27)
 
-  ! check to see if output file path is valid
-  ! create the output file and see if an error occurs
+  call value(config_values(21),nPredict,error)
+  if (error /= 0) then
+    print *, "ERROR: Failed to read npredict from config file."
+    stop
+  end if
+
+  !check to see if output file path is valid
+  !create the output file and see if an error occurs
   output_file_tmp = trim(output_file) // ".txt"
   open(unit=34,file=trim(output_file_tmp),form='unformatted',iostat=error)
     
@@ -298,6 +319,10 @@ program gmet
   !   2) ens. source is station data (and optionally gridded predictors)
 
   if (mode == 1) then
+  
+    print *, 'Mode 1 (gridded downscaling) is not currently being maintained in this code'
+    print *, 'The functionality has been recreated and expanded in the NCAR GARD software'
+    stop
 
     ! =================== Ensemble Source Is Gridded Model Variables =================
 
@@ -402,12 +427,22 @@ program gmet
     call value (config_values(14), maxdistance, error)  ! convert config str to number
     print*, "Max Distance = ", maxdistance
     if (error /= 0) then
-      !maxdistance = -1   ! AWW why not just stop (orig code - replace)?
-      print*, "Max Distance not correctly read ... quitting"
+      print*, "Max Distance not correctly read ... quitting", error
       stop
     end if
     maxdistance = maxdistance * 0.539957   ! convert from km to nautical miles
  
+    n_nwp = nPredict-6
+    allocate(nwp_vars(n_nwp))
+    call parse (config_values(22), ",", nwp_vars, nfile_var)
+    if(nfile_var /= n_nwp) then
+      print *,"Failed to read in NWP variable list or nPredict does not equal 6 + number of NWP predictors:", nfile_var
+      stop
+    end if
+
+    nwp_prcp_var   = config_values(23)
+    nwp_input_list = config_values(24)
+
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
    & stn_slp_e, nstations, error, vars) ! AWW added vars
     if (error /= 0) then
@@ -425,6 +460,22 @@ program gmet
     call read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
     if(error /= 0) then
       print *, "ERROR: Failed to read domain grid ... quitting", error
+      stop
+    end if
+
+    !grab kfold cross validation config parameters
+    call value(config_values(25), kfold_trials, error)  ! convert config str to number
+    call value(config_values(26), kfold_hold,   error)  ! convert config str to number
+
+    !check kfold values
+    !limit number of trial as 10-30
+    if(kfold_trials .gt. 30 .or. kfold_trials .lt. 2) then
+      print *,'Error:  K-fold trials limited to range of 10-30 trials'
+      stop
+    end if
+    !limit number of stations withheld to 1-10
+    if(kfold_hold .gt. 10 .or. kfold_hold .lt. 1) then
+      print *,'Error:  K-fold station withholding limited to range of 1-10 stations withheld'
       stop
     end if
 
@@ -446,8 +497,11 @@ program gmet
     mask_1d   = reshape (mask, (/ nx*ny /))
  
     ngrid = nx * ny
-    allocate (x(nstations, 6))   ! x arrays for station variables
-    allocate (z(ngrid, 6))
+
+    allocate (x(nstations, nPredict))   ! x arrays for station variables
+    allocate (z(ngrid, nPredict))
+
+    !define first six predictors as geophysical predictors
     x(:, 1) = 1.0
     x(:, 2) = stnlat (:)
     x(:, 3) = stnlon (:)
@@ -466,11 +520,12 @@ program gmet
     allocate (mean_tp_corr(ntimes))
     allocate (obs_max_pcp(ngrid, ntimes))
  
-    call estimate_forcing_regression (gen_sta_weights, sta_weight_name, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, station_var, directory, pcp, pop, pcperror, obs_max_pcp, tmean, &
+    call estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
+   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+   & stnid, station_var, directory, kfold_trials, kfold_hold, pcp, pop, pcperror, obs_max_pcp, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, &
    & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
-   
+
     if (error /= 0) then
       print *, "ERROR: subroutine estimate_forcing_regression() returned error", error
       stop

@@ -10,7 +10,7 @@ contains
     integer, intent (out) :: sec, min, hour, day, month, year
     integer, intent (out) :: error
  
-    if (len_trim(date) /= 14 .and. len_trim(date) /= 8) then
+    if (len_trim(date) /= 14 .and. len_trim(date) /= 8 .and. len_trim(date) /= 10) then
       error = 1
       return
     end if
@@ -21,6 +21,10 @@ contains
       sec = 0
       min = 0
       hour = 0
+    else if(len_trim(date) == 10) then
+      sec = 0
+      min = 0
+      call value (date(9:10), hour, error)
     else
       call value (date(13:14), sec, error)
       call value (date(11:12), min, error)
@@ -98,7 +102,6 @@ contains
     days = i_day - u_day
  
     date_to_unix = (days*86400) + (hour*3600) + (min*60) + sec
-    !  print *,days, hour,sec,u_day,i_day,day,month,year,date_to_unix
  
   end function date_to_unix
  
@@ -117,7 +120,7 @@ contains
     i_day = i_day + 1
  
     call calendar_date (u_day+i_day, day, month, year)
-    !  print*, u_day+i_day,day,month,year
+
     i_day = mod (itime, 86400.0)
     if (i_day < 0) then
       i_day = i_day + 86400

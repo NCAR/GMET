@@ -50,88 +50,87 @@ subroutine compute_station_weights(sta_weight_name,ngrid,nstns,X,Z,search_distan
   w_base = 0.0d0     ! initialize
 
   do g = 1, ngrid, 1
-    if(z(g,4) > -400.) then
-      close_count(g) = 1
+    close_count(g) = 1
+    min_weight = 0.0d0
+    close_weights(g,:) = 0.0d0
+
+    close_count_t(g) = 1
+    min_weight_t = 0.0d0
+    close_weights_t(g,:) = 0.0d0
+
+    ! for current grid cell, loop through stations, find distance
+    do i = 1, nstns, 1
+      ! setup distinct weight matrices for precip and temperature
+      ! x() are station lonlat; z() are grid lonlat; returns weight (w_base) for grd-to-stn
+      call calc_distance_weight(search_distance, X(i,2), X(i,3), Z(g,2), Z(g,3), w_base(g,i))
+
+      ! Precipitation
       min_weight = 0.0d0
-      close_weights(g,:) = 0.0d0
 
-      close_count_t(g) = 1
+      if(w_base(g,i) .gt. min_weight .and. sta_data(i,1) .gt. -1.0d0) then
+        if(close_count(g) .le. sta_limit) then
+
+          close_weights(g,close_count(g)) = w_base(g,i)
+          close_loc(g,close_count(g))  = i
+
+          close_meta(1,g,close_count(g)) = X(i,2)  ! stn lat
+          close_meta(2,g,close_count(g)) = X(i,3)  ! stn lon
+          close_meta(3,g,close_count(g)) = Z(g,2)  ! grd lat
+          close_meta(4,g,close_count(g)) = Z(g,3)  ! grd lon
+          ! info: close_meta(5,...) is for distance from stn to grid in nautical miles
+          call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta(5,g,close_count(g)))
+
+          close_count(g) = close_count(g) + 1
+        else
+          min_weight = minval(close_weights(g,:),1)
+          if(w_base(g,i) .gt. min_weight) then
+            out_loc = minloc(close_weights(g,:),1)
+            close_weights(g,out_loc) = w_base(g,i)
+            close_loc(g,out_loc) = i
+            close_meta(1,g,out_loc) = X(i,2)
+            close_meta(2,g,out_loc) = X(i,3)
+            close_meta(3,g,out_loc) = Z(g,2)
+            close_meta(4,g,out_loc) = Z(g,3)
+            call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta(5,g,out_loc))
+          endif
+        endif
+      endif
+
+      ! need to repeat above for temperature since that data is independent of precipitation
       min_weight_t = 0.0d0
-      close_weights_t(g,:) = 0.0d0
 
-      ! for current grid cell, loop through stations, find distance
-      do i = 1, nstns, 1
-        ! set up distinct weight matrices for precip and temperature
-        ! x() are station lonlat; Z() are grid lonlat; returns weight (w_base) for grd-to-stn
-        call calc_distance_weight(search_distance, X(i,2), X(i,3), Z(g,2), Z(g,3), w_base(g,i))
-
-        !Precipitation
-        min_weight = 0.0d0
-
-        if(w_base(g,i) .gt. min_weight .and. sta_data(i,1) .gt. -1.0d0) then
-          if(close_count(g) .le. sta_limit) then
-
-            close_weights(g,close_count(g)) = w_base(g,i)
-            close_loc(g,close_count(g))  = i
-
-            close_meta(1,g,close_count(g)) = X(i,2)  ! stn lat
-            close_meta(2,g,close_count(g)) = X(i,3)  ! stn lon
-            close_meta(3,g,close_count(g)) = Z(g,2)  ! grd lat
-            close_meta(4,g,close_count(g)) = Z(g,3)  ! grd lon
-            ! info: close_meta(5,...) is for distance from stn to grid in nautical miles
-            call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta(5,g,close_count(g)))
-
-            close_count(g) = close_count(g) + 1
-          else
-            min_weight = minval(close_weights(g,:),1)
-            if(w_base(g,i) .gt. min_weight) then
-              out_loc = minloc(close_weights(g,:),1)
-              close_weights(g,out_loc) = w_base(g,i)
-              close_loc(g,out_loc) = i
-              close_meta(1,g,out_loc) = X(i,2)
-              close_meta(2,g,out_loc) = X(i,3)
-              close_meta(3,g,out_loc) = Z(g,2)
-              close_meta(4,g,out_loc) = Z(g,3)
-              call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta(5,g,out_loc))
-            endif
-          endif
-        endif
-
-        ! need to repeat above for temperature since that data is independent of precipitation
-        min_weight_t = 0.0d0
-
-        if(w_base(g,i) .gt. min_weight_t .and. tair_data(1,i,1) .gt. -200.0d0) then
-          if(close_count_t(g) .le. sta_limit) then
+      if(w_base(g,i) .gt. min_weight_t .and. tair_data(1,i,1) .gt. -200.0d0) then
+        if(close_count_t(g) .le. sta_limit) then
   
-            close_weights_t(g,close_count_t(g)) = w_base(g,i)
-            close_loc_t(g,close_count_t(g))  = i
+          close_weights_t(g,close_count_t(g)) = w_base(g,i)
+          close_loc_t(g,close_count_t(g))  = i
 
-            close_meta_t(1,g,close_count_t(g)) = X(i,2)
-            close_meta_t(2,g,close_count_t(g)) = X(i,3)
-            close_meta_t(3,g,close_count_t(g)) = Z(g,2)
-            close_meta_t(4,g,close_count_t(g)) = Z(g,3)
-            call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta_t(5,g,close_count_t(g)))
+          close_meta_t(1,g,close_count_t(g)) = X(i,2)
+          close_meta_t(2,g,close_count_t(g)) = X(i,3)
+          close_meta_t(3,g,close_count_t(g)) = Z(g,2)
+          close_meta_t(4,g,close_count_t(g)) = Z(g,3)
+          call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta_t(5,g,close_count_t(g)))
 
-            close_count_t(g) = close_count_t(g) + 1
-          else
-            min_weight_t = minval(close_weights_t(g,:),1)
-            if(w_base(g,i) .gt. min_weight_t) then
-              out_loc_t = minloc(close_weights_t(g,:),1)
-              close_weights_t(g,out_loc_t) = w_base(g,i)
+          close_count_t(g) = close_count_t(g) + 1
+        else
+          min_weight_t = minval(close_weights_t(g,:),1)
+          if(w_base(g,i) .gt. min_weight_t) then
+            out_loc_t = minloc(close_weights_t(g,:),1)
+            close_weights_t(g,out_loc_t) = w_base(g,i)
 
-              close_loc_t(g,out_loc_t) = i
+            close_loc_t(g,out_loc_t) = i
 
-              close_meta_t(1,g,out_loc_t) = X(i,2)
-              close_meta_t(2,g,out_loc_t) = X(i,3)
-              close_meta_t(3,g,out_loc_t) = Z(g,2)
-              close_meta_t(4,g,out_loc_t) = Z(g,3)
-              call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta_t(5,g,out_loc_t))
-            endif
+            close_meta_t(1,g,out_loc_t) = X(i,2)
+            close_meta_t(2,g,out_loc_t) = X(i,3)
+            close_meta_t(3,g,out_loc_t) = Z(g,2)
+            close_meta_t(4,g,out_loc_t) = Z(g,3)
+            call calc_distance(X(i,2),X(i,3),Z(g,2),Z(g,3),close_meta_t(5,g,out_loc_t))
           endif
         endif
-      enddo  ! end station loop
-    endif    ! end grid point elevation check
-  enddo      ! end grid point loop
+      endif
+
+    end do  !end station loop
+  end do      !end grid point loop
 
 end subroutine compute_station_weights
 

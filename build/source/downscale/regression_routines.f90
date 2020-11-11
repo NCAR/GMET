@@ -123,8 +123,12 @@ subroutine logistic_regression (x, y, tx, yp, b)
   do while (f /=  1)
     !print*, 'matmul(x,b):'
     !print*, matmul(x, b)
-    p = 1.0d0 / (1.0d0+exp(-matmul(x, b)))
-    if (any(p > 0.97)) then
+    if(any(-matmul(X,B) > 50)) then
+      f = 1
+    else
+      p = 1.0d0 / (1.0d0+exp(-matmul(x, b)))
+    endif
+    if (any(p > 0.99)) then
       ! print *, "WARNING: logistic regression diverging"
       f = 1
     else
@@ -144,7 +148,7 @@ subroutine logistic_regression (x, y, tx, yp, b)
           f = 0
         end if
       end do
-      if (it > 8) then
+      if (it > 10) then
         ! print *, "WARNING: logistic regression failed to converge"
         f = 1
       end if
