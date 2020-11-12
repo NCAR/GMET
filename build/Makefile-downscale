@@ -1,6 +1,6 @@
 # ============= Makefile for downscaling program ======================
 # AWW-2016:  split mega-file coefficients.f90 into smaller source files
-# AWW-2020:  build a proper makefile
+# AWW-2020:  build a proper makefile; add new files for xval and dynamic predictors
 
 #========================================================================
 # PART 0: Define directory paths and select the compiler
