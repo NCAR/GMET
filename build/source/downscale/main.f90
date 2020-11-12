@@ -85,8 +85,8 @@ program gmet
       integer, intent (out) :: error
     end subroutine save_coefficients
  
-    subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
-   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+    subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, dyn_pred_infile_list, &
+   & nDynPredictors, dynamic_vars, dynamic_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, stnvar, directory, kfold_trials, kfold_hold, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
@@ -94,11 +94,11 @@ program gmet
       character (len=500), intent(in)   :: gen_sta_weights        ! station weight generation flag
       character (len = 500), intent(in) :: sta_weight_name        ! station weight file name
       character (len=500), intent(in)   :: use_stn_weights        ! station weight usage option
-      character (len = 2000),intent(in) :: nwp_input_list         ! name of file containint list of NWP input files
-      character (len=100), intent(in)   :: nwp_vars(:)            !list of nwp predictor variables
-      character (len=100), intent(in)   :: nwp_prcp_var           !name of nwp precipitation predictor
-      integer(i4b), intent(inout)          :: nPredict            ! number of total predictors
-      integer(i4b), intent(in)             :: n_nwp               ! number of NWP predictors
+      character (len = 2000),intent(in) :: dyn_pred_infile_list   ! file with list of dynamic predictor input files
+      character (len=100), intent(in)   :: dynamic_vars(:)        ! list of dyn predictor variables
+      character (len=100), intent(in)   :: dynamic_prcp_var       ! name of dyn precipitation predictor
+      integer(i4b), intent(inout)       :: nTotPredictors         ! number of total predictors
+      integer(i4b), intent(in)          :: nDynPredictors         ! number of dynamic predictors
       real (dp), intent (inout) :: x (:, :), z (:, :)
       real (dp), intent (in) :: maxdistance
       integer (i4b), intent (in) :: ngrid
@@ -149,32 +149,32 @@ program gmet
   end interface
   ! === end of interface, start the program ====
 
-  ! Local variables
- 
-  character (len=100) :: config_file
   integer, parameter  :: nconfigs = 27
+
+  ! Local variables
+  character (len=100) :: config_file
   character (len=500) :: config_names (nconfigs)
   character (len=500) :: config_values (nconfigs)
-  character (len=500) :: site_list, output_file, output_file2, grid_list
+  character (len=500) :: site_list, output_file, output_file2, grid_list, dyn_predictor_names
   character (len=500) :: directory
 
   character (len=100) :: startdate, enddate ! desired output dates, YYYYMMDD, read from config file
   character (len=20)  :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
   character (len=100) :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
-  character (len=100), allocatable :: nwp_vars(:)    !list of nwp predictor variables
-  character (len=100)         :: nwp_prcp_var = ''   !name of NWP precipitation predictor variable
+  character (len=100), allocatable :: dynamic_vars(:)         ! list of dynamic predictor variables
+  character (len=100)              :: dynamic_prcp_var = ''   ! name of dynamic precipitation predictor variable
   character (len=100), allocatable :: stnid (:), stnname (:)
-  character (len=2), allocatable :: vars (:) !AWW-feb2016 for station P/T indicators
+  character (len=2), allocatable   :: vars (:) !AWW-feb2016 for station P/T indicators
 
   character (len = 500) :: gen_sta_weights     ! flag for generating station weight file
   character (len = 500) :: sta_weight_name     ! name of station weight file
   character (len = 500) :: use_stn_weights     ! option for using station weights
  
-  character (len=2000) :: arg !command line arg for configuration file
-  character (len=2000) :: output_file_tmp !temporary output file name
-  character (len=2000) :: sys_str !string for system commands
-  character (len=2000) :: nwp_input_list !name of file containint list of NWP input files
+  character (len=2000) :: arg              ! command line arg for configuration file
+  character (len=2000) :: output_file_tmp  ! temporary output file name
+  character (len=2000) :: sys_str          ! string for system commands
+  character (len=2000) :: dyn_pred_infile_list   ! file with list of dynamic predictor input files
 
   integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
   integer :: nstations, lenfile
@@ -203,9 +203,9 @@ program gmet
   integer :: ngrid
  
   integer (i4b) :: nx, ny, ntimes
-  integer (i4b) :: nPredict           ! total number of predictors for spatial regression
-  integer (i4b) :: n_nwp           ! number of NWP predictors for spatial regression
-  integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec ! AWW
+  integer (i4b) :: nTotPredictors           ! total number of predictors for spatial regression
+  integer (i4b) :: nDynPredictors           ! number of dynamic predictors for spatial regression
+  integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec   ! time vars
  
   real (dp) :: maxdistance
   real (dp), allocatable :: grdlat (:), grdlon (:), grdelev (:), grd_slp_n (:), grd_slp_e (:), &
@@ -244,27 +244,29 @@ program gmet
     stop
   end if
  
-  ! store rest of config file values (ordered)
-  startdate       = config_values(2)
-  enddate         = config_values(3)
-  site_list       = config_values(4)
-  site_var        = config_values(5)
-  station_var     = config_values(6)
-  output_file     = config_values(12)
-  site_var_t      = config_values(15)
-  directory       = config_values(16)
-  stn_startdate   = config_values(17)
-  stn_enddate     = config_values(18)
-  gen_sta_weights = config_values(19)
-  sta_weight_name = config_values(20)
-  use_stn_weights = config_values(27)
-
-  call value(config_values(21),nPredict,error)
-  if (error /= 0) then
-    print *, "ERROR: Failed to read npredict from config file."
-    stop
-  end if
-
+  ! store rest of config file values (ordered in read_config.f90)
+  startdate             = config_values(2)
+  enddate               = config_values(3)
+  site_list             = config_values(4)
+  site_var              = config_values(5)
+  station_var           = config_values(6)
+  output_file           = config_values(12)
+  grid_list             = config_values (13)
+  read(config_values(14), *) maxdistance          ! convert config str to number
+  site_var_t            = config_values(15)
+  directory             = config_values(16)
+  stn_startdate         = config_values(17)
+  stn_enddate           = config_values(18)
+  gen_sta_weights       = config_values(19)
+  sta_weight_name       = config_values(20)
+  read(config_values(21), *) nTotPredictors
+  dyn_predictor_names   = config_values(22)
+  dynamic_prcp_var      = config_values(23)
+  dyn_pred_infile_list  = config_values(24)
+  read(config_values(25), *) kfold_trials
+  read(config_values(26), *) kfold_hold
+  use_stn_weights       = config_values(27)
+  
   !check to see if output file path is valid
   !create the output file and see if an error occurs
   output_file_tmp = trim(output_file) // ".txt"
@@ -279,8 +281,6 @@ program gmet
     sys_str = "rm " // trim(output_file_tmp)
     call system(sys_str)
   end if
- 
-  ! print *,trim(site_var_t),' ',trim(site_var)
  
   ! check that dates were entered
   if (len(trim(startdate)) == 0 .or. len(trim(enddate)) == 0 .or. len(trim(site_list)) == 0 .or. &
@@ -326,7 +326,7 @@ program gmet
 
     ! =================== Ensemble Source Is Gridded Model Variables =================
 
-    perturbation = config_values (7)
+    perturbation = config_values(7)
     call value (config_values(8), forecast, error)
     if (error /= 0) forecast = - 1
     call value (config_values(9), n_vars, error)
@@ -359,7 +359,6 @@ program gmet
       end if
  
     end if
-     !  print *,'start date ',startdate
  
     do i = 1, n_vars, 1
       call read_refcst (startdate, enddate, file_var(i), perturbation, var_name(i), forecast, vals, &
@@ -422,27 +421,16 @@ program gmet
  
   else if (mode == 2) then
  
-    ! =================== Ensemble Forcing Generation =====================
+    ! =================== Ensemble Forcing Generation from Station / Grid Data =====================
  
-    call value (config_values(14), maxdistance, error)  ! convert config str to number
     print*, "Max Distance = ", maxdistance
-    if (error /= 0) then
-      print*, "Max Distance not correctly read ... quitting", error
+    if (maxdistance .le. 0 .or. maxdistance .gt. 10000) then
+      print*, "Max Distance (km) = ', maxdistance,' ... may not be specified correctly ... quitting"
       stop
     end if
     maxdistance = maxdistance * 0.539957   ! convert from km to nautical miles
  
-    n_nwp = nPredict-6
-    allocate(nwp_vars(n_nwp))
-    call parse (config_values(22), ",", nwp_vars, nfile_var)
-    if(nfile_var /= n_nwp) then
-      print *,"Failed to read in NWP variable list or nPredict does not equal 6 + number of NWP predictors:", nfile_var
-      stop
-    end if
-
-    nwp_prcp_var   = config_values(23)
-    nwp_input_list = config_values(24)
-
+    ! --- read station list
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
    & stn_slp_e, nstations, error, vars) ! AWW added vars
     if (error /= 0) then
@@ -450,36 +438,32 @@ program gmet
       stop
     end if
 
-    ! read grid domain file 
-    grid_list = config_values (13)
+    ! --- read grid domain file 
     if (len(trim(grid_list)) == 0) then
       print *, "ERROR: Failed to read GRID_LIST (domain grid) name"
       stop
     end if
 
+    ! --- read domain grid
     call read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
     if(error /= 0) then
       print *, "ERROR: Failed to read domain grid ... quitting", error
       stop
     end if
 
-    !grab kfold cross validation config parameters
-    call value(config_values(25), kfold_trials, error)  ! convert config str to number
-    call value(config_values(26), kfold_hold,   error)  ! convert config str to number
-
-    !check kfold values
-    !limit number of trial as 10-30
-    if(kfold_trials .gt. 30 .or. kfold_trials .lt. 2) then
-      print *,'Error:  K-fold trials limited to range of 10-30 trials'
+    ! --- check kfold cross-validation settings
+    ! limit number of trial as 10-30
+    if((kfold_trials .gt. 30 .or. kfold_trials .lt. 2) .and. kfold_trials .ne. 0) then
+      print *,'Error:  K-fold trials limited to range of 2-30 trials, unless turned off with trials=0'
       stop
     end if
-    !limit number of stations withheld to 1-10
+    ! limit number of stations withheld to 1-10
     if(kfold_hold .gt. 10 .or. kfold_hold .lt. 1) then
       print *,'Error:  K-fold station withholding limited to range of 1-10 stations withheld'
       stop
     end if
 
-    ! allocate 1-d grid variables
+    ! allocate static grid variables
     print*, "allocating vector variables matching grids of nx= ",nx," by ny= ",ny
     allocate (grdlat(nx*ny))
     allocate (grdlon(nx*ny))
@@ -495,20 +479,38 @@ program gmet
     grd_slp_n = reshape (grad_n, (/ nx*ny /))
     grd_slp_e = reshape (grad_e, (/ nx*ny /))
     mask_1d   = reshape (mask, (/ nx*ny /))
- 
     ngrid = nx * ny
 
-    allocate (x(nstations, nPredict))   ! x arrays for station variables
-    allocate (z(ngrid, nPredict))
+    ! --- read dynamic/gridded predictors
+    if (nTotPredictors .lt. 6 .or. nTotPredictors .gt. 30) then
+      print *, 'ERROR: nTotPredictors ',nTotPredictors,' is likely not specified correcting in the config file.'
+      stop
+    end if
+    
+    nDynPredictors = nTotPredictors - 6
+    
+    if(nDynPredictors > 0) then
+      ! dynamic predictors will be read and used
+      allocate(dynamic_vars(nDynPredictors))
+      call parse (dyn_predictor_names, ",", dynamic_vars, nfile_var)   ! extract names of file variables
+      
+      if(nfile_var /= nDynPredictors) then
+        print *,"Failed to read in dynamic variable list or nTotPredictors does not equal 6 + number of dynamic predictors: ", nfile_var
+        stop
+      end if
+    end if
 
-    !define first six predictors as geophysical predictors
-    x(:, 1) = 1.0
+    ! allocate arrays for static and if present, dynamic predictors
+    allocate (x(nstations, nTotPredictors))   ! x arrays for station variables
+    allocate (z(ngrid, nTotPredictors))
+
+    ! define first six predictors to include static geophysical variables (plus intercept)
+    x(:, 1) = 1.0               ! x arrays for station variables
     x(:, 2) = stnlat (:)
     x(:, 3) = stnlon (:)
     x(:, 4) = stnelev (:)
     x(:, 5) = stn_slp_n (:)
     x(:, 6) = stn_slp_e (:)
- 
     z(:, 1) = 1.0               ! z arrays for grid variables
     z(:, 2) = grdlat (:)
     z(:, 3) = grdlon (:)
@@ -520,8 +522,8 @@ program gmet
     allocate (mean_tp_corr(ntimes))
     allocate (obs_max_pcp(ngrid, ntimes))
  
-    call estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
-   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
+    call estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, dyn_pred_infile_list, &
+   & nDynPredictors, dynamic_vars, dynamic_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
    & stnid, station_var, directory, kfold_trials, kfold_hold, pcp, pop, pcperror, obs_max_pcp, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, &
    & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
@@ -546,7 +548,7 @@ program gmet
  
   else
 
-    ! mode not recognized...stop
+    ! mode not recognized ... stop
     print*, 'Mode given in config file = ',mode,' Not recognized (can be 1 or 2).  Quitting.' 
     stop
 

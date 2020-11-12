@@ -116,7 +116,6 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
     stdev_all = 0.01
   end if
  
- 
   if (stdev .gt. 0.0) then
     do t = 1, ntimes, 1
       if (yp(t) .gt. 0.0) then
@@ -125,12 +124,10 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
     end do
   end if
  
- 
   return
  
 end subroutine normalize_xv
  
-! Hongli add
 subroutine max_x (x, smax)
   use type
   implicit none

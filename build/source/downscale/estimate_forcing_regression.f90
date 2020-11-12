@@ -2,8 +2,8 @@
 
 subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, kfold_trials,kfold_hold,pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, &
-  & trange, trange_err, mean_autocorr, mean_tp_corr, error, &
+  & stnid, stnvar, directory, kfold_trials,kfold_hold,pcp, pop, pcperr, obs_max_pcp, tmean, &
+  & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
 
   ! ==============================================================================================
@@ -114,9 +114,9 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       integer, intent (inout) :: error !error integer
     end subroutine read_nwp
 
-    subroutine station_grid_correspondence(X,Z,close_weights,close_weights_t,close_loc,close_loc_t,nSta,nearestGridpoint)
+    subroutine station_grid_correspondence(X,Z,close_weights,close_weights_t,close_loc,close_loc_t,&
+                                           & nSta,nearestGridpoint)
       use type
-
       real(dp), intent(in)        :: X(:,:)
       real(dp), intent(in)        :: Z(:,:)
       real(dp), intent(in)        :: close_weights(:,:)
@@ -212,13 +212,15 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       integer(I4B), intent(in)  :: xval_combinations(:,:)  ! array of sampling combinations (integer array indicies)
       real(sp), intent(out)     :: varUncert               ! output: uncertainty estimate from kfold trials
     end subroutine kfold_crossval
+    
+    !subroutine comb()? --- in a module!
   end interface
   ! =========== end interfaces, start code =============
 
-  real (dp), intent (inout) :: x (:, :), z (:, :)  ! station and grid point description arrays
-  real (dp), intent (in) :: maxdistance         ! max distance for weight function
+  real (dp), intent (inout)  :: x (:, :), z (:, :)  ! station and grid point description arrays
+  real (dp), intent (in)     :: maxdistance         ! max distance for weight function
   integer (i4b), intent (in) :: ngrid           ! number of grid points
-  real (dp), intent (in) :: times (:)!time step array
+  real (dp), intent (in)     :: times (:)!time step array
 
   ! AWW added next
   integer (i4b), intent (in) :: st_rec, end_rec
@@ -226,16 +228,16 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   character (len=100), intent (in)  :: stnid (:)!station id array
   character (len=100), intent (in)  :: stnvar !control file variables
   character (len=500), intent (in)  :: directory
-  character (len=500),intent(in)  :: gen_sta_weights     ! flag for generating station weight file
-  character (len=500),intent(in)  :: sta_weight_name     ! station weight file name
-  character (len=500),intent(in)  :: use_stn_weights     ! flag for doing distance weighted regression
-  character (len=2000),intent(in) :: nwp_input_list      !file containing list of NWP predictor input files
+  character (len=500), intent(in)   :: gen_sta_weights     ! flag for generating station weight file
+  character (len=500), intent(in)   :: sta_weight_name     ! station weight file name
+  character (len=500), intent(in)   :: use_stn_weights     ! flag for doing distance weighted regression
+  character (len=2000),intent(in)   :: nwp_input_list      !file containing list of NWP predictor input files
   character (len=100), intent(in)   :: nwp_vars(:)    !list of nwp predictor variables
   character (len=100), intent(in)   :: nwp_prcp_var   !name of nwp predictor variable for precipitation
 
-  character (len=2000)  ::  nwp_timestep_file        !name of a NWP predictor file
+  character (len=2000)              ::  nwp_timestep_file        !name of a NWP predictor file
 
-  integer(I4B), intent(inout)          :: nPredict            ! number of total predictors
+  integer(I4B), intent(inout)       :: nPredict            ! number of total predictors
   integer(I4B), intent(in)          :: n_nwp               ! number of NWP predictors
   integer(I4B), intent(in)          :: kfold_trials        !number of kfold xval trials
   integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
@@ -248,7 +250,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   real (sp), allocatable, intent (out) :: trange_2 (:, :), trange_err_2 (:, :)!OLS trange estimate and error
   real (sp), allocatable, intent (out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
 
-  integer, intent (out) :: error ! integer error flag
+  integer, intent (out)   :: error ! integer error flag
   real (dp), intent (out) :: mean_autocorr (:)!mean autocorrelation from all stations over entire time period
   real (dp), intent (out) :: mean_tp_corr (:)!mean correlation for mean temp and precip
 
@@ -296,8 +298,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   integer (i4b) :: lag, window
   integer (i4b) :: auto_cnt, tp_cnt
 
-  integer(I4B)  :: nBase                                   ! number of geophysical predictors
-  integer(I4B)  :: prcpPredictInd                          ! index of precipitation predictor in predictor vector
+  integer(I4B)  :: nBase                              ! number of geophysical predictors
+  integer(I4B)  :: prcpPredictInd                     ! index of precipitation predictor in predictor vector
   integer(I4B),allocatable  :: noSlopePredicts(:)
   integer(I4B),allocatable  :: noPrcpPredicts(:)
   integer(I4B),allocatable  :: noPrcpNoSlopePredicts(:)
@@ -305,21 +307,22 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   logical                   :: no_precip = .false.
 
   ! variables for tracking closest N stations for precipitation
-  integer (i4b), parameter :: sta_limit = 30
+  integer (i4b), parameter   :: sta_limit = 30
   integer (i4b), allocatable :: close_loc (:, :)
   integer (i4b), allocatable :: close_count (:)
-  real (dp), allocatable :: close_weights (:, :)
-  real (dp), allocatable :: close_meta (:, :, :)
-  real (dp) :: max_distance
-  real (dp), parameter :: search_distance = 1000.0
+  real (dp), allocatable     :: close_weights (:, :)
+  real (dp), allocatable     :: close_meta (:, :, :)
+  real (dp)                  :: max_distance
+  real (dp), parameter       :: search_distance = 1000.0
 
   ! variables for tracking closest N stations for temperature
   integer (i4b), allocatable :: close_loc_t (:, :)
   integer (i4b), allocatable :: close_count_t (:)
-  real (dp), allocatable :: close_weights_t (:, :)
-  real (dp), allocatable :: close_meta_t (:, :, :)
-  real (dp) :: max_distance_t
-  real (dp) :: tmp_weight
+  real (dp), allocatable     :: close_weights_t (:, :)
+  real (dp), allocatable     :: close_meta_t (:, :, :)
+  real (dp)                  :: max_distance_t
+  
+  real (dp)                  :: tmp_weight, wgtsum_pcp, wgtsum_temp, errsum
 
   integer(I4B), allocatable :: nearestGridpoint(:)
 
@@ -336,11 +339,11 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
   ! variables for keeping track of max_distance modifications
   integer (i4b), allocatable :: expand_flag (:), expand_flag_t (:)
-  real (dp), allocatable :: expand_dist (:), expand_dist_t (:)
+  real (dp), allocatable     :: expand_dist (:), expand_dist_t (:)
 
-  !kfold cross validation variables 
+  ! kfold cross validation variables 
   integer(i4b), allocatable :: xval_combinations(:,:)    ! array of sampling combinations (integer array indicies)
-  integer(i4B) :: kfold_nsamp                            ! number of samples to draw from
+  integer(i4B)              :: kfold_nsamp               ! number of samples to draw from !AW same as nstation?
 
   !==============================================================!
   !                     code starts below here                   !
@@ -401,10 +404,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   ! base weight array
   allocate (w_base(ngrid, nstns))
 
-  !nearest grid index to stations
+  ! nearest grid index to stations
   allocate (nearestGridpoint(nstns))
  
-  !predictor index array
+  ! predictor index array
   allocate (noSlopePredicts(nPredict-2))
   allocate (noPrcpPredicts(nPredict-1))
   allocate (noPrcpNoSlopePredicts(nPredict-3))
@@ -413,8 +416,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   allocate (expand_dist(ngrid), expand_flag(ngrid))
   allocate (expand_dist_t(ngrid), expand_flag_t(ngrid))
 
-  !kfold xval variables
-  allocate(xval_combinations(kfold_trials,kfold_nsamp-kfold_hold))
+  ! kfold xval variables
+  allocate(xval_combinations(kfold_trials, kfold_nsamp-kfold_hold))
 
   ! initializations
   pcp = 0.0d0
@@ -439,7 +442,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   expand_dist_t = 0.0d0
   expand_flag_t = 0
 
-  xval_combinations = -999
+  xval_combinations = -999     ! initialize
 
   ! ================= LOOP OVER STATIONS ============
   ! this part calls subroutines that calculate various correlations
@@ -526,7 +529,6 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
                                  sta_limit,prcp_data,tair_data, &                               ! input
                                  close_meta,close_meta_t,close_loc,close_loc_t, &               ! output
                                  close_count,close_count_t,close_weights,close_weights_t,error) ! output
-
     if(error /= 0) then
        return
     endif
@@ -548,34 +550,39 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   call system_clock (t2, count_rate)
   print *, 'Elapsed time for weight generation: ', real (t2-t1) / real (count_rate)
 
-  ! open NWP predictor file list
-  open(unit=55,file=trim(nwp_input_list),form='formatted',status='old',iostat=error)
-  if( error /= 0) then
-    print *,'Error opening NWP predictor file list: ',trim(nwp_input_list)
-    stop
+
+  ! create or read in index array of closest grid point to every station
+  call station_grid_correspondence(X,Z,close_weights,close_weights_t,close_loc,close_loc_t,&
+                                   & nstns,nearestGridpoint)
+
+  nBase = nPredict - n_nwp    ! number of basic static predictors
+
+  if(n_nwp > 0) then
+    ! open NWP predictor file list
+    open(unit=55,file=trim(nwp_input_list),form='formatted',status='old',iostat=error)
+    if( error /= 0) then
+      print *,'Error opening NWP predictor file list: ',trim(nwp_input_list)
+      stop
+    end if
   end if
 
-  ! create index array of closest grid point to every station
-  call station_grid_correspondence(X,Z,close_weights,close_weights_t,close_loc,close_loc_t,nstns,nearestGridpoint)
+  ! if using kfold cross-validation, generate subset sampling indices for each fold
+  if(kfold_trials > 0) then
+    ! Create a station subset sampling indexes for kfold cross-validation
+    call comb(kfold_nsamp, kfold_nsamp-kfold_hold, kfold_trials, xval_combinations)
+    !  do i = 1,kfold_trials,1
+    !    do j = kfold_nsamp-kfold_hold,1,-1
+    !      write(*,"(I4, ' ')", advance="no") xval_combinations(i,j)
+    !    end do
+    !    write(*,*) ""
+    !  end do
+  end if
 
-  nBase = nPredict-n_nwp
- 
-  ! Create a station sampling list for Kfold xvalidation
-  call comb(kfold_nsamp,kfold_nsamp-kfold_hold,kfold_trials,xval_combinations)
-!  do i = 1,kfold_trials,1
-!    do j = kfold_nsamp-kfold_hold,1,-1
-!      write(*,"(I4, ' ')", advance="no") xval_combinations(i,j)
-!    end do
-!    write(*,*) ""
-!  end do
-
-  print*, ' '
   if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
-    print*, 'using station distance weights'
+    print*, ' '; print*, 'using station distance weights'; print*, ' '
   else 
-    print*, 'setting station distance weights equal'
+    print*, ' '; print*, 'setting station distance weights equal'; print*, ' '
   end if
-  print*, ' '
 
   ! =========== now LOOP over all TIME steps and populate grids ===============
   do t = 1, ntimes, 1
@@ -593,19 +600,23 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
     ! do power transformation on precip vector
     call normalize_y (4.0d0, y)    ! AWW SHOULD NOT BE HARDWIRED
 
-    !read from nwp predictor file list
-    read(unit=55,fmt='(A)',iostat=error) nwp_timestep_file
-    print *,trim(nwp_timestep_file)
-    if(error /= 0) then
-      print *, 'Error reading from NWP predictor file list: ',trim(nwp_input_list)
-      stop
-    end if
+    ! if dynamic predictors are used
+    if(n_nwp > 0) then
 
-    !read NWP predictor file for current timestep
-    call read_nwp(times(t),nwp_timestep_file,nPredict,n_nwp,nwp_vars,nearestGridpoint,x,z,error)
-    if(error /= 0) then
-      print *, 'Error in read_nwp'
-      stop
+      ! read from nwp predictor file list
+     read(unit=55,fmt='(A)',iostat=error) nwp_timestep_file
+      print *,'Adding predictors from: ', trim(nwp_timestep_file)
+      if(error /= 0) then
+        print *, 'Error reading from NWP predictor file list: ',trim(nwp_input_list)
+        stop
+      end if
+
+      ! read NWP predictor file for current timestep
+      call read_nwp(times(t),nwp_timestep_file,nPredict,n_nwp,nwp_vars,nearestGridpoint,x,z,error)
+      if(error /= 0) then
+        print *, 'Error in read_nwp'
+        stop
+      end if
     end if
 
     ! -------- loop over all grid cells, doing regression for each, for each timestep --------
@@ -618,26 +629,30 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       noSlopePredicts(1:4) = (/1,2,3,4/)
       noPrcpPredicts(1:6) = (/1,2,3,4,5,6/)
       noPrcpNoSlopePredicts(1:4) = (/1,2,3,4/)
-      do i = 1,n_nwp,1
-        noSlopePredicts(nBase-2+i) = nBase+i
-      end do
 
-      ! create predictor set without precipitation if it is used
-      if(trim(nwp_prcp_var) .eq. "") no_precip = .true.
-      if(.not. no_precip) then
+      ! if dynamic predictors are used 
+      if(n_nwp > 0) then
+
         do i = 1,n_nwp,1
-          if(nwp_vars(i) .eq. nwp_prcp_var) prcpPredictInd = i+nBase
+          noSlopePredicts(nBase-2+i) = nBase+i
         end do
-        cnt = 1
-        do i = 1,n_nwp,1
-          if(nwp_vars(i) .ne. nwp_prcp_var) then
-            noPrcpPredicts(nBase+cnt) = nBase+i
-            noPrcpNoSlopePredicts(nBase-2+cnt) = nBase+i
-            cnt = cnt + 1
-          end if
-        end do
+
+        ! create predictor set without precipitation if it is used
+        if(trim(nwp_prcp_var) .eq. "") no_precip = .true.
+        if(.not. no_precip) then
+          do i = 1,n_nwp,1
+            if(nwp_vars(i) .eq. nwp_prcp_var) prcpPredictInd = i+nBase
+          end do
+          cnt = 1
+          do i = 1,n_nwp,1
+            if(nwp_vars(i) .ne. nwp_prcp_var) then
+              noPrcpPredicts(nBase+cnt) = nBase+i
+              noPrcpNoSlopePredicts(nBase-2+cnt) = nBase+i
+              cnt = cnt + 1
+            end if
+          end do
+        end if
       end if
-    
 
       ! call system_clock(tg1,count_rate)
 
@@ -672,8 +687,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
         allocate (tx_red_2(nPredict, sta_limit))
       end if
 
-
-      ! IF the elevation is valid for this grid cell
+      ! --- IF the elevation is valid for this grid cell
       ! (this starts a long section working first on precip, then temp)
       if (z(g, 4) .gt.-200) then
         !create final Z array (grid predictors) for regressions
@@ -689,12 +703,9 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
         ! ---- first, PRECIP ----
 
         ! set data count integers and initialize reduced arrays to zero
-        ndata = 0
-        nodata = 0
-        w_pcp_red = 0.0
-        y_red = 0.0
-        x_red = 0.0
-        yp_red = 0
+        ndata = 0; nodata = 0
+        y_red = 0.0; x_red = 0.0; yp_red = 0; w_pcp_red = 0.0
+        wgtsum_pcp = 0
 
         max_distance = 0.0d0
         do i = 1, (close_count(g)-1)
@@ -723,7 +734,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
               & close_meta(3, g, i), close_meta(4, g, i), tmp_weight)
             w_pcp_red (i, i) = tmp_weight   ! assign diagonal to square weight matrix (nstn X nstn)
           else 
-            w_pcp_red (i, i) = 1.0
+            w_pcp_red (i, i) = 1.0/(close_count(g)-1)
+            wgtsum_pcp = wgtsum_pcp + w_pcp_red (i, i)
           end if
           !if(t .eq. 1 .and. g .eq. 1) then
           !  print*, 'close loc ',i,' weight ', w_pcp_red(i,i)
@@ -747,12 +759,9 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
         ! ---- second, TEMPERATURES ----
 
         ! start with initializations
-        ndata_t = 0
-        nodata_t = 0
-        w_temp_red = 0.0
-        y_tmean_red = 0.0
-        y_trange_red = 0.0
-        x_red_t = 0.0
+        ndata_t = 0; nodata_t = 0
+        w_temp_red = 0.0; y_tmean_red = 0.0; y_trange_red = 0.0; x_red_t = 0.0
+        wgtsum_temp = 0
 
         ! max_distance_t = maxval(close_meta_t(5,g,:))
         max_distance_t = 0.0d0
@@ -780,14 +789,15 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
               & close_meta_t(3, g, i), close_meta_t(4, g, i), tmp_weight)
             w_temp_red (i, i) = tmp_weight
           else
-            w_temp_red (i, i) = 1.0
+            w_temp_red (i, i) = 1.0/(close_count_t(g)-1)
+            wgtsum_temp = wgtsum_temp + w_temp_red (i, i)
           end if
 
           y_tmean_red (i) = y_tmean (close_loc_t(g, i))
           y_trange_red (i) = y_trange (close_loc_t(g, i))
           x_red_t (i, :) = x (close_loc_t(g, i), :)
 
-          if (y_tmean(close_loc_t(g, i)) .gt.-100.0) then
+          if (y_tmean(close_loc_t(g, i)) .gt. -100.0) then
             ndata_t = ndata_t + 1    ! count data points with valid temperature
           else
             nodata_t = nodata_t + 1  ! count data points with invalid temperature
@@ -799,12 +809,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
         if (ndata == 0 .and. nodata == 0) then
           print *, "WARNING:  No stations with data within max distance of grid cell!"
           ! this should not happen if station data are filled
-          pop (g, t) = 0.0
-          pcp (g, t) = 0.0
-          pcperr (g, t) = 0.0
-          pop_2 (g, t) = 0.0
-          pcp_2 (g, t) = 0.0
-          pcperr_2 (g, t) = 0.0
+          pop(g, t)   = 0.0;   pcp(g, t) = 0.0;   pcperr(g, t) = 0.0
+          pop_2(g, t) = 0.0; pcp_2(g, t) = 0.0; pcperr_2(g, t) = 0.0
         end if
 
         ! added AJN Sept 2013
@@ -896,6 +902,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           end if
 
           ! -------------- 1. CALCULATING POP -----------------
+          ! Note:  POP is not currently cross-validated
+          
           if (nodata == 0) then
             ! print *, "All stations have precip>0, POP = 1.0"
             pop(g, t) = 1.0
@@ -931,9 +939,8 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             tx_red_2 = transpose(tx_red_2)
             twx_red_2 = matmul(tx_red_2, w_pcp_red)
             call logistic_regression (x_red(:, noSlopePredicts), y_red, twx_red_2, yp_red, b)!AJN
-            !pop_2 (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, 1:4), b))), kind(sp))
             if(-dot_product(Z_reg(noSlopePredicts),B) < 25.) then
-              pop_2(g, t) = real (1.0/(1.0+exp(-dot_product(Z_reg(noSlopePredicts), b))), kind(sp))
+              pop_2(g, t) = real (1.0/(1.0 + exp(-dot_product(Z_reg(noSlopePredicts), b))), kind(sp))
             else
               POP_2(g,t) = 0.0
             endif
@@ -945,65 +952,77 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           ! -------------- 2. NOW CALCULATING PCP -----------------
 
           if(pop(g,t) .gt. 0.0) then
-            deallocate(twx_red)
-            deallocate(tx_red)   ! just testing
-            allocate(twx_red(nPredict, sta_limit))
-            allocate(tx_red(nPredict, sta_limit))
+            deallocate(twx_red); allocate(twx_red(nPredict, sta_limit))
+            deallocate(tx_red);  allocate(tx_red(nPredict, sta_limit))
 
             if(slope_flag_pcp .eq. 0) then
-              pcp (g, t) = -999.
+              pcp(g, t) = -999.
             else
               ! regression with slope
               tx_red = transpose (x_red)
               twx_red = matmul (tx_red, w_pcp_red)
+              call least_squares (x_red, y_red, twx_red, b)        ! solve regression for stations
 
-              call least_squares (x_red, y_red, twx_red, b)
-              !pcp (g, t) = real (dot_product(z(g, :), b), kind(sp))
-              pcp (g, t) = real (dot_product(Z_reg, b), kind(sp))
+              pcp(g, t) = real (dot_product(Z_reg, b), kind(sp))   ! apply regression for grids
 
-              call kfold_crossval(x_red,y_red,w_pcp_red,kfold_trials,&
-                                  kfold_nsamp,kfold_hold,xval_combinations,pcperr(g,t)) 
+              ! calculate error/uncertainty either with or without cross-validation
+              if(kfold_trials == 0) then
+
+                errsum = 0.0
+                do i = 1, (close_count(g)-1), 1
+                  ! calculate error for station locations
+                  errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, :), b), kind(sp))-y_red(i))**2)
+                end do
+                pcperr(g, t) = real((errsum/wgtsum_pcp)**(1.0/2.0), kind(sp))
+
+              else
+                ! cross-validate to calculate error for station locations
+                call kfold_crossval(x_red, y_red, w_pcp_red, kfold_trials, &
+                                    kfold_nsamp, kfold_hold, xval_combinations, pcperr(g,t)) 
+              end if
+              deallocate (b) ! b is allocated in least_squares()
             end if
 
-            deallocate (b)  !AWW-seems to be missing
+            ! ---- now do regression without slope predictors
 
-            ! now do regression without slope 
-
-            deallocate(tx_red_2)   ! just testing
-            deallocate(twx_red_2)
-            allocate(tx_red_2(nPredict-2, sta_limit))
-            allocate(twx_red_2(nPredict-2, sta_limit))
-
+            deallocate(tx_red_2); allocate(tx_red_2(nPredict-2, sta_limit))    
+            deallocate(twx_red_2); allocate(twx_red_2(nPredict-2, sta_limit))
+            
             ! AWW note that these use the 2nd set of T* variables (different dimension)
             tx_red_2 = transpose (x_red(:, noSlopePredicts))
             twx_red_2 = matmul (tx_red_2, w_pcp_red)
             call least_squares (x_red(:, noSlopePredicts), y_red, twx_red_2, b)
 
-            pcp_2 (g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp)) 
+            pcp_2(g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp)) 
+            
+            ! calculate error/uncertainty either with or without cross-validation
+            if(kfold_trials == 0) then
+              ! don't cross-validate
+              errsum = 0.0
+              do i = 1, (close_count(g)-1), 1
+                errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, noSlopePredicts), b), &
+                                  & kind(sp))-y_red(i))**2)
+              end do
+              pcperr_2(g, t) = real((errsum/wgtsum_pcp)**(1.0/2.0), kind(sp))
 
-            call kfold_crossval(x_red(:,noSlopePredicts),y_red,w_pcp_red,kfold_trials,&
-                                kfold_nsamp,kfold_hold,xval_combinations,pcperr_2(g,t)) 
-
-            deallocate (b)
-            ! print *,'done precip'
+            else
+              ! cross-validate
+              call kfold_crossval(x_red(:,noSlopePredicts), y_red, w_pcp_red, kfold_trials, &
+                                kfold_nsamp, kfold_hold, xval_combinations, pcperr_2(g,t)) 
+            end if
+            deallocate (b)   ! b is allocated in least_squares() process
 
           else
             ! this means pop = 0 for this grid cell and timestep
-            pcp (g, t) = 0.0
-            pcperr (g, t) = 0.0
-            pcp_2 (g, t) = 0.0
-            pcperr_2 (g, t) = 0.0
+            pcp (g, t) = 0.0; pcperr (g, t) = 0.0
+            pcp_2 (g, t) = 0.0; pcperr_2 (g, t) = 0.0
           endif
 
         else
           ! this means ndata = 0 for this grid cell and timestep
           ! print *, "INFO:  All stations nearby have pcp = 0, so precip for this cell being set to zero"
-          pop (g, t) = 0.0
-          pcp (g, t) = 0.0
-          pcperr (g, t) = 0.0
-          pop_2 (g, t) = 0.0
-          pcp_2 (g, t) = 0.0
-          pcperr_2 (g, t) = 0.0
+          pop(g, t)   = 0.0; pcp(g, t)   = 0.0; pcperr(g, t) = 0.0
+          pop_2(g, t) = 0.0; pcp_2(g, t) = 0.0; pcperr_2(g, t) = 0.0
 
         end if ! done with precip if (ndata>=1) block
 
@@ -1017,18 +1036,28 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           ! AWW note that these use the 1st set of T* variables (6 dim)
           tx_red = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
-
-
           call least_squares (x_red_t, y_tmean_red, twx_red, b)
+          
+          tmean(g, t) = real (dot_product(Z_reg, b), kind(sp))
 
-          tmean (g, t) = real (dot_product(Z_reg, b), kind(sp))
+          ! calculate error/uncertainty either with or without cross-validation
+          if(kfold_trials == 0) then
+            ! don't cross-validate
+            errsum = 0.0
+            do i = 1, (close_count_t(g)-1), 1
+              errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, :), b), &
+                                & kind(sp)) - y_tmean_red(i))**2)                                 
+            end do
+            tmean_err(g, t) = real((errsum/wgtsum_temp)**(1.0/2.0), kind(sp))
 
-          call kfold_crossval(x_red_t,y_tmean_red,w_temp_red,kfold_trials,&
-                              kfold_nsamp,kfold_hold,xval_combinations,tmean_err(g,t)) 
-
+          else
+            ! cross-validate
+            call kfold_crossval(x_red_t, y_tmean_red, w_temp_red, kfold_trials, &
+                              kfold_nsamp, kfold_hold, xval_combinations, tmean_err(g,t)) 
+          end if
           deallocate (b)
 
-          ! regression without slope
+          ! ---- regression without slope predictors
           
           if(.not. allocated(tx_red_2)) allocate(tx_red_2(nPredict-2, sta_limit))
           if(.not. allocated(tx_red_2)) allocate(twx_red_2(nPredict-2, sta_limit))
@@ -1037,51 +1066,84 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
           twx_red_2 = matmul (tx_red_2, w_temp_red)
           call least_squares (x_red_t(:, noSlopePredicts), y_tmean_red, twx_red_2, b)
-
           tmean_2(g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp))
+          
+          ! calculate error/uncertainty either with or without cross-validation
+          if(kfold_trials == 0) then
+            ! don't cross-validate
+            errsum = 0.0
+            do i = 1, (close_count_t(g)-1), 1
+              errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, noSlopePredicts), b), &
+                                & kind(sp)) - y_tmean_red(i))**2)                                 
+            end do
+            tmean_err_2(g, t) = real((errsum/wgtsum_temp)**(1.0/2.0), kind(sp))
 
-          call kfold_crossval(x_red_t(:,noSlopePredicts),y_tmean_red,w_temp_red,kfold_trials,&
-                              kfold_nsamp,kfold_hold,xval_combinations,tmean_err_2(g,t)) 
-
+          else
+            ! cross-validate
+            call kfold_crossval(x_red_t(:,noSlopePredicts), y_tmean_red, w_temp_red, kfold_trials, &
+                                kfold_nsamp, kfold_hold, xval_combinations, tmean_err_2(g,t)) 
+          end if
           deallocate (b)
 
           ! ===== NOW do TRANGE ============
 
-          ! regression with slope
+          ! ---- regression with slope
 
-          deallocate(tx_red)   ! just testing
-          deallocate(twx_red)
-          allocate(tx_red(nPredict, sta_limit))
-          allocate(twx_red(nPredict, sta_limit))
+          deallocate(tx_red); allocate(tx_red(nPredict, sta_limit))
+          deallocate(twx_red); allocate(twx_red(nPredict, sta_limit))
 
-          ! AWW note that these use the 1st set of T* variables
+          ! note that these use the 1st set of T* predictor arrays
           tx_red = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
           call least_squares (x_red_t, y_trange_red, twx_red, b)
 
-          trange (g, t) = real (dot_product(Z_reg, b), kind(sp))
+          trange(g, t) = real (dot_product(Z_reg, b), kind(sp))
 
-          call kfold_crossval(x_red_t,y_trange_red,w_temp_red,kfold_trials,&
-                              kfold_nsamp,kfold_hold,xval_combinations,trange_err(g,t)) 
+          ! calculate error/uncertainty either with or without cross-validation
+          if(kfold_trials == 0) then
+            ! don't cross-validate
+            errsum = 0.0
+            do i = 1, (close_count_t(g)-1), 1
+              errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, :), b), &
+                                & kind(sp)) - y_trange_red(i))**2)                                 
+            end do
+            trange_err(g, t) = real((errsum/wgtsum_temp)**(1.0/2.0), kind(sp))
+
+          else
+            ! cross-validate
+            call kfold_crossval(x_red_t, y_trange_red, w_temp_red, kfold_trials, &
+                                kfold_nsamp, kfold_hold, xval_combinations, trange_err(g,t)) 
+          end if
           deallocate (b)
 
-          ! --- regression without slope ---
+          ! ---- regression without slope ---
 
-          deallocate(tx_red_2)   ! just testing
-          deallocate(twx_red_2)
-          allocate(tx_red_2(nPredict-2, sta_limit))
-          allocate(twx_red_2(nPredict-2, sta_limit))
+          deallocate(tx_red_2); allocate(tx_red_2(nPredict-2, sta_limit))
+          deallocate(twx_red_2); allocate(twx_red_2(nPredict-2, sta_limit))
 
-          ! AWW note that these use the 2nd set of T* variables
+          ! note that these use the 2nd set of T* variables
           tx_red_2 = transpose (x_red_t(:, noSlopePredicts))
           twx_red_2 = matmul (tx_red_2, w_temp_red)
           call least_squares (x_red_t(:, noSlopePredicts), y_trange_red, twx_red_2, b)
 
           trange_2 (g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp))
 
-          call kfold_crossval(x_red_t(:,noSlopePredicts),y_trange_red,w_temp_red,kfold_trials,&
-                              kfold_nsamp,kfold_hold,xval_combinations,trange_err_2(g,t)) 
-          deallocate (b)  !AWW-seems to be missing
+          ! calculate error/uncertainty either with or without cross-validation
+          if(kfold_trials == 0) then
+            ! don't cross-validate
+            errsum = 0.0
+            do i = 1, (close_count_t(g)-1), 1
+              errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, noSlopePredicts), b), &
+                                & kind(sp)) - y_trange_red(i))**2)                                 
+            end do
+            trange_err_2(g, t) = real((errsum/wgtsum_temp)**(1.0/2.0), kind(sp))
+
+          else
+            ! cross-validate
+            call kfold_crossval(x_red_t(:,noSlopePredicts), y_trange_red, w_temp_red, kfold_trials, &
+                              kfold_nsamp, kfold_hold, xval_combinations, trange_err_2(g,t)) 
+          end if
+          deallocate (b)
 
         else ! alternative to having (ndata_t <= 1)
 

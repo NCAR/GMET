@@ -19,9 +19,11 @@ contains
       choose = 0
       ie = 1
     else
-      if(n < k) then
-        choose = 1
-      else if (n == k) then
+      !if(n < k) then
+      !  choose = 1
+      !else if (n == k) then
+      !  choose = 1
+      if(n <= k) then
         choose = 1
       else
         imax = max(k,n-k)
@@ -40,27 +42,29 @@ contains
 
   end function choose
 
+  ! routine for generating subset combinations of indexes for sampling a larger array
   subroutine comb(n,k,nk,co)
 
-    integer(I4B), intent(in)  :: n,k,nk
-    integer(I4B), intent(out) :: co(:,:)
-!    type(comb_result), dimension(:), pointer, intent(out) :: co
+    integer(I4B), intent(in)  :: n,k,nk   ! n_total, n_train, n_trials
+    integer(I4B), intent(out) :: co(:,:)  ! output combinations (ntrials, n_train)
+    !    type(comb_result), dimension(:), pointer, intent(out) :: co
 
-    !local variables
+    ! local variables
     integer(I4B)   :: hm,s,kx
-    integer*8 :: i,ix,t
-    integer(I4B) :: err
+    integer*8      :: i,ix,t
+    integer(I4B)   :: err
 
-!    hm = choose(n,k,err)
+    !    hm = choose(n,k,err)
     err = 0
     hm = nk
     if(err /= 0) then
       return
     end if
 
+    ! loop through the number of trials (hm=nk)
     do i = 1,hm
       ix = (i)*(choose(n,k)/hm)-1
-!      ix = (choose(n,k))-1-i
+      !      ix = (choose(n,k))-1-i
       kx = k
       do s = 0, n-1
         if (kx == 0) exit
