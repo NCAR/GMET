@@ -14,7 +14,7 @@ program generate_ensembles
 ! Purpose:
 !   Driver for spatially correlated random field code from Martyn Clark
 !   Generates ensembles of precipitation and temperature from regression step
-!   For version 0 of CONUS ensemble product.  See Newman et al. 2015 JHM
+!   See Newman et al. 2015 JHM
 ! -----------------------------------------------------------------------------
  
   use netcdf 
@@ -30,7 +30,7 @@ program generate_ensembles
   implicit none
  
   interface
-    subroutine read_grid_list (file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
+    subroutine read_grid_list(file_name, lats, lons, alts, slp_n, slp_e, nx, ny, error)
       use nrtype
       character (len=500), intent (in) :: file_name
       real (dp), allocatable, intent (out) :: lats (:), lons (:), alts (:), slp_n (:), slp_e (:)
@@ -98,7 +98,9 @@ program generate_ensembles
   ! Parameters
   real (dp), parameter :: slope_threshold = 3.6       ! switch between using slopes as predictors (def=3.6)
                                                       ! 0.3 for NLDAS application (H. Liu)
- 
+  real (dp), parameter :: transform = 4.0             ! power law transform exponent 
+  real (dp), parameter :: precip_err_cap = 0.2        ! fraction above obs max precip to use in cap of std error sampling
+
   ! Local variables
   integer (i4b) :: i, j, k, igrd, istep, iens                  ! counter variables
   integer (i4b) :: nens                                        ! # ensemble members to generate
@@ -126,10 +128,7 @@ program generate_ensembles
   real (dp) :: ra_err
   real (dp) :: cs
   real (dp) :: cprob_ra
- 
-  real (dp), allocatable :: transform_exp (:)
-  real (dp) :: transform
- 
+  
   integer :: f                ! for command line argument read
   character (len=200) :: namelist_filename !AWW now an argument to the program
   character (len=1024) :: arg ! AWW command line arg for configuration file
@@ -170,9 +169,10 @@ program generate_ensembles
   real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation vector from qpe code
   real (dp), allocatable :: tpc_corr (:)!temp-precip correlation vector from qpe code
   real (dp), allocatable :: obs_max_pcp (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
-  real (sp), allocatable :: pcp_out (:, :, :)!
-  real (sp), allocatable :: tmean_out (:, :, :)!
-  real (sp), allocatable :: trange_out (:, :, :)!
+  real (sp), allocatable :: pcp_out (:, :, :)     !
+  real (sp), allocatable :: tmean_out (:, :, :)   !
+  real (sp), allocatable :: trange_out (:, :, :)  !
+  real (sp)              :: tmp_sp                ! tmpvar for checking bounds
   integer (i4b) :: nx, ny !grid size
   integer (i4b) :: spl1_start, spl2_start !starting point of x,y grid
   integer (i4b) :: spl1_count, spl2_count !length of x,y grid
@@ -196,9 +196,6 @@ program generate_ensembles
     f = f + 1
   end do
 
-  ! set transform power, shouldn't be hard-coded, but it is for now...
-  transform = 4.0d0
- 
   ! read namelist in
   call read_namelist (namelist_filename)
  
@@ -239,7 +236,7 @@ program generate_ensembles
   allocate (trange_2(nx, ny, ntimes))
   allocate (trange_error_2(nx, ny, ntimes))
  
-  allocate (obs_max_pcp(nx, ny, ntimes))
+  allocate (obs_max_pcp(nx, ny, ntimes))       ! for box-cox transform
  
   allocate (times(ntimes))
   allocate (auto_corr(ntimes))
@@ -335,11 +332,11 @@ program generate_ensembles
   error = nf90_get_var (ncid, varid, trange_error_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
   if (error /= 0) stop "Cannot read netcdf variable "//var_name
  
-  var_name = 'obs_max_pcp'
-  error = nf90_inq_varid (ncid, var_name, varid); if (ierr /= 0) stop "Cannot find netcdf id for "//var_name
+  var_name = 'obs_max_pcp'      ! needed for box-cox
+  error = nf90_inq_varid (ncid, var_name, varid); if (error == 0) stop "Cannot read netcdf variable "//var_name 
   error = nf90_get_var (ncid, varid, obs_max_pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
-  if (ierr /= 0) stop "Cannot read netcdf variable "//var_name
- 
+  
+  ! final error check on closing file 
   error = nf90_close (ncid); if (error /= 0) stop "Cannot close regression netcdf file in generate_ensembles()"
  
   ! set up a few variables for spcorr structure
@@ -434,7 +431,7 @@ program generate_ensembles
   call field_rand (nspl1, nspl2, pcp_random)
  
   ! setup sp_corr structure for temperature with larger correlation length
-  clen = 800.0                                     ! rough estimate based on observations
+  clen = 800.0                       ! km rough estimate based on observations
   call spcorr_grd (nspl1, nspl2, grid)
   sp_temp = spcorr
  
@@ -471,13 +468,15 @@ program generate_ensembles
  
           ! check thresholds of slope fields to see which regression to use
           ! For precipitation only, switch regression to using slope or not depending on threshold
-          if (abs(slp_n(isp1, isp2)) .le. slope_threshold .and. abs(slp_e(isp1, isp2)) .le. slope_threshold) then 
+          ! AW: also may need to check whether pcp2 has valid value
+          if ((abs(slp_n(isp1, isp2)) .le. slope_threshold .and. abs(slp_e(isp1, isp2)) .le. slope_threshold) .or. pcp (isp1, isp2, istep) .eq. -999) then 
             pop (isp1, isp2, istep) = pop_2 (isp1, isp2, istep)
             pcp (isp1, isp2, istep) = pcp_2 (isp1, isp2, istep)
             pcp_error (isp1, isp2, istep) = pcp_error_2 (isp1, isp2, istep)
           end if
  
-          ! For temperature don't use regression that included slope -- only lat, lon, elev based regression
+          ! For temperature don't use regression that included slope
+          !   only lat, lon, elev based regression
           tmean (isp1, isp2, istep) = tmean_2 (isp1, isp2, istep)
           tmean_error (isp1, isp2, istep) = tmean_error_2 (isp1, isp2, istep)
           trange (isp1, isp2, istep) = trange_2 (isp1, isp2, istep)
@@ -496,7 +495,7 @@ program generate_ensembles
            & istep), kind(dp))
  
             ! convert cs to a z-score from standard normal
-            if (cs .le. 3e-5) then
+            if (cs .le. 3e-5) then             ! another hardwired limit
               rn = -3.99
             else if (cs .ge. 0.99997) then
               rn = 3.99
@@ -508,30 +507,21 @@ program generate_ensembles
             ra = real(pcp(isp1, isp2, istep), kind(dp)) + rn * real(pcp_error(isp1, isp2, istep), kind(dp))           
  
             if (ra .gt. 0.0) then
-              !ra = ra ** transform
-              ra = (ra*(1.0d0/transform)+1) ** transform  ! HL switched to box-cox back-transformation              
+              ra = (ra*(1.0d0/transform)+1) ** transform  ! box-cox back-transformation              
             else
               ra = 0.01
             end if
  
-            ! AW: revisit how this is done; make an option for the user
-            
-            !! limit max value to y_max + pcp_error (max station value + some portion of error)
-            !if (ra .gt. (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
-            !& istep), kind(dp)))**transform) then
-            !   ra = (real(y_max(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
-            !  //////(dp))) ** transform
-            ! end if
-            
             ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
-            ! Hongli changed for box-cox back-transformation
-            if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, &
-           & istep), kind(dp)))*(1.0d0/transform)+1)**transform) then
-              ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp))+0.2*real(pcp_error(isp1, isp2, istep), &
-             & kind(dp)))*(1.0d0/transform)+1) ** transform
+            if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + &
+                 & real(pcp_error(isp1, isp2, istep), kind(dp))) * &
+                 & (1.0d0/transform)+1)**transform) then
+              ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + precip_err_cap * &
+                 & real(pcp_error(isp1, isp2, istep), & kind(dp))) * &
+                 & (1.0d0/transform)+1) ** transform
               pcp_cap_count = pcp_cap_count + 1
             end if
-  
+
             pcp_out (isp1, isp2, istep) = real (ra, kind(sp))
   
           end if 
@@ -547,24 +537,26 @@ program generate_ensembles
          &       kind(dp)) * real (trange_error(isp1, isp2, istep), kind(dp))
           trange_out (isp1, isp2, istep) = real (ra, kind(sp))
  
-          ! check for unrealistic and non-physical trange values
-          if (trange_out(isp1, isp2, istep) .gt. 40.0) then
-            trange_out (isp1, isp2, istep) = 40.0
-          else if (trange_out(isp1, isp2, istep) .lt. 2.0) then
-            trange_out (isp1, isp2, istep) = 2.0
-          end if
+          ! check for unrealistic and non-physical trange and tmean values
+          !if (trange_out(isp1, isp2, istep) .gt. 40.0) then
+          !  trange_out (isp1, isp2, istep) = 40.0
+          !else if (trange_out(isp1, isp2, istep) .lt. 2.0) then
+          !  trange_out (isp1, isp2, istep) = 2.0
+          !end if
+          tmp_sp = (trange_out(isp1, isp2, istep)
+          trange_out(isp1, isp2, istep) = max(min(tmp_sp, 40.0), 2.0)
  
-          ! check for unrealistic tmean values
-          if (tmean_out(isp1, isp2, istep) .gt. 35.0) then
-            tmean_out (isp1, isp2, istep) = 35.0
-          else if (tmean_out(isp1, isp2, istep) .lt.-35.0) then
-            tmean_out (isp1, isp2, istep) = - 35.0
-          end if
+          !if (tmean_out(isp1, isp2, istep) .gt. 35.0) then
+          !  tmean_out (isp1, isp2, istep) = 35.0
+          !else if (tmean_out(isp1, isp2, istep) .lt. -35.0) then
+          !  tmean_out (isp1, isp2, istep) = - 35.0
+          !end if
+          tmp_sp = tmean_out(isp1, isp2, istep)
+          tmean_out(isp1, isp2, istep) = max(min(tmp_sp, 35.0), -35.0)
+  
+        end if ! end valid elevation if check
  
- 
-        end if !end valid elevation if check
- 
-      end do !end loop for grid pts
+      end do ! end loop for grid pts
  
       ! Generate new SCRFs
       ! generate new random numbers for tmean

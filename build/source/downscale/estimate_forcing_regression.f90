@@ -832,10 +832,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           end if
         end if
 
-        !check to see if the station predictor matrix will be well behaved
-        !if not, we need to change the predictor set
-        !concern here is the dynamic predictor: precipitation
-        !test precipitation dynamic predictor
+        ! check to see if the station predictor matrix will be well behaved
+        ! if not, we need to change the predictor set
+        ! concern here is the dynamic predictor:  precipitation=[0]
+        ! test precipitation dynamic predictor
         if(.not. no_precip) then
           twx_red = matmul (transpose(x_red), w_pcp_red)
           tmp = matmul (twx_red, x_red)
@@ -845,32 +845,33 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           tmp = matmul (twx_red, x_red_t)
           vv_temp = maxval (abs(tmp), dim=2)
 
-          !full predictor set is badly behaved
+          ! full predictor set is badly behaved
           if (any(vv == 0.0) .or. any(vv_temp == 0.0)) then
-            !drop precipitation
+            ! drop precipitation
             drop_precip = .true.
-            !redefine reduced station predictor arrays
+            ! redefine reduced station predictor arrays
             tmp_x_red = x_red
             deallocate(x_red)
-            !reallocate x_red
+            ! reallocate x_red
             allocate(x_red(sta_limit, xsize-1))
             x_red = tmp_x_red(:,noPrcpPredicts)
-            !x_red_t
+            ! x_red_t
             tmp_x_red = x_red_t
             deallocate(x_red_t)
             allocate(x_red_t(sta_limit,xsize-1))
             x_red_t = tmp_x_red(:,noPrcpPredicts)
 
-            !create final Z array (grid predictors) for regressions
+            ! create final Z array (grid predictors) for regressions
             Z_reg = Z(g,noPrcpPredicts)
-            !update nPredict
+            ! update nPredict
             nPredict = nPredict - 1
-            !update noSlopePredicts
+            ! update noSlopePredicts
             where(noPrcpNoSlopePredicts > prcpPredictInd) noPrcpNoSlopePredicts = noPrcpNoSlopePredicts - 1
             noSlopePredicts = noPrcpNoSlopePredicts
           end if
         end if
-        ! ========= Precip & temp are processed sequentially, again ===========
+        
+        ! ========= Precip & temp regressions (done sequentially) ===========
         ! this is the start of the PRECIP processing block ---
 
         if (ndata >= 1) then  ! at least one station close by has pcp > 0
@@ -889,7 +890,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           vv = maxval (abs(tmp), dim=2)
           ! if badly behaved, drop slope
           if (any(vv == 0.0)) then
-            slope_flag_pcp = 0
+            slope_flag_pcp = 0          ! drop slope terms
           else
             slope_flag_pcp = 1
           end if
@@ -899,10 +900,11 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
             ! print *, "All stations have precip>0, POP = 1.0"
             pop(g, t) = 1.0
             pop_2(g, t) = 1.0
+
           else
-            ! some stations don't have precip > 0
+            ! some stations have pcp = 0
             if (slope_flag_pcp .eq. 0) then
-              pop (g, t) = -999.   ! when not using slope regressions
+              pop (g, t) = -999.   ! will not use using slope predictors
             else
               ! --- regression with slope ---
               tx_red = transpose (x_red)
@@ -911,7 +913,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
               !pop (g, t) = real (1.0/(1.0+exp(-dot_product(z(g, :), b))), kind(sp))
               if(-dot_product(Z_reg,B) < 25.) then
-                pop (g, t) = real (1.0/(1.0+exp(-dot_product(Z_reg, b))), kind(sp))
+                pop(g, t) = real (1.0/(1.0+exp(-dot_product(Z_reg, b))), kind(sp))
               else
                 POP(g,t) = 0.0
               end if
@@ -919,7 +921,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
               deallocate (b)
             end if              
 
-            ! --- also calculate the regression without slope ---
+            ! --- also calculate the regression without slope (decide use in scrf) ---
             ! AWW note that these now use the 2nd set of T* variables (different dimension)
 
             if(.not. allocated(tx_red_2)) allocate(tx_red_2(nPredict-2, sta_limit))
@@ -984,6 +986,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
             deallocate (b)
             ! print *,'done precip'
+
           else
             ! this means pop = 0 for this grid cell and timestep
             pcp (g, t) = 0.0
@@ -994,7 +997,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
         else
           ! this means ndata = 0 for this grid cell and timestep
-          ! print *, "INFO:  No stations nearby have pcp > 0, so precip for this cell being set to zero"
+          ! print *, "INFO:  All stations nearby have pcp = 0, so precip for this cell being set to zero"
           pop (g, t) = 0.0
           pcp (g, t) = 0.0
           pcperr (g, t) = 0.0
@@ -1004,7 +1007,6 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
         end if ! done with precip if (ndata>=1) block
 
-        ! added AJN Sept 2013
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !  Temperature OLS
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1036,7 +1038,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
           twx_red_2 = matmul (tx_red_2, w_temp_red)
           call least_squares (x_red_t(:, noSlopePredicts), y_tmean_red, twx_red_2, b)
 
-          tmean_2 (g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp))
+          tmean_2(g, t) = real (dot_product(Z_reg(noSlopePredicts), b), kind(sp))
 
           call kfold_crossval(x_red_t(:,noSlopePredicts),y_tmean_red,w_temp_red,kfold_trials,&
                               kfold_nsamp,kfold_hold,xval_combinations,tmean_err_2(g,t)) 
@@ -1085,8 +1087,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           ! if not enough stations with data
           ! just use value from previous grid point for now AJN
-          print *, 'WARNING:  not enough data stations for current point for temperature; using las&
-         &t grid point'
+          print *, 'WARNING:  not enough data stations for current point for temperature; using previous grid point'
 
           if (g .gt. 1) then
             trange (g, t) = trange (g-1, t)
