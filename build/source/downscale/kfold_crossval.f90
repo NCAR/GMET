@@ -74,26 +74,26 @@ subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combina
     w_1d(i) = W(i,i)
   end do
 
-  !loop through the kfold trials
+  ! loop through the kfold trials
   do i = 1,kfold_trials
-!  print *,'kfold:', i
-    !current kfold trial sampling combination
+    !print *,'kfold:', i
+    ! current kfold trial sampling combination
     xval_sta_list = xval_combinations(i,:)
-    !create a zero padded vector of above
+    ! create a zero padded vector of above
     xval_sta_list_fill(1:kfold_nsamp-kfold_hold) = xval_sta_list
 
-    !find withheld stations
+    ! find withheld stations
     tmp_inds = pack(all_inds,all_inds .ne. xval_sta_list_fill)
     withheld_sta_list = tmp_inds(1:kfold_hold)
 
 
-    !station predictor array
+    ! station predictor array
     x_xval = X(xval_sta_list,:)
-    !station values
+    ! station values
     y_xval = Y(xval_sta_list)
-    !station diagonal weight matrix
+    ! station diagonal weight matrix
     w_xval = W(xval_sta_list,xval_sta_list)
-    !create transposed matrices for least squares
+    ! create transposed matrices for least squares
     tx_xval  = transpose(x_xval)
     twx_xval = matmul(tx_xval,w_xval)
     
@@ -108,17 +108,18 @@ subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combina
     else
       do j = 1,kfold_hold
         call least_squares(x_xval,y_xval,twx_xval,B)
-        !regression precip
+        ! regression precip
         varTmp = real( dot_product( X(withheld_sta_list(j),:),B ), kind(sp) )
         !error total
         errorSum = errorSum + w_1d(withheld_sta_list(j))*(varTmp - Y(withheld_sta_list(j)))**2
       end do
 
-      !create weight sum of in regression station weights
+      ! create weight sum of in regression station weights
       weightSum = weightSum + sum(W_1d(withheld_sta_list))
     end if
   end do
-  !mean uncertainty estimate from all kfold trials
+  
+  ! mean uncertainty estimate from all kfold trials
   varUncert = real((errorSum/weightSum)**(1.0/2.0),kind(sp))
 
 end subroutine kfold_crossval

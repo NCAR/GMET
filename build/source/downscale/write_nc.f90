@@ -30,7 +30,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   character (len=*), parameter :: stn_lat_name = "station_latitude"
   character (len=*), parameter :: stn_lon_name = "station_longitude"
   character (len=*), parameter :: stn_elev_name = "station_elevation"
-  character (len=*), parameter :: forecast_name = "forecast_hr"
+  character (len=*), parameter :: forecast_name = "forecast_hr"   ! used?
   character (len=*), parameter :: startdate_name = "run_start_date"
   character (len=*), parameter :: enddate_name = "run_end_date"
   character (len=*), parameter :: time_var_name = "time"
@@ -46,7 +46,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
   character (len=*), parameter :: date_units = "YYYYMMDD"
   character (len=*), parameter :: time_units = "seconds since 1970-01-01 00:00:00.0 0:00"
   character (len=*), parameter :: fill = "_FillValue"
- 
+   
   integer :: n_stns, n_chars, n_times
   integer :: ncid, stn_dimid, vars_dimid, char_dimid, time_dimid, rec_dimid
   integer :: coefs_varid, time_varid, vars_varid, forecast_varid, startdate_varid, enddate_varid
@@ -58,15 +58,15 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
  
   character (len=100) :: startdates, enddates
   integer, allocatable :: forecasts (:)
- 
   integer :: forecast_arr (1)
  
   n_chars = 100
   n_stns = size (stnlat)
   n_times = size (times)
- 
+
   error = nf90_open (file, nf90_write, ncid)
   if (error /= nf90_noerr) then
+    print*, 'creating new coefficients file'
     error = 0
     ! Create the file.
     call check (nf90_create(file, nf90_clobber, ncid), "File creation error", error)
@@ -146,8 +146,8 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
     nrecs = 0
  
   else
- 
-     ! File already exists, get dim and var ids
+    ! File already exists, get dim and var ids
+
     call check (nf90_inq_dimid(ncid, stn_name, stn_dimid), "station dim inq error", error)
     call check (nf90_inq_dimid(ncid, var_name, vars_dimid), "variable dim inq error", error)
     call check (nf90_inq_dimid(ncid, char_name, char_dimid), "char dim inq error", error)
@@ -197,8 +197,7 @@ subroutine save_coefficients (n_vars, var_names, coefs, startdate, enddate, time
       end if
     end do
  
- 
-  end if
+  end if   ! end IF clause on whether to open existing file or append
  
   count2 = (/ len (trim(startdate)), 1 /)
   start2 = (/ 1, rec /)
@@ -236,6 +235,7 @@ contains
     end if
   end subroutine check
 end subroutine save_coefficients
+ 
  
 ! ==== subroutine save_forcing_regression:  saves the forcing regression parameters for use by the SCRF 
 !      program in generating ensemble forcings
@@ -311,23 +311,27 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
  
   ! Units
   character (len=*), parameter :: units = "units"
-  character (len=*), parameter :: pcp_units = ""
-  character (len=*), parameter :: pop_units = ""
-  character (len=*), parameter :: autoc_units = ""
-  character (len=*), parameter :: tpc_units = ""
-  character (len=*), parameter :: pcp_error_units = ""
+  character (len=*), parameter :: pcp_units = "transformed precip"
+  character (len=*), parameter :: pop_units = "unitless"
+  character (len=*), parameter :: autoc_units = "unitless"
+  character (len=*), parameter :: tpc_units = "unitless"
+  character (len=*), parameter :: pcp_error_units = "transformed precip"
   character (len=*), parameter :: tmean_units = "deg_C"
   character (len=*), parameter :: trange_units = "deg_C"
   character (len=*), parameter :: tmean_error_units = "deg_C"
   character (len=*), parameter :: trange_error_units = "deg_C"
-  character (len=*), parameter :: obs_max_pcp_units = ""
+  character (len=*), parameter :: obs_max_pcp_units = "transformed precip"
  
   character (len=*), parameter :: lat_units = "degrees_north"
   character (len=*), parameter :: lon_units = "degrees_east"
   character (len=*), parameter :: elev_units = "meters"
   character (len=*), parameter :: time_units = "seconds since 1970-01-01 00:00:00.0 0:00"
   character (len=*), parameter :: fill = "_FillValue"
- 
+  
+  integer, parameter           :: append_choice = 0  ! 0 = clobber existing output file
+                                                     ! 1 = try to append to existing output file
+
+  ! local variables
   real (dp), allocatable :: file_times (:)
  
   integer :: n_chars, n_times, inx, iny
@@ -335,13 +339,11 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
   integer :: lat_varid, lon_varid, autoc_varid, elev_varid, time_varid, pcp_varid, pop_varid, &
              & pcp_error_varid, tpc_varid
   integer :: tmean_varid, tmean_error_varid, trange_varid, trange_error_varid
-  integer :: obs_max_pcp_varid
-  integer :: count1(1), start1(1), count2(2), start2(2), count3(3), start3(3), dimids2(2), dimids3(3)
-
-  integer :: trec, nrecs, file_nx, file_ny, file_ntimes, i
- 
-  integer :: pcp_varid_2, pop_varid_2, pcp_error_varid_2
+  integer :: pcp_varid_2, pop_varid_2, pcp_error_varid_2, obs_max_pcp_varid
   integer :: tmean_varid_2, tmean_error_varid_2, trange_varid_2, trange_error_varid_2
+
+  integer :: count1(1), start1(1), count2(2), start2(2), count3(3), start3(3), dimids2(2), dimids3(3)
+  integer :: trec, nrecs, file_nx, file_ny, file_ntimes, i
  
   trec = 0
   n_chars = 100
@@ -354,8 +356,17 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     print*, "These are, respectively: ", size(grdlat), inx, iny
   end if
  
-  error = nf90_open (file, nf90_write, ncid)
-  if (error /= nf90_noerr) then
+  ! use parameter setting (above) to override file appending (if selected)
+  ! could be handled better in nested if
+  if(append_choice == 1) then
+    print*, ' -- trying to append existing output file: ', file
+    error = nf90_open (file, nf90_write, ncid)
+  else
+    ! don't try to open a file, and set error to anything but nf90_noerr (0)
+    error = 1
+  end if
+  if (error /= nf90_noerr .or. append_choice == 0) then
+    print*, ' -- creating new output file: ', file
     error = 0
 
     ! Create the file.
@@ -404,14 +415,13 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     call check (nf90_def_var(ncid, tmean_error_name_2, nf90_float, dimids3, tmean_error_varid_2), "tmean error var def error", error)
     call check (nf90_def_var(ncid, trange_name_2, nf90_float, dimids3, trange_varid_2), "trange var def error", error)
     call check (nf90_def_var(ncid, trange_error_name_2, nf90_float, dimids3, trange_error_varid_2), "trange error var def error", error)
+   call check (nf90_def_var(ncid, obs_max_pcp_name, nf90_double, dimids3, obs_max_pcp_varid), "obs_max_pcp var def error", error)
+    print*, 'obs max pcp varid', obs_max_pcp_varid
     if (error /= 0) return
- 
-   call check (nf90_def_var(ncid, obs_max_pcp_name, nf90_double, dimids3, obs_max_pcp_varid), "obs_max_pcp var def er&
-   &ror", error)
  
     ! Add attributes.
  
-     !long names
+     ! long names
     call check (nf90_put_att(ncid, pcp_varid, long_name, pcp_long_name), "pcp long_name attribute error", error)
     call check (nf90_put_att(ncid, pop_varid, long_name, pop_long_name), "pcp long_name attribute error", error)
     call check (nf90_put_att(ncid, pcp_error_varid, long_name, pcp_error_long_name), "pcp_error long_name attribute error", error)
@@ -482,8 +492,8 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     nrecs = 0
  
   else
- 
     ! File already exists, get dim and var ids
+
     call check (nf90_inq_dimid(ncid, x_name, x_dimid), "x dim inq error", error)
     call check (nf90_inq_dimid(ncid, y_name, y_dimid), "y dim inq error", error)
     call check (nf90_inq_dimid(ncid, time_name, time_dimid), "time dim inq error", error)
@@ -507,13 +517,12 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     call check (nf90_inq_varid(ncid, tmean_error_name_2, tmean_error_varid_2), "tmean error var inq error", error)
     call check (nf90_inq_varid(ncid, trange_name_2, trange_varid_2), "trange var inq error", error)
     call check (nf90_inq_varid(ncid, trange_error_name_2, trange_error_varid_2), "trange error var inq error", error)
- 
- 
+
     call check (nf90_inq_varid(ncid, autoc_name, autoc_varid), "autoc var inq error", error)
     call check (nf90_inq_varid(ncid, tpc_name, tpc_varid), "tpc var inq error", error)
+    if (error /= 0) return
  
     call check (nf90_inq_varid(ncid, obs_max_pcp_name, obs_max_pcp_varid), "obs_max_pcp var inq error", error)
-
     if (error /= 0) return
  
     call check (nf90_inquire_dimension(ncid, x_dimid, len=file_nx), "x dim len error", error)
@@ -531,12 +540,12 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     call check (nf90_get_var(ncid, time_varid, file_times), "error getting file times list", error)
     if (error /= 0) return
  
-    if (file_times(1) > times(n_times)) then !put data before everything in the file
-      print *, "Error cannot add data before data already in output file. (functionality still to be added)"
+    if (file_times(1) > times(n_times)) then ! put data before everything in the file
+      print *, "ERROR: cannot add data before data already in output file. (functionality still to be added)"
       error = 1
       return
     else
-      if (file_times(file_ntimes) < times(1)) then !put data after everything in the file
+      if (file_times(file_ntimes) < times(1)) then ! put data after everything in the file
         trec = file_ntimes + 1
       else ! at least some overlap
         do i = 1, file_ntimes, 1

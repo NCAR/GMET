@@ -531,10 +531,10 @@ program gmet
       stop
     end if
  
-    print *, 'Creating output file'
+    print *, ' '; print *, 'Creating output file'
  
-    call save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, nx, &
-   & ny, grdlat, grdlon, grdelev, times, mean_autocorr, mean_tp_corr, &
+    call save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, &
+   & trange_err, nx, ny, grdlat, grdlon, grdelev, times, mean_autocorr, mean_tp_corr, &
    & output_file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2)
 
     if (error /= 0) then
