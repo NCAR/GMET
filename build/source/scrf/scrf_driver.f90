@@ -155,27 +155,27 @@ program generate_ensembles
   real (dp), allocatable :: trange (:, :, :)
   real (dp), allocatable :: trange_error (:, :, :)
  
-  real (dp), allocatable :: pcp_2 (:, :, :)!output from qpe code, normalized precip
-  real (dp), allocatable :: pop_2 (:, :, :)!output from qpe code, normalized pop
-  real (dp), allocatable :: pcp_error_2 (:, :, :)!error from ols regression in qpe code
+  real (dp), allocatable :: pcp_2 (:, :, :)       ! output from qpe code, normalized precip
+  real (dp), allocatable :: pop_2 (:, :, :)       ! output from qpe code, normalized pop
+  real (dp), allocatable :: pcp_error_2 (:, :, :) ! error from ols regression in qpe code
   real (dp), allocatable :: tmean_2 (:, :, :)
   real (dp), allocatable :: tmean_error_2 (:, :, :)
   real (dp), allocatable :: trange_2 (:, :, :)
   real (dp), allocatable :: trange_error_2 (:, :, :)
  
-  real (dp), allocatable :: lons (:, :)!lons array from qpe code
-  real (dp), allocatable :: lats (:, :)!lats array from qpe code
-  real (dp), allocatable :: times (:)!time vector from qpe code
-  real (dp), allocatable :: auto_corr (:)!lag-1 autocorrelation vector from qpe code
-  real (dp), allocatable :: tpc_corr (:)!temp-precip correlation vector from qpe code
-  real (dp), allocatable :: obs_max_pcp (:, :, :) !max of normalized transf. non-0 pcp (each tstep)
+  real (dp), allocatable :: lons (:, :)           ! lons array from qpe code
+  real (dp), allocatable :: lats (:, :)           ! lats array from qpe code
+  real (dp), allocatable :: times (:)             ! time vector from qpe code
+  real (dp), allocatable :: auto_corr (:)         ! lag-1 autocorrelation vector from qpe code
+  real (dp), allocatable :: tpc_corr (:)          ! temp-precip correlation vector from qpe code
+  real (dp), allocatable :: obs_max_pcp (:, :, :) ! max of normalized transf. non-0 pcp (each tstep)
   real (sp), allocatable :: pcp_out (:, :, :)     !
   real (sp), allocatable :: tmean_out (:, :, :)   !
   real (sp), allocatable :: trange_out (:, :, :)  !
   real (sp)              :: tmp_sp                ! tmpvar for checking bounds
-  integer (i4b) :: nx, ny !grid size
-  integer (i4b) :: spl1_start, spl2_start !starting point of x,y grid
-  integer (i4b) :: spl1_count, spl2_count !length of x,y grid
+  integer (i4b) :: nx, ny                         ! grid size
+  integer (i4b) :: spl1_start, spl2_start         ! starting point of x,y grid
+  integer (i4b) :: spl1_count, spl2_count         ! length of x,y grid
   integer (i4b) :: tot_times
   integer       :: ncid, varid, error
  
@@ -333,7 +333,7 @@ program generate_ensembles
   if (error /= 0) stop "Cannot read netcdf variable "//var_name
  
   var_name = 'obs_max_pcp'      ! needed for box-cox
-  error = nf90_inq_varid (ncid, var_name, varid); if (error == 0) stop "Cannot read netcdf variable "//var_name 
+  error = nf90_inq_varid (ncid, var_name, varid); if (error /= 0) stop "Cannot read netcdf variable "//var_name 
   error = nf90_get_var (ncid, varid, obs_max_pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
   
   ! final error check on closing file 
@@ -504,7 +504,7 @@ program generate_ensembles
             end if
  
             ! estimate ensemble pcp (normalized space), then back-transform
-            ra = real(pcp(isp1, isp2, istep), kind(dp)) + rn * real(pcp_error(isp1, isp2, istep), kind(dp))           
+            ra = real(pcp(isp1, isp2, istep), kind(dp)) + rn * real(pcp_error(isp1, isp2, istep), kind(dp))
  
             if (ra .gt. 0.0) then
               ra = (ra*(1.0d0/transform)+1) ** transform  ! box-cox back-transformation              
@@ -517,7 +517,7 @@ program generate_ensembles
                  & real(pcp_error(isp1, isp2, istep), kind(dp))) * &
                  & (1.0d0/transform)+1)**transform) then
               ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + precip_err_cap * &
-                 & real(pcp_error(isp1, isp2, istep), & kind(dp))) * &
+                 & real(pcp_error(isp1, isp2, istep), kind(dp))) * &
                  & (1.0d0/transform)+1) ** transform
               pcp_cap_count = pcp_cap_count + 1
             end if
@@ -543,7 +543,7 @@ program generate_ensembles
           !else if (trange_out(isp1, isp2, istep) .lt. 2.0) then
           !  trange_out (isp1, isp2, istep) = 2.0
           !end if
-          tmp_sp = (trange_out(isp1, isp2, istep)
+          tmp_sp = (trange_out(isp1, isp2, istep))
           trange_out(isp1, isp2, istep) = max(min(tmp_sp, 40.0), 2.0)
  
           !if (tmean_out(isp1, isp2, istep) .gt. 35.0) then

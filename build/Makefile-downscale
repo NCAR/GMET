@@ -1,6 +1,6 @@
 # ============= Makefile for downscaling program ======================
 # AWW-2016:  split mega-file coefficients.f90 into smaller source files
-# AWW-2020:  build a proper makefile; add new files for xval and dynamic predictors
+# AWW-2020:  build a proper makefile
 
 #========================================================================
 # PART 0: Define directory paths and select the compiler
@@ -108,6 +108,7 @@ NR = $(patsubst %, $(NR_DIR)/%, $(NR_FILES))
 # main files
 SRC_FILES= \
 	utim.f90 \
+        combination_routines.f90 \
 	read_config.f90 \
 	read_control.f90 \
 	read_nc.f90 \
@@ -121,7 +122,6 @@ SRC_FILES= \
         station_grid_correspondence.f90 \
 	read_nwp.f90 \
         kfold_crossval.f90 \
-        combination_routines.f90 \
 	main.f90
     
 SRC = $(patsubst %, $(F_SRC_DIR)/%, $(SRC_FILES))
