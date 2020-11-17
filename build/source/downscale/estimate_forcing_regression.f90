@@ -2,7 +2,7 @@
 
 subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_name, nwp_input_list, &
   & n_nwp, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, kfold_trials,kfold_hold,pcp, pop, pcperr, obs_max_pcp, tmean, &
+  & stnid, stnvar, directory, kfold_trials, pcp, pop, pcperr, obs_max_pcp, tmean, &
   & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
 
@@ -199,7 +199,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       real (dp), dimension (:), intent (inout) :: ra
     end subroutine heapsort
 
-    subroutine kfold_crossval(X,Y,W,kfold_trials,kfold_nsamp,kfold_hold,xval_combinations,varUncert)
+    subroutine kfold_crossval(X, Y, W, kfold_trials, kfold_nsamp, n_train, xval_combinations, varUncert)
       use type
       implicit none
       !inputs/outputs 
@@ -208,7 +208,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
       real(dp), intent(in)      :: W(:,:)                  ! full station diagonal weight matrix
       integer(I4B), intent(in)  :: kfold_trials            ! number of kfold xval trials
       integer(I4B), intent(in)  :: kfold_nsamp             ! number of samples to draw from
-      integer(I4B), intent(in)  :: kfold_hold              ! number of stations to withhold from regression
+      integer(I4B), intent(in)  :: n_train              ! number of stations in training sample
       integer(I4B), intent(in)  :: xval_combinations(:,:)  ! array of sampling combinations (integer array indicies)
       real(sp), intent(out)     :: varUncert               ! output: uncertainty estimate from kfold trials
     end subroutine kfold_crossval
@@ -240,7 +240,7 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   integer(I4B), intent(inout)       :: nPredict            ! number of total predictors
   integer(I4B), intent(in)          :: n_nwp               ! number of NWP predictors
   integer(I4B), intent(in)          :: kfold_trials        !number of kfold xval trials
-  integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
+  !integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)!output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)!OLS tmean estimate and error
@@ -342,8 +342,15 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   real (dp), allocatable     :: expand_dist (:), expand_dist_t (:)
 
   ! kfold cross validation variables 
-  integer(i4b), allocatable :: xval_combinations(:,:)    ! array of sampling combinations (integer array indicies)
+  integer(i4b), allocatable :: xval_combinations(:,:)    ! array of sampling combination indices
+  integer(i4b), allocatable :: sampling_order(:)         ! vector of sampling indices
   integer(i4B)              :: kfold_nsamp               ! number of samples to draw from !AW same as nstation?
+  
+  integer(I4B)              :: n_total,n_test,n_train ! renamed loop limit variables  
+  integer(i4b)              :: end_test_stn, start_test_stn   ! endpoints of range of indices in test 
+  integer(i4b)              :: trial_n_test           ! n test sample in each trail (varies)
+  integer(i4b)              :: nte, ntr               ! counters
+  
 
   !==============================================================!
   !                     code starts below here                   !
@@ -417,32 +424,17 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
   allocate (expand_dist_t(ngrid), expand_flag_t(ngrid))
 
   ! kfold xval variables
-  allocate(xval_combinations(kfold_trials, kfold_nsamp-kfold_hold))
+  allocate(xval_combinations(kfold_trials, kfold_nsamp+1))
+  allocate(sampling_order(kfold_nsamp))
 
   ! initializations
-  pcp = 0.0d0
-  pop = 0.0d0
-  pcperr = 0.0d0
-  auto_corr = 0.0d0
-
-  tmean = 0.0d0
-  trange = 0.0d0
-  tmean_err = 0.0d0
-  trange_err = 0.0d0
-
-  auto_corr_sum = 0.0d0
-  auto_cnt = 0
-  tp_corr_sum = 0.0d0
-  tp_cnt = 0
-
+  pcp = 0.0d0; pop = 0.0d0; pcperr = 0.0d0; auto_corr = 0.0d0
+  tmean = 0.0d0; trange = 0.0d0; tmean_err = 0.0d0; trange_err = 0.0d0
+  auto_corr_sum = 0.0d0; auto_cnt = 0; tp_corr_sum = 0.0d0; tp_cnt = 0
   w_base = 0.0d0
-
-  expand_dist = 0.0d0
-  expand_flag = 0
-  expand_dist_t = 0.0d0
-  expand_flag_t = 0
-
-  xval_combinations = -999     ! initialize
+  expand_dist = 0.0d0; expand_flag = 0; expand_dist_t = 0.0d0; expand_flag_t = 0
+  xval_combinations = -999
+  sampling_order = -999
 
   ! ================= LOOP OVER STATIONS ============
   ! this part calls subroutines that calculate various correlations
@@ -566,25 +558,53 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
     end if
   end if
 
-  ! if using kfold cross-validation, generate subset sampling indices for each fold
+  ! if using kfold cross-validation, pre-generate subset sampling indices for each fold
   if(kfold_trials > 0) then
     ! Create a station subset sampling indexes for kfold cross-validation
-    call comb(kfold_nsamp, kfold_nsamp-kfold_hold, kfold_trials, xval_combinations)
-    !  do i = 1,kfold_trials,1
-    !    do j = kfold_nsamp-kfold_hold,1,-1
-    !      write(*,"(I4, ' ')", advance="no") xval_combinations(i,j)
-    !    end do
-    !    write(*,*) ""
-    !  end do
+    !   (can move this into combination_routines module)
+    sampling_order = scrambled_indices(kfold_nsamp)        ! vector
+    n_test  = floor(kfold_nsamp*1.0/(kfold_trials*1.0))    ! number of test records per fold
+    n_train = kfold_nsamp - n_test                         ! number of training records per fold
+    print*, ' '; print*, 'using cross-validation for regression uncertainty estimation'
+    print*, 'k_folds = ', kfold_trials
+    print*, 'n_train = ', n_train
+    print*, 'n_test  = ', n_test, ' (nominal)'; print*, ' ' 
+
+    ! now parcel out test/train samples into array
+    do i = 1, kfold_trials
+      start_test_stn = (i-1)*n_test + 1
+      if(i .eq. kfold_trials) then 
+        end_test_stn = kfold_nsamp
+        trial_n_test = abs(start_test_stn - kfold_nsamp) + 1
+      else 
+        end_test_stn = i * n_test
+        trial_n_test = end_test_stn - start_test_stn + 1  ! final group may be a larger test size
+      end if  
+
+      xval_combinations(i,1) = trial_n_test   ! store test sample size as first column
+      ntr = 2                                 ! training indices go in 2:n_train+1 (fixed)
+      nte = n_train + 2                       ! test indices start at n_train+2 
+      do j = 1, kfold_nsamp
+        if(j .lt. start_test_stn .or. j .gt. end_test_stn) then
+          xval_combinations(i,ntr) = sampling_order(j)  ! store training indices in next n_train cols
+          ntr = ntr + 1
+        else
+          xval_combinations(i,nte) = sampling_order(j)  ! store test indices in final cols
+          nte = nte + 1
+        end if
+      end do
+    end do
   end if
 
+  ! message about whether station dist weights are used
   if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
-    print*, ' '; print*, 'using station distance weights'; print*, ' '
+    print*, 'using station distance weights'; print*, ' '
   else 
     print*, ' '; print*, 'setting station distance weights equal'; print*, ' '
   end if
 
   ! =========== now LOOP over all TIME steps and populate grids ===============
+  print*, '----- Looping over daily timesteps -----'; print*, ' '
   do t = 1, ntimes, 1
 
     call system_clock (tg1, count_rate)
@@ -977,8 +997,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
               else
                 ! cross-validate to calculate error for station locations
+                !call kfold_crossval(x_red, y_red, w_pcp_red, kfold_trials, &
+                !                    kfold_nsamp, kfold_hold,xval_combinations, pcperr(g,t)) 
                 call kfold_crossval(x_red, y_red, w_pcp_red, kfold_trials, &
-                                    kfold_nsamp, kfold_hold, xval_combinations, pcperr(g,t)) 
+                                    kfold_nsamp, n_train, xval_combinations, pcperr(g,t)) 
               end if
               deallocate (b) ! b is allocated in least_squares()
             end if
@@ -1007,8 +1029,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
             else
               ! cross-validate
+              !call kfold_crossval(x_red(:,noSlopePredicts), y_red, w_pcp_red, kfold_trials, &
+              !                  kfold_nsamp, kfold_hold, xval_combinations, pcperr_2(g,t)) 
               call kfold_crossval(x_red(:,noSlopePredicts), y_red, w_pcp_red, kfold_trials, &
-                                kfold_nsamp, kfold_hold, xval_combinations, pcperr_2(g,t)) 
+                                kfold_nsamp, n_train, xval_combinations, pcperr_2(g,t)) 
             end if
             deallocate (b)   ! b is allocated in least_squares() process
 
@@ -1052,8 +1076,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           else
             ! cross-validate
+            !call kfold_crossval(x_red_t, y_tmean_red, w_temp_red, kfold_trials, &
+            !                  kfold_nsamp, kfold_hold, xval_combinations, tmean_err(g,t)) 
             call kfold_crossval(x_red_t, y_tmean_red, w_temp_red, kfold_trials, &
-                              kfold_nsamp, kfold_hold, xval_combinations, tmean_err(g,t)) 
+                              kfold_nsamp, n_train, xval_combinations, tmean_err(g,t)) 
           end if
           deallocate (b)
 
@@ -1080,8 +1106,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           else
             ! cross-validate
+            !call kfold_crossval(x_red_t(:,noSlopePredicts), y_tmean_red, w_temp_red, kfold_trials, &
+            !                   kfold_nsamp, kfold_hold, xval_combinations, tmean_err_2(g,t)) 
             call kfold_crossval(x_red_t(:,noSlopePredicts), y_tmean_red, w_temp_red, kfold_trials, &
-                                kfold_nsamp, kfold_hold, xval_combinations, tmean_err_2(g,t)) 
+                                kfold_nsamp, n_train, xval_combinations, tmean_err_2(g,t)) 
           end if
           deallocate (b)
 
@@ -1111,8 +1139,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           else
             ! cross-validate
+            !call kfold_crossval(x_red_t, y_trange_red, w_temp_red, kfold_trials, &
+            !                    kfold_nsamp, kfold_hold, xval_combinations, trange_err(g,t)) 
             call kfold_crossval(x_red_t, y_trange_red, w_temp_red, kfold_trials, &
-                                kfold_nsamp, kfold_hold, xval_combinations, trange_err(g,t)) 
+                                kfold_nsamp, n_train, xval_combinations, trange_err(g,t)) 
           end if
           deallocate (b)
 
@@ -1140,8 +1170,10 @@ subroutine estimate_forcing_regression (nPredict, gen_sta_weights, sta_weight_na
 
           else
             ! cross-validate
+            !call kfold_crossval(x_red_t(:,noSlopePredicts), y_trange_red, w_temp_red, kfold_trials, &
+            !                 kfold_nsamp, kfold_hold, xval_combinations, trange_err_2(g,t)) 
             call kfold_crossval(x_red_t(:,noSlopePredicts), y_trange_red, w_temp_red, kfold_trials, &
-                              kfold_nsamp, kfold_hold, xval_combinations, trange_err_2(g,t)) 
+                              kfold_nsamp, n_train, xval_combinations, trange_err_2(g,t)) 
           end if
           deallocate (b)
 

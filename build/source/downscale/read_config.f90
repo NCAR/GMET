@@ -44,8 +44,7 @@ subroutine read_config (fname, n, config_names, values)
   config_names(23) = "NWP_PRCP_VAR_NAME"    ! Variable name of NWP precipitation predictor
   config_names(24) = "NWP_INPUT_FILE_LIST"  ! list of NWP input files
   config_names(25) = "KFOLD_TRIALS"         ! number of kfold xval trials to run [10-30]
-  config_names(26) = "KFOLD_WITHHOLD"       ! number of stations to withhold for each trial [1-10]
-  config_names(27) = "USE_STN_WEIGHTS"      ! use station weights in forming regression (TRUE/FALSE)
+  config_names(26) = "USE_STN_WEIGHTS"      ! use station weights in forming regression (TRUE/FALSE)
  
   do i = 1, n, 1
     values (i) = ""

@@ -87,7 +87,7 @@ program gmet
  
     subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, dyn_pred_infile_list, &
    & nDynPredictors, dynamic_vars, dynamic_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, stnvar, directory, kfold_trials, kfold_hold, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
+   & stnid, stnvar, directory, kfold_trials, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
       use type
@@ -108,7 +108,7 @@ program gmet
       character (len=100), intent (in) :: stnvar
       character (len=500), intent (in) :: directory
       integer(I4B), intent(in)          :: kfold_trials        !number of kfold xval trials
-      integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
+      !integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
       real (sp), allocatable, intent (out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
       real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)        ! OLS tmean estimate and error
@@ -197,7 +197,7 @@ program gmet
   real (dp), allocatable :: mask (:, :)
  
   integer(I4B)           :: kfold_trials        !number of kfold xval trials
-  integer(I4B)           :: kfold_hold          !number of stations to withhold from regression
+  !integer(I4B)           :: kfold_hold          !number of stations to withhold from regression
 
   real (dp), allocatable :: x (:, :), z (:, :)
   integer :: ngrid
@@ -264,8 +264,8 @@ program gmet
   dynamic_prcp_var      = config_values(23)
   dyn_pred_infile_list  = config_values(24)
   read(config_values(25), *) kfold_trials
-  read(config_values(26), *) kfold_hold
-  use_stn_weights       = config_values(27)
+  !read(config_values(26), *) kfold_hold
+  use_stn_weights       = config_values(26)
   
   !check to see if output file path is valid
   !create the output file and see if an error occurs
@@ -458,10 +458,10 @@ program gmet
       stop
     end if
     ! limit number of stations withheld to 1-10
-    if(kfold_hold .gt. 10 .or. kfold_hold .lt. 1) then
-      print *,'Error:  K-fold station withholding limited to range of 1-10 stations withheld'
-      stop
-    end if
+    !if(kfold_hold .gt. 10 .or. kfold_hold .lt. 1) then
+    !  print *,'Error:  K-fold station withholding limited to range of 1-10 stations withheld'
+    !  stop
+    !end if
 
     ! allocate static grid variables
     print*, "allocating vector variables matching grids of nx= ",nx," by ny= ",ny
@@ -524,7 +524,7 @@ program gmet
  
     call estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, dyn_pred_infile_list, &
    & nDynPredictors, dynamic_vars, dynamic_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, station_var, directory, kfold_trials, kfold_hold, pcp, pop, pcperror, obs_max_pcp, tmean, &
+   & stnid, station_var, directory, kfold_trials, pcp, pop, pcperror, obs_max_pcp, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, &
    & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
 

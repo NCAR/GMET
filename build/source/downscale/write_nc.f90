@@ -374,7 +374,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     if (error /= 0) return
  
     ! Define the dimensions
-    print*, 'inx and iny = ', inx, iny  !AW
     call check (nf90_def_dim(ncid, y_name, iny, y_dimid), "y dim def error", error)
     call check (nf90_def_dim(ncid, x_name, inx, x_dimid), "x dim def error", error)
     call check (nf90_def_dim(ncid, time_name, nf90_unlimited, time_dimid), "time dim def error", error)
@@ -416,7 +415,6 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     call check (nf90_def_var(ncid, trange_name_2, nf90_float, dimids3, trange_varid_2), "trange var def error", error)
     call check (nf90_def_var(ncid, trange_error_name_2, nf90_float, dimids3, trange_error_varid_2), "trange error var def error", error)
    call check (nf90_def_var(ncid, obs_max_pcp_name, nf90_double, dimids3, obs_max_pcp_varid), "obs_max_pcp var def error", error)
-    print*, 'obs max pcp varid', obs_max_pcp_varid
     if (error /= 0) return
  
     ! Add attributes.
