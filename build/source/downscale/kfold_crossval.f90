@@ -64,7 +64,7 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
   allocate(train_indices(n_train))
   allocate(test_indices(n_total - n_train))
 
-  ! initalize other variables
+  ! initalize weight vector variable
   do i = 1,n_total,1
     w_1d(i) = W(i,i)
   end do
@@ -87,28 +87,37 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
     twx_xval = matmul(tx_xval, w_xval)
     vv = maxval(abs(twx_xval), dim=2)
 
+    ! if matrix is singular, default to calculating weighted error around the mean value of the obs sample (eg variance)
     if(any(vv==0.0)) then 
       meanVal = sum(Y(test_indices(1:trial_n_test)))/trial_n_test
       do j = 1, trial_n_test
-        errorSum = errorSum + w_1d(test_indices(j))*(meanVal - Y(test_indices(j)))**2
+        errorSum = errorSum + w_1d(test_indices(j))*(meanVal - Y(test_indices(j)))**2  ! sum up trial *test* sample errors
       end do
-      weightSum = weightSum + sum(W_1d(test_indices))
+      !weightSum = weightSum + sum(w_1d(test_indices))   ! sum up trial *test* sample weights
 
+    ! otherwise regression can be performed for this training sample
     else
+      call least_squares(x_xval, y_xval, twx_xval, B)         ! regress on training sample
+      ! loop over test sample and calculate error
       do j = 1, trial_n_test
-        call least_squares(x_xval, y_xval, twx_xval, B)
-        ! regression precip
+        !call least_squares(x_xval, y_xval, twx_xval, B)
+        ! regression prediction for test record
         varTmp = real( dot_product( X(test_indices(j), :), B ), kind(sp) )
-        ! total error
-        errorSum = errorSum + w_1d(test_indices(j))*(varTmp - Y(test_indices(j)))**2
+        ! sum error for tests
+        errorSum = errorSum + (w_1d(test_indices(j)) * (varTmp - Y(test_indices(j)))**2)
       end do
 
-      ! create weight sum of in regression station weights
-      weightSum = weightSum + sum(W_1d(test_indices(1:trial_n_test)))
+      !weightSum = weightSum + sum(w_1d(test_indices(1:trial_n_test)))
     end if
+    
+    ! sum up normalizing weight for aggregated test samples
+    weightSum = weightSum + sum(w_1d(test_indices))   ! sum up trial *test* sample weights
+    
+    
   end do
   
   ! mean uncertainty estimate from all kfold trials
-  varUncert = real((errorSum/weightSum)**(1.0/2.0),kind(sp))
+  !varUncert = real((errorSum/weightSum)**(1.0/2.0),kind(sp))
+  varUncert = real(errorSum**0.5,kind(sp))/weightSum           ! output cross-validated prediction error
     
 end subroutine kfold_crossval

@@ -149,7 +149,7 @@ program gmet
   end interface
   ! === end of interface, start the program ====
 
-  integer, parameter  :: nconfigs = 27
+  integer, parameter  :: nconfigs = 26
 
   ! Local variables
   character (len=100) :: config_file
@@ -259,13 +259,12 @@ program gmet
   stn_enddate           = config_values(18)
   gen_sta_weights       = config_values(19)
   sta_weight_name       = config_values(20)
-  read(config_values(21), *) nTotPredictors
-  dyn_predictor_names   = config_values(22)
-  dynamic_prcp_var      = config_values(23)
-  dyn_pred_infile_list  = config_values(24)
-  read(config_values(25), *) kfold_trials
-  !read(config_values(26), *) kfold_hold
-  use_stn_weights       = config_values(26)
+  use_stn_weights       = config_values(21)
+  read(config_values(22), *) nTotPredictors
+  dyn_predictor_names   = config_values(23)
+  dynamic_prcp_var      = config_values(24)
+  dyn_pred_infile_list  = config_values(25)
+  read(config_values(26), *) kfold_trials
   
   !check to see if output file path is valid
   !create the output file and see if an error occurs
