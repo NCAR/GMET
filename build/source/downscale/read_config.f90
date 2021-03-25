@@ -4,8 +4,8 @@ subroutine read_config (fname, n, config_names, values)
   use string_mod
   implicit none
  
-  character (len=*) :: fname
-  integer :: n
+  character (len=*)   :: fname
+  integer             :: n
   character (len=500) :: config_names (n)
   character (len=500) :: values (n)
   character (len=500) :: settings (2)
@@ -19,26 +19,27 @@ subroutine read_config (fname, n, config_names, values)
     return
   end if
 
-  config_names(1) = "MODE"
-  config_names(2) = "START_DATE"
-  config_names(3) = "END_DATE"
-  config_names(4) = "SITE_LIST"
-  config_names(5) = "SITE_VAR"
-  config_names(6) = "STATION_VAR"
-  config_names(7) = "PERTURBATION"
-  config_names(8) = "FORECAST"
-  config_names(9) = "NUMBER_VARS"
+  ! define config file names
+  config_names(1)  = "MODE"
+  config_names(2)  = "START_DATE"
+  config_names(3)  = "END_DATE"
+  config_names(4)  = "SITE_LIST"
+  config_names(5)  = "SITE_VAR"
+  config_names(6)  = "STATION_VAR"
+  config_names(7)  = "PERTURBATION"
+  config_names(8)  = "FORECAST"
+  config_names(9)  = "NUMBER_VARS"
   config_names(10) = "FILE_VARIABLE"
-  config_names(11) = "VARIABLE_NAME"
-  config_names(12) = "OUTPUT_FILE"
-  config_names(13) = "GRID_LIST"
-  config_names(14) = "MAX_DISTANCE"
+  config_names(11) = "VARIABLE_NAME"        ! 
+  config_names(12) = "OUTPUT_FILE"          ! output regression file
+  config_names(13) = "GRID_LIST"            ! list of grid files needed for ens. generation
+  config_names(14) = "MAX_DISTANCE"         ! entered in km
   config_names(15) = "SITE_VAR_T"           ! whether to use cross-correlation with temperature
   config_names(16) = "DATA_DIRECTORY"       ! free data dir from site list path
   config_names(17) = "STN_START_DATE"       ! add station period limits
   config_names(18) = "STN_END_DATE"         !  
   config_names(19) = "GEN_STA_WEIGHTS"      ! T/F whether station weights need to be generated
-  config_names(20) = "STA_WEIGHT_NAME"      ! filename for binar station weights file
+  config_names(20) = "STA_WEIGHT_NAME"      ! filename for binary station weights file
   config_names(21) = "USE_STN_WEIGHTS"      ! use station weights in forming regression (TRUE/FALSE)
   config_names(22) = "NPREDICT"             ! total number of predictors (6+number of NWP predictors)
   config_names(23) = "NWP_VAR_NAMES"        ! variable list for NWP predictors

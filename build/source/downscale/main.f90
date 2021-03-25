@@ -245,26 +245,26 @@ program gmet
   end if
  
   ! store rest of config file values (ordered in read_config.f90)
-  startdate             = config_values(2)
-  enddate               = config_values(3)
-  site_list             = config_values(4)
-  site_var              = config_values(5)
-  station_var           = config_values(6)
-  output_file           = config_values(12)
-  grid_list             = config_values (13)
+  startdate                  = config_values(2)
+  enddate                    = config_values(3)
+  site_list                  = config_values(4)
+  site_var                   = config_values(5)
+  station_var                = config_values(6)
+  output_file                = config_values(12)
+  grid_list                  = config_values (13)
   read(config_values(14), *) maxdistance          ! convert config str to number
-  site_var_t            = config_values(15)
-  directory             = config_values(16)
-  stn_startdate         = config_values(17)
-  stn_enddate           = config_values(18)
-  gen_sta_weights       = config_values(19)
-  sta_weight_name       = config_values(20)
-  use_stn_weights       = config_values(21)
-  read(config_values(22), *) nTotPredictors
-  dyn_predictor_names   = config_values(23)
-  dynamic_prcp_var      = config_values(24)
-  dyn_pred_infile_list  = config_values(25)
-  read(config_values(26), *) kfold_trials
+  site_var_t                 = config_values(15)
+  directory                  = config_values(16)
+  stn_startdate              = config_values(17)
+  stn_enddate                = config_values(18)
+  gen_sta_weights            = config_values(19)
+  sta_weight_name            = config_values(20)
+  use_stn_weights            = config_values(21)
+  read(config_values(22), *)   nTotPredictors
+  dyn_predictor_names        = config_values(23)
+  dynamic_prcp_var           = config_values(24)
+  dyn_pred_infile_list       = config_values(25)
+  read(config_values(26), *)   kfold_trials
   
   !check to see if output file path is valid
   !create the output file and see if an error occurs
@@ -456,11 +456,6 @@ program gmet
       print *,'Error:  K-fold trials limited to range of 2-30 trials, unless turned off with trials=0'
       stop
     end if
-    ! limit number of stations withheld to 1-10
-    !if(kfold_hold .gt. 10 .or. kfold_hold .lt. 1) then
-    !  print *,'Error:  K-fold station withholding limited to range of 1-10 stations withheld'
-    !  stop
-    !end if
 
     ! allocate static grid variables
     print*, "allocating vector variables matching grids of nx= ",nx," by ny= ",ny
@@ -474,15 +469,15 @@ program gmet
     ! reshape the domain grids into vectors
     grdlat    = reshape (lat, (/ nx*ny /))
     grdlon    = reshape (lon, (/ nx*ny /))
-    grdelev    = reshape (elev, (/ nx*ny /))
+    grdelev   = reshape (elev, (/ nx*ny /))
     grd_slp_n = reshape (grad_n, (/ nx*ny /))
     grd_slp_e = reshape (grad_e, (/ nx*ny /))
     mask_1d   = reshape (mask, (/ nx*ny /))
-    ngrid = nx * ny
+    ngrid     = nx * ny
 
     ! --- read dynamic/gridded predictors
     if (nTotPredictors .lt. 6 .or. nTotPredictors .gt. 30) then
-      print *, 'ERROR: nTotPredictors ',nTotPredictors,' is likely not specified correcting in the config file.'
+      print *, 'ERROR: nTotPredictors ', nTotPredictors, ' is likely not specified correctly in the config file.'
       stop
     end if
     
@@ -561,33 +556,32 @@ end program gmet
 ! =============================================== 
  
 subroutine get_time_list (startdate, enddate, times)
-  ! makes a list of data times in secs since 1970-1-1
-  ! corresponding to requested period
+  ! makes a list of data times in secs since 1970-1-1 corresponding to requested period
   use utim
   use type
   implicit none
  
-  character (len=100), intent (in) :: startdate, enddate
+  character (len=100), intent (in)     :: startdate, enddate
   real (dp), allocatable, intent (out) :: times (:)
-  integer (i4b) :: t, ntimes, sday, eday, error
-  integer (i4b) :: sec, min, hour, day, month, year
-  real (dp) :: utime
+  integer (i4b)                        :: t, ntimes, sday, eday, error
+  integer (i4b)                        :: sec, min, hour, day, month, year
+  real (dp)                            :: utime
  
   call parse_date (startdate, year, month, day, hour, min, sec, error)
-  sday = julian_date (day, month, year)
+  sday   = julian_date (day, month, year)
   call parse_date (enddate, year, month, day, hour, min, sec, error)
-  eday = julian_date (day, month, year)
+  eday   = julian_date (day, month, year)
   ntimes = eday - sday + 1
   allocate (times(ntimes))
  
   utime = date_to_unix (startdate)  ! secs since 1970-1-1
-  print *, 'times!', eday, sday, utime, date_to_unix (enddate), ntimes
-  do t = 1, ntimes, 1
+  print *, 'times! ', eday, sday, utime, date_to_unix (enddate), ntimes
+  do t  = 1, ntimes, 1
     if (utime > date_to_unix(enddate)) exit
     times (t) = utime
-    utime = utime + 86400
+    utime     = utime + 86400
   end do
  
-  print *, 'time list:', times  !seconds since 1970-1-1
+  print *, 'time list: ', times  !seconds since 1970-1-1
  
 end subroutine get_time_list

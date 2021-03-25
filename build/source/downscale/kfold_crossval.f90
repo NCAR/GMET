@@ -22,7 +22,6 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
   integer(I4B), intent(in)  :: kfold_trials            ! number of kfold xval trials
   integer(I4B), intent(in)  :: n_total                 ! size of station sample to draw from (sta_limit)
   integer(I4B), intent(in)  :: n_train                 ! number in training sample
-  
   integer(I4B), intent(in)  :: xval_indices(:,:)      ! array of sampling combinations (integer array indices)
   real(sp), intent(out)     :: varUncert               ! output: uncertainty estimate from kfold trials
   
@@ -32,11 +31,11 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
   real(dp)                  :: errorSum              ! summation of errors from kfold trials
   real(dp)                  :: varTmp                ! temporary variable value
   real(dp)                  :: meanVal               ! mean value of withheld obs
-  real(dp), allocatable     :: x_xval(:,:)           ! station predictor array for kfold xval
-  real(dp), allocatable     :: y_xval(:)             ! station variable values for kfold xval
-  real(dp), allocatable     :: w_xval(:,:)           ! diagonal weight matrix for trial stations
-  real(dp), allocatable     :: tx_xval(:,:)          ! transposed station predictor array for xval
-  real(dp), allocatable     :: twx_xval(:,:)         ! transposed matmul(tx,w) array for kfold xval
+  real(dp), allocatable     :: x_xval_train(:,:)     ! station predictor array for kfold xval
+  real(dp), allocatable     :: y_xval_train(:)       ! station variable values for kfold xval
+  real(dp), allocatable     :: w_xval_train(:,:)     ! diagonal weight matrix for trial stations
+  real(dp), allocatable     :: tx_xval_train(:,:)    ! transposed station predictor array for xval
+  real(dp), allocatable     :: twx_xval_train(:,:)   ! transposed matmul(tx,w) array for kfold xval
   real(dp), allocatable     :: vv(:)                 ! temporary matrix to test for singularities
   real(dp), allocatable     :: B(:)                  ! regression coefficients for predictors
   
@@ -53,12 +52,12 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
   nPredictors = size(X,2)                             ! number of predictors (static + dynamic)
   
   ! allocations
-  allocate(x_xval(n_train, nPredictors))
-  allocate(y_xval(n_train))
-  allocate(w_xval(n_train, n_train))
+  allocate(x_xval_train(n_train, nPredictors))
+  allocate(y_xval_train(n_train))
+  allocate(w_xval_train(n_train, n_train))
   allocate(w_1d(n_total))
-  allocate(tx_xval(nPredictors, n_train))
-  allocate(twx_xval(nPredictors, n_train))
+  allocate(tx_xval_train(nPredictors, n_train))
+  allocate(twx_xval_train(nPredictors, n_train))
   allocate(B(nPredictors))
   allocate(vv(nPredictors))
   allocate(train_indices(n_train))
@@ -77,27 +76,26 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
     train_indices = xval_indices(i, 2:(n_train+1))
     test_indices  = xval_indices(i, (n_train+2):(n_train+1+trial_n_test))
     
-    ! station predictor array, values and weights
-    x_xval = X(train_indices, :)
-    y_xval = Y(train_indices)
-    w_xval = W(train_indices, train_indices)
+    ! station predictor array, values and weights -- training sample
+    x_xval_train = X(train_indices, :)
+    y_xval_train = Y(train_indices)
+    w_xval_train = W(train_indices, train_indices)
     
     ! create transposed matrices for least squares and non-singular matrix check
-    tx_xval  = transpose(x_xval)
-    twx_xval = matmul(tx_xval, w_xval)
-    vv = maxval(abs(twx_xval), dim=2)
+    tx_xval_train  = transpose(x_xval_train)
+    twx_xval_train = matmul(tx_xval_train, w_xval_train)
+    vv = maxval(abs(twx_xval_train), dim=2)
 
-    ! if matrix is singular, default to calculating weighted error around the mean value of the obs sample (eg variance)
+    ! if matrix is singular, default to calculating weighted error around the mean value of the obs test sample (eg variance)
     if(any(vv==0.0)) then 
       meanVal = sum(Y(test_indices(1:trial_n_test)))/trial_n_test
       do j = 1, trial_n_test
         errorSum = errorSum + w_1d(test_indices(j))*(meanVal - Y(test_indices(j)))**2  ! sum up trial *test* sample errors
       end do
-      !weightSum = weightSum + sum(w_1d(test_indices))   ! sum up trial *test* sample weights
 
-    ! otherwise regression can be performed for this training sample
+    ! otherwise regression can be performed for the current training sample
     else
-      call least_squares(x_xval, y_xval, twx_xval, B)         ! regress on training sample
+      call least_squares(x_xval_train, y_xval_train, twx_xval_train, B)         ! regress on training sample
       ! loop over test sample and calculate error
       do j = 1, trial_n_test
         !call least_squares(x_xval, y_xval, twx_xval, B)
@@ -107,17 +105,14 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
         errorSum = errorSum + (w_1d(test_indices(j)) * (varTmp - Y(test_indices(j)))**2)
       end do
 
-      !weightSum = weightSum + sum(w_1d(test_indices(1:trial_n_test)))
     end if
     
     ! sum up normalizing weight for aggregated test samples
-    weightSum = weightSum + sum(w_1d(test_indices))   ! sum up trial *test* sample weights
-    
+    weightSum = weightSum + sum(w_1d(test_indices))        ! sum up trial *test* sample weights
     
   end do
   
   ! mean uncertainty estimate from all kfold trials
-  !varUncert = real((errorSum/weightSum)**(1.0/2.0),kind(sp))
-  varUncert = real(errorSum**0.5,kind(sp))/weightSum           ! output cross-validated prediction error
+  varUncert = real(errorSum**0.5, kind(sp))/weightSum      ! output cross-validated prediction error
     
 end subroutine kfold_crossval
