@@ -8,11 +8,11 @@ program gmet
   implicit none
  
   interface
-    subroutine get_time_list (startdate, enddate, t)
+    subroutine get_time_list (startdate, enddate, times)
       use utim
       use type
-      character (len=100), intent (in) :: startdate, enddate
-      real (dp), allocatable, intent (out) :: t (:)
+      character (len=100), intent (in)       :: startdate, enddate
+      real (dp), allocatable, intent (out)   :: times(:)
     end subroutine get_time_list
  
     subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, forecast, v, x, &
@@ -87,7 +87,7 @@ program gmet
  
     subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, dyn_pred_infile_list, &
    & nDynPredictors, dynamic_vars, dynamic_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, stnvar, directory, kfold_trials, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
+   & stnid, stnvar, directory, sta_limit, kfold_trials, pcp, pop, pcperr, obs_max_pcp, tmean, tmean_err, trange, &
    & trange_err, mean_autocorr, mean_tp_corr, error, pcp_2, &
    & pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
       use type
@@ -99,31 +99,28 @@ program gmet
       character (len=100), intent(in)   :: dynamic_prcp_var       ! name of dyn precipitation predictor
       integer(i4b), intent(inout)       :: nTotPredictors         ! number of total predictors
       integer(i4b), intent(in)          :: nDynPredictors         ! number of dynamic predictors
-      real (dp), intent (inout) :: x (:, :), z (:, :)
-      real (dp), intent (in) :: maxdistance
-      integer (i4b), intent (in) :: ngrid
-      real (dp), intent (in) :: times (:)
-      integer (i4b), intent (in) :: st_rec, end_rec
-      character (len=100), intent (in) :: stnid (:)
-      character (len=100), intent (in) :: stnvar
-      character (len=500), intent (in) :: directory
-      integer(I4B), intent(in)          :: kfold_trials        !number of kfold xval trials
-      !integer(I4B), intent(in)          :: kfold_hold          !number of stations to withhold from regression
+      real (dp), intent (inout)            :: x (:, :), z (:, :)
+      real (dp), intent (in)               :: maxdistance
+      integer (i4b), intent (in)           :: ngrid
+      real (dp), intent (in)               :: times (:)
+      integer (i4b), intent (in)           :: st_rec, end_rec
+      character (len=100), intent (in)     :: stnid (:)
+      character (len=100), intent (in)     :: stnvar
+      character (len=500), intent (in)     :: directory
+      integer(I4B), intent(in)             :: sta_limit           ! total number of stations in regression sample size
+      integer(I4B), intent(in)             :: kfold_trials        ! number of kfold xval trials
       real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :)
       real (sp), allocatable, intent (out) :: pcp_2 (:, :), pop_2 (:, :), pcperr_2 (:, :)
       real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)        ! OLS tmean estimate and error
       real (sp), allocatable, intent (out) :: trange (:, :), trange_err (:, :)      ! OLS trange estimate and error
       real (sp), allocatable, intent (out) :: tmean_2 (:, :), tmean_err_2 (:, :)    ! OLS tmean estimate and error
       real (sp), allocatable, intent (out) :: trange_2 (:, :), trange_err_2 (:, :)  ! OLS trange estimate and error
-      integer, intent (out) :: error
+      integer, intent (out)   :: error
       real (dp), intent (out) :: mean_autocorr (:)  ! mean autocorrelation from all stations over entire time period
       real (dp), intent (out) :: mean_tp_corr (:)   ! mean correlation for mean temp and precip
       real (dp), intent (out) :: obs_max_pcp (:, :) ! max of normalized time step precip
     end subroutine estimate_forcing_regression
  
-    ! modified AJN Sept 2013
-    ! subroutine save_precip(pcp, pop, pcperror, tmean, tmean_err, trange, trange_err, &
-    ! AWW Feb2016, renamed to be more descriptive.  Note did NOT call scrf/save_precip.f90 subroutine
     subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmean_err, trange, trange_err, &
    & nx, ny, grdlat, grdlon, grdelev, times, mean_autocorr, mean_tp_corr, &
    & file, error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, &
@@ -139,8 +136,6 @@ program gmet
       real (dp), intent (in) :: grdlat (:), grdlon (:), grdelev (:)
       real (dp), intent (in) :: times (:)
       real (dp), intent (in) :: mean_autocorr (:), mean_tp_corr (:)
-      !real (dp), intent (in) :: y_mean (:, :), y_std (:, :), y_std_all (:, :)
-      !real (dp), intent (in) :: y_min (:, :), y_max (:, :)
       real (dp), intent (in) :: obs_max_pcp (:, :)
       character (len=500), intent (in) :: file
       integer, intent (out) :: error
@@ -149,46 +144,45 @@ program gmet
   end interface
   ! === end of interface, start the program ====
 
-  integer, parameter  :: nconfigs = 26
+  integer, parameter     :: nconfigs = 27
 
   ! Local variables
-  character (len=100) :: config_file
-  character (len=500) :: config_names (nconfigs)
-  character (len=500) :: config_values (nconfigs)
-  character (len=500) :: site_list, output_file, output_file2, grid_list, dyn_predictor_names
-  character (len=500) :: directory
+  character (len=100)    :: config_file
+  character (len=500)    :: config_names (nconfigs)
+  character (len=500)    :: config_values (nconfigs)
+  character (len=500)    :: site_list, output_file, output_file2, grid_list, dyn_predictor_names
+  character (len=500)    :: directory
 
-  character (len=100) :: startdate, enddate ! desired output dates, YYYYMMDD, read from config file
-  character (len=20)  :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
-  character (len=100) :: perturbation, station_var, site_var, site_var_t
+  character (len=100)    :: startdate, enddate ! desired output dates, YYYYMMDD, read from config file
+  character (len=20)     :: stn_startdate, stn_enddate ! input station period dates (YYYYMMDD) from config file
+  character (len=100)    :: perturbation, station_var, site_var, site_var_t
   character (len=100), allocatable :: file_var (:), var_name (:)
   character (len=100), allocatable :: dynamic_vars(:)         ! list of dynamic predictor variables
   character (len=100)              :: dynamic_prcp_var = ''   ! name of dynamic precipitation predictor variable
   character (len=100), allocatable :: stnid (:), stnname (:)
-  character (len=2), allocatable   :: vars (:) !AWW-feb2016 for station P/T indicators
+  character (len=2), allocatable   :: vars (:)                ! AWW-feb2016 for station P/T indicators
 
-  character (len = 500) :: gen_sta_weights     ! flag for generating station weight file
-  character (len = 500) :: sta_weight_name     ! name of station weight file
-  character (len = 500) :: use_stn_weights     ! option for using station weights
+  character (len = 500)  :: gen_sta_weights       ! flag for generating station weight file
+  character (len = 500)  :: sta_weight_name       ! name of station weight file
+  character (len = 500)  :: use_stn_weights       ! option for using station weights
  
-  character (len=2000) :: arg              ! command line arg for configuration file
-  character (len=2000) :: output_file_tmp  ! temporary output file name
-  character (len=2000) :: sys_str          ! string for system commands
-  character (len=2000) :: dyn_pred_infile_list   ! file with list of dynamic predictor input files
+  character (len=2000)   :: arg                    ! command line arg for configuration file
+  character (len=2000)   :: output_file_tmp        ! temporary output file name
+  character (len=2000)   :: sys_str                ! string for system commands
+  character (len=2000)   :: dyn_pred_infile_list   ! file with list of dynamic predictor input files
 
-  integer :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
-  integer :: nstations, lenfile
+  integer (i4b)          :: i, error, n_vars, nfile_var, nvar_name, forecast, mode
+  integer (i4b)          :: nstations, lenfile     ! input station metadata variables
  
   real (dp), allocatable :: y (:, :, :), vals (:, :), lats (:), lons (:)
   real (dp), allocatable :: coefs (:, :, :), prob_coefs (:, :, :)
   real (dp), allocatable :: stnlat (:), stnlon (:), stnelev (:), stn_slp_n (:), stn_slp_e (:)
   real (dp), allocatable :: times (:)
-  !modified AJN Sept 2013
-  real (dp), allocatable :: mean_autocorr (:)!mean auto correlation for all stations over entire time period
-  real (dp), allocatable :: mean_tp_corr (:)!mean correlation between precip and trange (31-day moving avg anomaly)
+
+  real (dp), allocatable :: mean_autocorr (:)     ! mean auto correlation for all stations over entire time period
+  real (dp), allocatable :: mean_tp_corr (:)      ! mean correlation between precip and trange (31-day moving avg anomaly)
   real (dp), allocatable :: obs_max_pcp (:, :)
  
-  !added for grid netcdf read  Oct 2015 AJN
   real (dp), allocatable :: lat (:, :)
   real (dp), allocatable :: lon (:, :)
   real (dp), allocatable :: elev (:, :)
@@ -196,18 +190,18 @@ program gmet
   real (dp), allocatable :: grad_e (:, :)
   real (dp), allocatable :: mask (:, :)
  
-  integer(I4B)           :: kfold_trials        !number of kfold xval trials
-  !integer(I4B)           :: kfold_hold          !number of stations to withhold from regression
+  integer(I4B)           :: sta_limit             ! total number of stations in regression sample size
+  integer(I4B)           :: kfold_trials          ! number of kfold xval trials
 
-  real (dp), allocatable :: x (:, :), z (:, :)
-  integer :: ngrid
+  real (dp), allocatable :: x (:, :), z (:, :)    ! input point predictor(x) and output grid (z) arrays
+  integer                :: ngrid
  
-  integer (i4b) :: nx, ny, ntimes
-  integer (i4b) :: nTotPredictors           ! total number of predictors for spatial regression
-  integer (i4b) :: nDynPredictors           ! number of dynamic predictors for spatial regression
-  integer (i4b) :: st_stndata_utime, end_stndata_utime, st_rec, end_rec   ! time vars
+  integer (i4b)          :: nx, ny, ntimes
+  integer (i4b)          :: nTotPredictors        ! total number of predictors for spatial regression
+  integer (i4b)          :: nDynPredictors        ! number of dynamic predictors for spatial regression
+  integer (i4b)          :: st_stndata_utime, end_stndata_utime, st_rec, end_rec   ! time vars
  
-  real (dp) :: maxdistance
+  real (dp)              :: maxdistance           ! radius of circular sampling domain for predictor stations (km)
   real (dp), allocatable :: grdlat (:), grdlon (:), grdelev (:), grd_slp_n (:), grd_slp_e (:), &
                             & mask_1d (:)
   real (sp), allocatable :: pcp (:, :), pop (:, :), pcperror (:, :)
@@ -252,7 +246,7 @@ program gmet
   station_var                = config_values(6)
   output_file                = config_values(12)
   grid_list                  = config_values (13)
-  read(config_values(14), *) maxdistance          ! convert config str to number
+  read(config_values(14), *) maxdistance               ! converts config str to number
   site_var_t                 = config_values(15)
   directory                  = config_values(16)
   stn_startdate              = config_values(17)
@@ -264,7 +258,8 @@ program gmet
   dyn_predictor_names        = config_values(23)
   dynamic_prcp_var           = config_values(24)
   dyn_pred_infile_list       = config_values(25)
-  read(config_values(26), *)   kfold_trials
+  read(config_values(26), *)   sta_limit
+  read(config_values(27), *)   kfold_trials
   
   !check to see if output file path is valid
   !create the output file and see if an error occurs
@@ -307,8 +302,8 @@ program gmet
   end_stndata_utime = date_to_unix (stn_enddate)  ! returns secs-since-1970 for end date of station files
 
   ! calculate start & end recs for processing station data files 
-  st_rec  = floor((times(1)-st_stndata_utime)/86400) + 1
-  end_rec = floor((times(ntimes)-st_stndata_utime)/86400) + 1
+  st_rec  = floor((times(1) - st_stndata_utime)/86400) + 1
+  end_rec = floor((times(ntimes) - st_stndata_utime)/86400) + 1
   print *, 'st_rec and end_rec days since 1970/1/1: ', st_rec, end_rec
   ! --- end AWW add ---
  
@@ -373,6 +368,7 @@ program gmet
       deallocate (vals)
     end do
  
+    ! set station info from input metadata file
     call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
    & stn_slp_e, nstations, error, vars)  ! AWW-feb2016 handled reading station variables
     if (error /= 0) then
@@ -451,9 +447,9 @@ program gmet
     end if
 
     ! --- check kfold cross-validation settings
-    ! limit number of trial as 10-30
-    if((kfold_trials .gt. 30 .or. kfold_trials .lt. 2) .and. kfold_trials .ne. 0) then
-      print *,'Error:  K-fold trials limited to range of 2-30 trials, unless turned off with trials=0'
+    ! limit number of trial as 10-50
+    if((kfold_trials .gt. 50 .or. kfold_trials .lt. 2) .and. kfold_trials .ne. 0) then
+      print *,'Error:  K-fold trials limited to range of 2-50 trials, unless turned off with trials=0'
       stop
     end if
 
@@ -518,7 +514,7 @@ program gmet
  
     call estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, dyn_pred_infile_list, &
    & nDynPredictors, dynamic_vars, dynamic_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-   & stnid, station_var, directory, kfold_trials, pcp, pop, pcperror, obs_max_pcp, tmean, &
+   & stnid, station_var, directory, sta_limit, kfold_trials, pcp, pop, pcperror, obs_max_pcp, tmean, &
    & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, &
    & error, pcp_2, pop_2, pcperror_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
 

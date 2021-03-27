@@ -45,7 +45,8 @@ subroutine read_config (fname, n, config_names, values)
   config_names(23) = "NWP_VAR_NAMES"        ! variable list for NWP predictors
   config_names(24) = "NWP_PRCP_VAR_NAME"    ! variable name of NWP precipitation predictor
   config_names(25) = "NWP_INPUT_FILE_LIST"  ! list of NWP input files
-  config_names(26) = "KFOLD_TRIALS"         ! number of kfold xval trials to run [10-30]
+  config_names(26) = "NUM_STATIONS"         ! number of stations to include in regression for each point
+  config_names(27) = "KFOLD_TRIALS"         ! number of kfold xval trials to run [2-50]; 0 means cross-val is not run
  
   do i = 1, n, 1
     values (i) = ""

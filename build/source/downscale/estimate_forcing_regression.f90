@@ -2,7 +2,7 @@
 
 subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, nwp_input_list, &
   & nDynPRedictors, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
-  & stnid, stnvar, directory, kfold_trials, pcp, pop, pcperr, obs_max_pcp, tmean, &
+  & stnid, stnvar, directory, sta_limit, kfold_trials, pcp, pop, pcperr, obs_max_pcp, tmean, &
   & tmean_err, trange, trange_err, mean_autocorr, mean_tp_corr, error, &
   & pcp_2, pop_2, pcperr_2, tmean_2, tmean_err_2, trange_2, trange_err_2, use_stn_weights)
 
@@ -49,7 +49,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
       real(DP), intent(in)          :: Z(:,:)              ! grid metadata array
       real(DP), intent(in)          :: X(:,:)              ! station metadata array
       real(DP), intent(in)          :: search_distance     ! default station search distance
-      integer(I4B), intent(in)      :: sta_limit           ! maximum number of stations for a grid point
+      integer(I4B), intent(in)      :: sta_limit           ! maximum number of stations used in regression
       real(DP), intent(in)          :: sta_data(:,:)       ! station data values for precipitation
       real(DP), intent(in)          :: tair_data(:,:,:)    ! station air temperature data
       !in/out
@@ -219,7 +219,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
   real (dp), intent (inout)  :: x (:, :), z (:, :)  ! station and grid point description arrays
   real (dp), intent (in)     :: maxdistance         ! max distance for weight function
   integer (i4b), intent (in) :: ngrid               ! number of grid points
-  real (dp), intent (in)     :: times (:)           !time step array
+  real (dp), intent (in)     :: times (:)           ! time step array
 
   ! AWW added next
   integer (i4b), intent (in) :: st_rec, end_rec
@@ -238,8 +238,8 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
 
   integer(I4B), intent(inout)       :: nTotPredictors      ! number of total predictors
   integer(I4B), intent(in)          :: nDynPRedictors      ! number of NWP predictors
+  integer(I4B), intent(in)          :: sta_limit           ! total number of stations in regression sample size
   integer(I4B), intent(in)          :: kfold_trials        ! number of kfold xval trials
-  !integer(I4B), intent(in)          :: kfold_hold         ! number of stations to withhold from regression
 
   real (sp), allocatable, intent (out) :: pcp (:, :), pop (:, :), pcperr (:, :) ! output variables for precipitation
   real (sp), allocatable, intent (out) :: tmean (:, :), tmean_err (:, :)        ! OLS tmean estimate and error
@@ -302,7 +302,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
   logical                   :: no_precip = .false.
 
   ! variables for tracking closest N stations for precipitation
-  integer (i4b), parameter   :: sta_limit = 30
+  !integer (i4b), parameter   :: sta_limit = 30
   integer (i4b), allocatable :: close_loc (:, :)
   integer (i4b), allocatable :: close_count (:)
   real (dp), allocatable     :: close_weights (:, :)
@@ -341,7 +341,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
   integer(i4b), allocatable :: sampling_order(:)              ! vector of sampling indices
   integer(i4B)              :: kfold_nsamp                    ! number of samples to draw from !AW same as nstation?
   
-  integer(I4B)              :: n_total,n_test,n_train         ! renamed loop limit variables  
+  integer(I4B)              :: n_total, n_test, n_train       ! renamed loop limit variables  
   integer(i4b)              :: end_test_stn, start_test_stn   ! endpoints of range of indices in test 
   integer(i4b)              :: trial_n_test                   ! n test sample in each trail (varies)
   integer(i4b)              :: nte, ntr                       ! counters
@@ -428,7 +428,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
   w_base = 0.0d0
   expand_dist = 0.0d0; expand_flag = 0; expand_dist_t = 0.0d0; expand_flag_t = 0
   xval_combinations = -999
-  sampling_order = -999
+  sampling_order    = -999
 
   ! ================= LOOP OVER STATIONS ============
   ! this part calls subroutines that calculate various correlations
