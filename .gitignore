@@ -1,0 +1,61 @@
+# git ignore file for GMET code
+
+# no .a or .o files
+*.[oa]
+
+# no .nc or bin files  (eg from expanded test case)
+*.nc
+*.bin
+
+# no .mod files
+*.mod
+*genmod*
+
+# no text editor temp files
+*~
+*swp
+*.0
+
+# no image files
+*.tif
+*.gif
+*.tiff
+*.jpeg
+*.jpg
+*.png
+
+# no executables
+*.exe
+
+# external codes (eg numerical recipes)
+build/source/from_NR/*.f90
+
+# no text files (OK)
+# *.txt
+
+#no archives
+*.tar
+#*.tgz -- allowing the example to exist as an archive
+*.gz
+*.zip
+*.Z
+
+# don't update local Makefiles; use Makefile-*local when compiling
+*local
+
+# bash scripts (OK)
+# *.bash
+
+# misc notes files
+LASTNEXT
+
+# ipynotebook files and directories
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+*/*/.ipynb_checkpoints/
+*/*/*/.ipynb_checkpoints/
+*ipnb*
+
+# expanded examples
+test_cases/example*/
+test_cases/example*/*/*bin

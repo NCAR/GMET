@@ -1,0 +1,146 @@
+# ============= Makefile for downscaling program ======================
+# AWW-2016:  split mega-file coefficients.f90 into smaller source files
+# AWW-2020:  build a proper makefile
+
+#========================================================================
+# PART 0: Define directory paths and select the compiler
+#========================================================================
+
+# Define core directory below which everything resides (GMET/ dir)
+F_MASTER = 
+
+# Core directory that contains source code
+F_SRC_DIR = $(F_MASTER)/build/source/downscale/
+
+# Numerical Recipes directory
+NR_DIR = $(F_MASTER)/build/source/from_NR/
+
+# Define the directory for the executables
+EXE_PATH = $(F_MASTER)/bin/
+
+EXE = downscale.2.exe
+
+# Define the Fortran Compiler
+FC = gfortran
+#FC = pgf90
+#FC = ifort
+
+#========================================================================
+# PART 1: Define the libraries and compiler settings
+#========================================================================
+
+ifeq ($(FC),gfortran)
+	#FCFLAGS = -g
+        #FCFLAGS = -O2
+
+        FCFLAGS = -O3 -ffree-line-length-none -fmax-errors=0
+
+        # flags forall (e.g. look for system .mod files, required in gfortran)
+	#FCFLAGS += -I/usr/local.net/netcdf-4.3.0/gcc-4.7.2/include
+        # FCFLAGS += -I/opt/netcdf4-gnu/include
+
+        FCFLAGS +=-I$(NCAR_INC_NETCDF) -I$(NCAR_INC_OPENBLAS)
+
+        # libraries needed for linking, unused in the examples
+        LIBRARIES = -L$(NCAR_LDFLAGS_NETCDF) -lnetcdff -L$(NCAR_LDFLAGS_OPENBLAS) $(NCAR_LIBS_OPENBLAS)
+
+        #LDLOCAL = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib
+        # LDFLAGS = $(LDLOCAL) -L/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib -lnetcdf -lnetcdff
+	#LDFLAGS = $(LDLOCAL) -L/opt/netcdf4-gnu/lib -lnetcdf -lnetcdff
+        #LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
+endif
+
+ifeq ($(FC),pgf90)
+
+	FCFLAGS = -g -Mbackslash -fPIC -Mlarge_arrays
+#	FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
+#	FCFLAGS = -O2 -Mbackslash -fPIC
+
+        # flags forall (e.g. look for system .mod files, required in gfortran)
+#	FCFLAGS += -I/usr/local/netcdf4-pgi/include
+#	FCFLAGS += -I/opt/netcdf4/include
+        FCFLAGS += -I/opt/netcdf4-pgi/include
+#	FCFLAGS += -I/opt/netcdf-4.3.3.1/pgi-15.1/include
+
+        # libraries needed for linking, unused in the examples
+#	LDLOCAL = -rpath,/usr/local/netcdf-4.1.1/pgi-v11-7/lib
+#	LDLOCAL = -rpath,/opt/netcdf4/lib
+	LDLOCAL = -rpath,/opt/netcdf4-pgi/lib
+
+#	LDFLAGS = $(LDLOCAL) -L/usr/local/netcdf4-pgi/lib -lnetcdff -lnetcdf
+#	LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
+#	LDFLAGS = $(LDLOCAL) -L/opt/netcdf4/lib -lnetcdff -lnetcdf
+	LDFLAGS = $(LDLOCAL) -L/opt/netcdf4-pgi/lib -lnetcdff -lnetcdf
+endif
+
+ifeq ($(FC),ifort)
+         FCFLAGS = -debug -warn all -check all -FR -O0 -auto -WB -traceback -g -fltconsistency -fpe0 -heap_arrays
+#        FCFLAGS = -O2 -warn all -FR -auto -WB -fltconsistency -fpe1 -heap_arrays
+#        FCFLAGS = -g -Mbackslash -fPIC -Ktrap=fp,inexact,inv,unf,ovf -Kieee
+
+        # flags forall (e.g. look for system .mod files, required in gfortran)
+#       FCFLAGS += -I/usr/local/netcdf4-pgi/include
+#       FCFLAGS += -I/opt/netcdf4-ifort/include
+
+        NCDF_PATH = $NETCDF
+        LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf  -L/opt/hdf5/lib 
+        INCNETCDF = -I$(NCDF_PATH)/include
+
+        LDFLAGS = $(LIBNETCDF) $(INCNETCDF) 
+endif
+
+#========================================================================
+# PART 2: Organize the various code files and groups
+#========================================================================
+
+# utility files (compile before NR)
+UTIL_FILES= \
+	type.f90 \
+	precmod.f90 \
+	string_mod.f90
+UTILS = $(patsubst %, $(F_SRC_DIR)/%, $(UTIL_FILES))
+
+# Numerical Recipes utilities
+NR_FILES= \
+	numrec.f90
+NR = $(patsubst %, $(NR_DIR)/%, $(NR_FILES))
+
+# main files
+SRC_FILES= \
+	utim.f90 \
+	read_config.f90 \
+	read_control.f90 \
+	read_nc.f90 \
+	read_domain_grid.f90 \
+	write_nc.f90 \
+	stats_routines.f90 \
+	regression_routines.f90 \
+	station_weights.f90 \
+	estimate_coefficients.f90 \
+	estimate_forcing_regression.f90 \
+	main.f90
+    
+SRC = $(patsubst %, $(F_SRC_DIR)/%, $(SRC_FILES))
+
+    
+#========================================================================
+# PART 3: Compile & link it
+#========================================================================
+
+# "make" builds and links all by default
+
+all: compile link clean install
+
+compile:
+	$(FC) $(FCFLAGS) -c $(UTILS) $(NR) $(SRC) $(INCNETCDF)
+
+link:
+	$(FC) $(FCFLAGS) $(LIBRARIES) -o $(EXE) *.o
+
+clean:
+	rm -f *.o *.mod *.MOD
+
+install:
+	mv $(EXE) $(EXE_PATH)
+        
+
