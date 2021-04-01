@@ -992,7 +992,9 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
                   ! calculate error for station locations (weighted sample std dev)
                   errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, :), b), kind(sp))-y_red(i))**2)
                 end do
-                pcperr(g, t) = real(errsum**0.5, kind(sp))/wgtsum_pcp
+                ! normalize and convert error variance into error standard deviation 
+                pcperr(g, t) = real((errsum/wgtsum_pcp)**0.5, kind(sp))
+                !pcperr(g, t) = real(errsum**0.5, kind(sp))/wgtsum_pcp
 
               else
                 ! cross-validate to calculate error for station locations
@@ -1022,7 +1024,9 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
                 errsum = errsum + (w_pcp_red(i, i)*(real (dot_product(x_red(i, noSlopePredicts), b), &
                                   & kind(sp)) - y_red(i))**2)
               end do
-              pcperr_2(g, t) = real(errsum**0.5, kind(sp))/wgtsum_pcp
+              ! normalize and convert error variance into error standard deviation 
+              pcperr_2(g, t) = real((errsum/wgtsum_pcp)**0.5, kind(sp))
+              !pcperr_2(g, t) = real(errsum**0.5, kind(sp))/wgtsum_pcp
 
             else
               ! cross-validate
@@ -1067,7 +1071,9 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
               errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, :), b), &
                                 & kind(sp)) - y_tmean_red(i))**2)                                 
             end do
-            tmean_err(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
+            ! normalize and convert error variance into error standard deviation 
+            tmean_err(g, t) = real((errsum/wgtsum_temp)**0.5, kind(sp))
+            !tmean_err(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
 
           else
             ! cross-validate
@@ -1095,7 +1101,9 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
               errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, noSlopePredicts), b), &
                                 & kind(sp)) - y_tmean_red(i))**2)                                 
             end do
-            tmean_err_2(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
+            ! normalize and convert error variance into error standard deviation 
+            tmean_err_2(g, t) = real((errsum/wgtsum_temp)**0.5, kind(sp))
+            !tmean_err_2(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
 
           else
             ! cross-validate
@@ -1126,7 +1134,9 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
               errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, :), b), &
                                 & kind(sp)) - y_trange_red(i))**2)                                 
             end do
-            trange_err(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
+            ! normalize and convert error variance into error standard deviation 
+            trange_err(g, t) = real((errsum/wgtsum_temp)**0.5, kind(sp))
+            !trange_err(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
 
           else
             ! cross-validate
@@ -1155,7 +1165,9 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
               errsum = errsum + (w_temp_red(i, i) * (real (dot_product(x_red_t(i, noSlopePredicts), b), &
                                 & kind(sp)) - y_trange_red(i))**2)                                 
             end do
-            trange_err_2(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
+            ! normalize and convert error variance into error standard deviation 
+            trange_err_2(g, t) = real((errsum/wgtsum_temp)**0.5, kind(sp))
+            !trange_err_2(g, t) = real(errsum**0.5, kind(sp))/wgtsum_temp
 
           else
             ! cross-validate

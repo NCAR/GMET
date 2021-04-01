@@ -112,7 +112,8 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
     
   end do
   
-  ! mean uncertainty estimate from all kfold trials
-  varUncert = real(errorSum**0.5, kind(sp))/weightSum      ! output cross-validated prediction error
+  ! normalize and convert error variance into error standard deviation 
+  !varUncert = real(errorSum**0.5, kind(sp))/weightSum
+  varUncert = real((errorSum/weightSum)**0.5, kind(sp))      ! output cross-validated prediction error
     
 end subroutine kfold_crossval
