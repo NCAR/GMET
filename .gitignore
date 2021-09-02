@@ -1,4 +1,4 @@
-# git ignore file for GMET code
+# === git ignore file for GMET codes ====
 
 # no .a or .o files
 *.[oa]
@@ -28,7 +28,7 @@
 *.exe
 
 # external codes (eg numerical recipes)
-build/source/from_NR/*.f90
+source/from_NR/*.f90
 
 # no text files (OK)
 # *.txt
@@ -48,6 +48,7 @@ build/source/from_NR/*.f90
 
 # misc notes files
 LASTNEXT
+NOTES
 
 # ipynotebook files and directories
 .ipynb_checkpoints/
@@ -56,6 +57,6 @@ LASTNEXT
 */*/*/.ipynb_checkpoints/
 *ipnb*
 
-# expanded examples
-test_cases/example*/
-test_cases/example*/*/*bin
+# examples that have been uncompressed
+test_cases/example1/
+test_cases/example2/
