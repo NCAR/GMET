@@ -1,6 +1,4 @@
-# ============= Makefile for downscaling program ======================
-# AWW-2016:  split mega-file coefficients.f90 into smaller source files
-# AWW-2020:  build a proper makefile
+# ============= Makefile for sp_regression program ======================
 
 #========================================================================
 # PART 0: Define directory paths and select the compiler
@@ -10,15 +8,15 @@
 F_MASTER = 
 
 # Core directory that contains source code
-F_SRC_DIR = $(F_MASTER)/build/source/downscale/
+F_SRC_DIR = $(F_MASTER)/source/sp_regression/
 
 # Numerical Recipes directory
-NR_DIR = $(F_MASTER)/build/source/from_NR/
+NR_DIR = $(F_MASTER)/source/from_NR/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)/bin/
 
-EXE = downscale.exe
+EXE = sp_regression.exe
 
 # Define the Fortran Compiler
 FC = gfortran

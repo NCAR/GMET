@@ -1,42 +1,32 @@
-#========================================================================
-# Makefile to compile the SCRF Code
-#========================================================================
-#  Modified:
-#    Andy Newman, 2013
-#    A. Wood, 2016 -- updated random initialization procedures and
-#                     namelist usage
-#                     renamed many subroutines in code reorganizaton
-#                     a modified version of NR ran_state.f90 moved to
-#                     main directory
-#
-#========================================================================
-# PART 0: Define directory paths and select the compiler
-#========================================================================
+# === Makefile to compile the ensemble generation code ===================
 
-# Define core directory below which everything resides (GMET/ dir)
+# ========================================================================
+# PART 0: Define directory paths and select the compiler
+# ========================================================================
+
+# Define core directory below which everything resides (ie, GMET/ dir)
 F_MASTER = 
 
 # Core directory that contains source code
-F_SRC_DIR = $(F_MASTER)/build/source/scrf/
+F_SRC_DIR = $(F_MASTER)/source/ens_generation/
+
+# numerical recipes directory
+NR_DIR = $(F_MASTER)/source/from_NR/
 
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)/bin/
 
 # Name the executable
-EXE = generate_ensemble.exe
+EXE = generate_ensembles.exe
 
 # Define the Fortran Compiler
-#FC  = pgf90
 FC  = gfortran
+#FC  = pgf90
 #FC = ifort
 
 #========================================================================
 # PART 1: Assemble all of the various sub-routines
 #========================================================================
-
-# Define directories
-MAIN_DIR = $(F_SRC_DIR)
-NR_DIR = $(F_MASTER)/build/source/from_NR/
 
 # Numerical Recipes utilities
 SCRF_NRUTIL= \
@@ -72,7 +62,7 @@ SCRF_DATAMS= \
 		dat_2dgrid.f90 \
 		inputdat2d.f90 \
 		namelist_module.f90
-DATAMS = $(patsubst %, $(MAIN_DIR)/%, $(SCRF_DATAMS))
+DATAMS = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_DATAMS))
 
 # Routines taken from or modifed versions of Jason Craig's old Prob QPE code
 PROB_QPE= \
@@ -82,7 +72,7 @@ PROB_QPE= \
 		save_vars.f90 \
 		read_nc_grid.f90 \
 		read_grid_list.f90
-QPE = $(patsubst %, $(MAIN_DIR)/%, $(PROB_QPE))
+QPE = $(patsubst %, $(F_SRC_DIR)/%, $(PROB_QPE))
 
 # Define routines for SCRF code
 # A. Wood, added the rand seed initialization here (last one)
@@ -94,12 +84,12 @@ SCRF_GEN = \
 		field_rand.f90 \
 		spcorr_grd.f90 \
                 init_rand_seed_I4B.f90
-GEN = $(patsubst %, $(MAIN_DIR)/%, $(SCRF_GEN))
+GEN = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_GEN))
 
 # Define the driver routine
 SCRF_DRIVER= \
 		scrf_driver.f90
-DRIVER = $(patsubst %, $(MAIN_DIR)/%, $(SCRF_DRIVER))
+DRIVER = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_DRIVER))
 
 
 #========================================================================
