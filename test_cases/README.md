@@ -13,7 +13,7 @@ Example 1 Details:
   - run ensemble generation with
     ~> generate_ensemble.exe namelist.ens_forc.txt
 
-Example2 Details;
+Example 2 Details;
   - A. Wood, 20210903
   - GMET v2
   - capabilties:  kfold_xval, station weighting options, and dynamic predictors (HRRR)
@@ -27,7 +27,6 @@ Example2 Details;
   - run ensemble generation with
     ~> generate_ensemble.exe namelist.ens_forc.txt
   - data and capabilities described in 
-      Bunn, PTW, AW Wood, AJ Newman, H Chang and CL Castro, 2021, 
+      Bunn, PTW, AW Wood, AJ Newman, H Chang, CL Castro, MP Clark, and JR Arnold, 2021, 
       Improving in situ observation-based ensemble surface meteorological analyses using numerical weather prediction:  
       A case study of the Oroville Dam crisis precipitation event. AMS J. Hydromet. (in review)
-
