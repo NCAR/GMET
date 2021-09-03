@@ -1,4 +1,4 @@
-! Major routine for processing station data and calculating the spatial regression
+! Main routine for processing station and grid predictor data and calculating the spatial regression
 
 subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_weight_name, nwp_input_list, &
   & nDynPRedictors, nwp_vars, nwp_prcp_var, x, z, ngrid, maxdistance, times, st_rec, end_rec, &
@@ -131,24 +131,11 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
       real (dp), intent (inout) :: x (:, :)
     end subroutine normalize_x
 
-    ! added AJN Sept 2013
-    !subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
-      !use type
-      !real (dp), intent (inout) :: x (:)
-      !real (dp), intent (in) :: weight (:)
-      !real (dp), intent (out) :: mean
-      !real (dp), intent (out) :: stdev
-      !real (dp), intent (out) :: stdev_all
-      !real (dp), intent (out) :: smin
-      !real (dp), intent (out) :: smax
-      !integer (i4b), intent (out) :: yp (:)
-    !end subroutine normalize_xv
-
-    subroutine max_x (x, smax)
-      use type
-      real (dp), intent (inout) :: x (:)
-      real (dp), intent (out) :: smax
-    end subroutine max_x
+    !subroutine max_x (x, smax)
+    !  use type
+    !  real (dp), intent (in) :: x (:)
+    !  real (dp), intent (out) :: smax
+    !end subroutine max_x
     
     subroutine normalize_y (texp, y)
       use type
@@ -198,7 +185,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
       real (dp), dimension (:), intent (inout) :: ra
     end subroutine heapsort
 
-    subroutine kfold_crossval(X, Y, W, kfold_trials, kfold_nsamp, n_train, xval_combinations, varUncert)
+    subroutine kfold_crossval(X, Y, W, kfold_trials, kfold_nsamp, n_train, max_n_test, xval_combinations, varUncert)
       use type
       implicit none
       !inputs/outputs 
@@ -208,6 +195,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
       integer(I4B), intent(in)  :: kfold_trials            ! number of kfold xval trials
       integer(I4B), intent(in)  :: kfold_nsamp             ! number of samples to draw from
       integer(I4B), intent(in)  :: n_train                 ! number of stations in training sample
+      integer(i4b), intent(in)  :: max_n_test              ! maximum test sample size over all trials
       integer(I4B), intent(in)  :: xval_combinations(:,:)  ! array of sampling combinations (integer array indicies)
       real(sp), intent(out)     :: varUncert               ! output: uncertainty estimate from kfold trials
     end subroutine kfold_crossval
@@ -343,9 +331,11 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
   
   integer(I4B)              :: n_total, n_test, n_train       ! renamed loop limit variables  
   integer(i4b)              :: end_test_stn, start_test_stn   ! endpoints of range of indices in test 
-  integer(i4b)              :: trial_n_test                   ! n test sample in each trail (varies)
-  integer(i4b)              :: nte, ntr                       ! counters
+  integer(i4b)              :: trial_n_test, trial_n_train    ! test & train sample size in each trial (varies)
+  integer(i4b)              :: max_trial_n_test               ! size of largest test sample in trials
+  integer(i4b)              :: nte, ntr                       ! counters for start/end of train/test indices in array
   
+  real (dp), parameter      :: transform_exp = 4.0            ! power law transform exponent; must match setting in ens_generation code
 
   !==============================================================!
   !                     code starts below here                   !
@@ -556,28 +546,38 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
   if(kfold_trials > 0) then
     ! Create a station subset sampling indexes for kfold cross-validation
     sampling_order = scrambled_indices(kfold_nsamp)        ! vector
-    n_test  = floor(kfold_nsamp*1.0/(kfold_trials*1.0))    ! number of test records per fold
-    n_train = kfold_nsamp - n_test                         ! number of training records per fold
-    print*, ' '; print*, 'using cross-validation for regression uncertainty estimation'
+    n_test  = floor(kfold_nsamp*1.0/(kfold_trials*1.0))    ! number of nominal test records per fold, rounded down if not int
+    n_train = kfold_nsamp - n_test                         ! number of nominal training records per fold
+    print*, ' '; print*, 'Using cross-validation for regression uncertainty estimation'
     print*, 'k_folds = ', kfold_trials
     print*, 'n_total = ', kfold_nsamp
-    print*, 'n_train = ', n_train
-    print*, 'n_test  = ', n_test, ' (nominal)'; print*, ' ' 
+    print*, 'n_train = ', n_train, ' (nominal)'
+    print*, 'n_test  = ', n_test, ' (nominal)'
 
     ! now parcel out test/train samples into array
+    max_trial_n_test = 0
     do i = 1, kfold_trials
+      ! starting index for each sample
       start_test_stn = (i-1)*n_test + 1
-      if(i .eq. kfold_trials) then 
-        end_test_stn = kfold_nsamp
-        trial_n_test = abs(start_test_stn - kfold_nsamp) + 1
-      else 
-        end_test_stn = i * n_test
-        trial_n_test = end_test_stn - start_test_stn + 1  ! final group may be a larger test size
-      end if  
 
+      ! calculate the ending index and size of each sample
+      if(i .lt. kfold_trials) then 
+        ! all but the last sample have the nominal train/test sizes
+        end_test_stn = i * n_test
+      else 
+        ! if the number of folds is not a multiple of the total station number, the last test sample 
+        !    may be larger than the nominal n_test.  
+        end_test_stn = kfold_nsamp
+      end if  
+      
+      trial_n_test  = end_test_stn - start_test_stn + 1  
+      trial_n_train = kfold_nsamp - trial_n_test
+
+      ! store indices for each trial in an array (rows=trials, cols=indices)
+      ! (this isn't vectorized because training subset may be non-contiguous)
       xval_combinations(i,1) = trial_n_test   ! store test sample size as first column
-      ntr = 2                                 ! training indices go in 2:n_train+1 (fixed)
-      nte = n_train + 2                       ! test indices start at n_train+2 
+      ntr = 2                                 ! start of training indices:  go in 2:(n_train+1) (fixed)
+      nte = trial_n_train + 2                 ! test indices start at n_train+2 
       do j = 1, kfold_nsamp
         if(j .lt. start_test_stn .or. j .gt. end_test_stn) then
           xval_combinations(i,ntr) = sampling_order(j)  ! store training indices in next n_train cols
@@ -587,12 +587,17 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           nte = nte + 1
         end if
       end do
-    end do
-  end if
+
+    end do  ! end loop over trials
+    
+    max_trial_n_test  = maxval(xval_combinations(:, 1))
+    print*, 'n_test  = ', max_trial_n_test, ' (max)'; print*, ' ' 
+    
+  end if  ! end IF block for calculating k-fold indices
 
   ! message about whether station dist weights are used
   if(use_stn_weights .eq. "TRUE" .or. use_stn_weights .eq. "true") then
-    print*, 'using station distance weights'; print*, ' '
+    print*, 'Using station distance weights'; print*, ' '
   else 
     print*, ' '; print*, 'setting station distance weights equal'; print*, ' '
   end if
@@ -611,8 +616,8 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
       y_trange (i) = abs (tair_data(2, i, t)-tair_data(1, i, t))
     end do
 
-    ! do power transformation on precip vector
-    call normalize_y (4.0d0, y)    ! AWW SHOULD NOT BE HARDWIRED
+    ! do power-law transformation on current time's precipitation values
+    call normalize_y (transform_exp, y)
 
     ! if dynamic predictors are used
     if(nDynPRedictors > 0) then
@@ -640,8 +645,8 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
       ! AW:  note, does this need to be in the time/grid loop?  
       !      which list to use varies but lists do not (no g or t in settings)
       nTotPredictors = nBase + nDynPRedictors
-      noSlopePredicts(1:4) = (/1,2,3,4/)
-      noPrcpPredicts(1:6) = (/1,2,3,4,5,6/)
+      noSlopePredicts(1:4)       = (/1,2,3,4/)
+      noPrcpPredicts(1:6)        = (/1,2,3,4,5,6/)
       noPrcpNoSlopePredicts(1:4) = (/1,2,3,4/)
 
       ! if dynamic predictors are used 
@@ -761,7 +766,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           !  print*, 'close loc ',i,' weight ', w_pcp_red(i,i)
           !end if
 
-          y_red (i) = y(close_loc(g, i))
+          y_red (i)    = y(close_loc(g, i))    ! sample of nearby station precip
           x_red (i, :) = x(close_loc(g, i), :)
 
           if (prcp_data(close_loc(g, i), t) .gt. 0.0) then
@@ -772,9 +777,10 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           end if
         end do
 
-        ! variables for box-cox transform
-        call max_x (y_red, step_max)
-        obs_max_pcp(g, t) = step_max     
+        ! output max of sampled obs transformed precip for limiting back-transformed precip; propagated to ens_generation step
+        !call max_x (y_red, step_max)
+        !obs_max_pcp(g, t) = step_max     
+        obs_max_pcp(g, t) = max(maxval(y_red), 0.0)
 
         ! ---- second, TEMPERATURES ----
 
@@ -999,7 +1005,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
               else
                 ! cross-validate to calculate error for station locations
                 call kfold_crossval(x_red, y_red, w_pcp_red, kfold_trials, &
-                                    kfold_nsamp, n_train, xval_combinations, pcperr(g,t)) 
+                                    kfold_nsamp, n_train, max_trial_n_test, xval_combinations, pcperr(g,t)) 
               end if
               deallocate (b) ! b is allocated in least_squares()
             end if
@@ -1031,7 +1037,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
             else
               ! cross-validate
               call kfold_crossval(x_red(:,noSlopePredicts), y_red, w_pcp_red, kfold_trials, &
-                                kfold_nsamp, n_train, xval_combinations, pcperr_2(g,t)) 
+                                kfold_nsamp, n_train, max_trial_n_test, xval_combinations, pcperr_2(g,t)) 
             end if
             deallocate (b)   ! b is allocated in least_squares() process
 
@@ -1078,7 +1084,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           else
             ! cross-validate
             call kfold_crossval(x_red_t, y_tmean_red, w_temp_red, kfold_trials, &
-                              kfold_nsamp, n_train, xval_combinations, tmean_err(g,t)) 
+                              kfold_nsamp, n_train, max_trial_n_test, xval_combinations, tmean_err(g,t)) 
           end if
           deallocate (b)
 
@@ -1108,7 +1114,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           else
             ! cross-validate
             call kfold_crossval(x_red_t(:,noSlopePredicts), y_tmean_red, w_temp_red, kfold_trials, &
-                                kfold_nsamp, n_train, xval_combinations, tmean_err_2(g,t)) 
+                                kfold_nsamp, n_train, max_trial_n_test, xval_combinations, tmean_err_2(g,t)) 
           end if
           deallocate (b)
 
@@ -1141,7 +1147,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           else
             ! cross-validate
             call kfold_crossval(x_red_t, y_trange_red, w_temp_red, kfold_trials, &
-                                kfold_nsamp, n_train, xval_combinations, trange_err(g,t)) 
+                                kfold_nsamp, n_train, max_trial_n_test, xval_combinations, trange_err(g,t)) 
           end if
           deallocate (b)
 
@@ -1172,7 +1178,7 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           else
             ! cross-validate
             call kfold_crossval(x_red_t(:,noSlopePredicts), y_trange_red, w_temp_red, kfold_trials, &
-                              kfold_nsamp, n_train, xval_combinations, trange_err_2(g,t)) 
+                              kfold_nsamp, n_train, max_trial_n_test, xval_combinations, trange_err_2(g,t)) 
           end if
           deallocate (b)
 

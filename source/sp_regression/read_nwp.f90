@@ -7,62 +7,63 @@ subroutine read_nwp (currentTime,nwp_timestep_file,nPredict,n_nwp,nwp_vars,stati
 
   character (len=2000), intent (in) :: nwp_timestep_file
   character (len=100), intent (in)  :: nwp_vars(:)
-  integer(i4b), intent(in)          :: nPredict     !total number of predictors
-  integer(i4b), intent(in)          :: n_nwp        !number of NWP predictors
-  integer(i4b), intent(in)          :: station_grid(:)        !nearest grid point for every station location
-  real(dp), intent(in)          :: currentTime  !current timestep unix time
-  real (dp), intent (inout) :: x(:,:), z(:,:) !station and grid predictor matrices
-  integer(i4b), intent (inout) :: error !error integer
+  integer(i4b), intent(in)          :: nPredict         ! total number of predictors
+  integer(i4b), intent(in)          :: n_nwp            ! number of NWP predictors
+  integer(i4b), intent(in)          :: station_grid(:)  ! nearest grid point for every station location
+  real(dp), intent(in)              :: currentTime      ! current timestep unix time
+  real (dp), intent (inout)         :: x(:,:), z(:,:)   ! station and grid predictor matrices
+  integer(i4b), intent (inout)      :: error            ! error integer  (why inout .. should be just out)
 
   !local variables
-  integer(I4B)  :: utime     !unix time variable
-  integer(I4B)  :: ncid     !
-  integer(I4B)  :: varid     !
-  integer (I4b) :: ngrids    !number of grid points
-  integer (i4b) :: vshape (2) !shape of matricies
+  integer(I4B)  :: utime        ! unix time variable
+  integer(I4B)  :: ncid         !
+  integer(I4B)  :: varid        !
+  integer (I4b) :: ngrids       ! number of grid points
+  integer (i4b) :: vshape (2)   ! shape of matricies
   integer (i4b) :: i,s          ! counter variables
   integer (i4b) :: nbase
   integer (i4b) :: nSta
-  integer(I4b)  :: nlat,nlon    !lat and lon dimensions
-  integer(I4b)  :: latid,lonid  !lat and lon dimension ids
+  integer(I4b)  :: nlat,nlon    ! lat and lon dimensions
+  integer(I4b)  :: latid,lonid  ! lat and lon dimension ids
 
   character(len=100) :: nwpTime
 
   real(dp), allocatable :: var(:,:)
   real(dp), allocatable :: var1d(:)
 
-  !code starts below
+  ! ----- code starts below ------
   error = 0
 
   nBase = nPredict - n_nwp
 
-  !the NWP file should have the same date as the current time step 
-  !convert NWP valid time to unix time
-  call check (nf90_open(nwp_timestep_file, nf90_nowrite, ncid), "File open error", error)
+  ! the NWP file should have the same date as the current time step 
+  call check (nf90_open(trim(nwp_timestep_file), nf90_nowrite, ncid), "File open error", error)
   if (error /= 0) stop
 
-  call check (nf90_get_att(ncid,NF90_GLOBAL,"valid_time",nwpTime),"NWP file does not have valid_time global attribute",error)
+  call check (nf90_get_att(ncid, NF90_GLOBAL, "valid_time", nwpTime),"NWP file does not have valid_time global attribute",error)
   if (error /= 0) stop
 
+  ! convert NWP valid time to unix time
   utime = date_to_unix (trim(nwpTime))
 
   !check time stamps of regression step and NWP file
   if(utime /= currentTime) then  !may need to give a range here for comparison...
-    print *,'Current NWP time: ',utime,trim(nwpTime),' does not match regression timestep: ',currentTime
+    print *,'Current NWP time: ', utime, trim(nwpTime), ' does not match regression timestep: ', currentTime
     stop
   end if
 
-  !get grid points
+  ! get grid points
   vshape = shape(z)
   ngrids = vshape(1)
 
+  ! allocate variable for grid
   allocate(var1d(ngrids))
 
-  !get nSta
+  ! get nSta
   vshape = shape(x)
   nSta = vshape(1)
 
-  !run through nwp_vars list
+  ! loop over nwp_vars list
 
   do i = 1, n_nwp, 1
     call check (nf90_inq_varid(ncid, nwp_vars(i), varid),"Error inquiring NWP variable",error)
@@ -114,5 +115,6 @@ contains
       error = 1
     end if
   end subroutine check
+  
 end subroutine read_nwp
 

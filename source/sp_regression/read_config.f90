@@ -20,10 +20,10 @@ subroutine read_config (fname, n, config_names, values)
   end if
 
   ! define config file names
-  config_names(1)  = "MODE"
-  config_names(2)  = "START_DATE"
+  config_names(1)  = "MODE"                ! only mode 2 is currently supported
+  config_names(2)  = "START_DATE"          ! start/end dates of regression
   config_names(3)  = "END_DATE"
-  config_names(4)  = "SITE_LIST"
+  config_names(4)  = "SITE_LIST"           ! list of station sites to process
   config_names(5)  = "SITE_VAR"
   config_names(6)  = "STATION_VAR"
   config_names(7)  = "PERTURBATION"
@@ -36,18 +36,19 @@ subroutine read_config (fname, n, config_names, values)
   config_names(14) = "MAX_DISTANCE"         ! entered in km
   config_names(15) = "SITE_VAR_T"           ! whether to use cross-correlation with temperature
   config_names(16) = "DATA_DIRECTORY"       ! free data dir from site list path
-  config_names(17) = "STN_START_DATE"       ! add station period limits
+  config_names(17) = "STN_START_DATE"       ! add station data period limits (start/end)
   config_names(18) = "STN_END_DATE"         !  
-  config_names(19) = "GEN_STA_WEIGHTS"      ! T/F whether station weights need to be generated
+  config_names(19) = "GEN_STA_WEIGHTS"      ! T/F whether station weights need to be generated versus read from file
   config_names(20) = "STA_WEIGHT_NAME"      ! filename for binary station weights file
   config_names(21) = "USE_STN_WEIGHTS"      ! use station weights in forming regression (TRUE/FALSE)
-  config_names(22) = "NPREDICT"             ! total number of predictors (6+number of NWP predictors)
-  config_names(23) = "NWP_VAR_NAMES"        ! variable list for NWP predictors
-  config_names(24) = "NWP_PRCP_VAR_NAME"    ! variable name of NWP precipitation predictor
-  config_names(25) = "NWP_INPUT_FILE_LIST"  ! list of NWP input files
+  config_names(22) = "N_DYN_PREDICTORS"     ! total number of dynamic predictors
+  config_names(23) = "DYN_VAR_NAMES"        ! variable list for dynamic predictors
+  config_names(24) = "DYN_PRCP_VAR_NAME"    ! variable name of dynamic precipitation predictor
+  config_names(25) = "DYN_INPUT_FILE_LIST"  ! list of dynamic predictor input files
   config_names(26) = "NUM_STATIONS"         ! number of stations to include in regression for each point
   config_names(27) = "KFOLD_TRIALS"         ! number of kfold xval trials to run [2-50]; 0 means cross-val is not run
- 
+
+  ! initialize entries
   do i = 1, n, 1
     values (i) = ""
   end do

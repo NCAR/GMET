@@ -7,14 +7,14 @@ program generate_ensembles
 !                   -- no longer hardwired; clean formatting
 !                   -- adding documentation
 !                   -- altered namelist args to specify ens range
-!   A. Wood, 2020   -- fixing bugs in variable and file checks
-!   H. Liu / AW, 2020 -- adding box-cox transform, removing standardization, fixing
-!                        error calcs, daylighting constants, documenting
+!   A. Wood, 2020   -- fixing bugs in variable and file checks, fixing
+!                        error calc bug, daylighting constants, documenting
+!   H. Liu / AW, 2020 -- adding box-cox transform, removing standardization
 ! -----------------------------------------------------------------------------
 ! Purpose:
-!   Driver for spatially correlated random field code from Martyn Clark
+!   Driver for spatially correlated random field code
 !   Generates ensembles of precipitation and temperature from regression step
-!   See Newman et al. 2015 JHM
+!   See Clark and Slater, 2006; Newman et al. 2015 JHM; Bunn et al., 2020
 ! -----------------------------------------------------------------------------
  
   use netcdf 
@@ -96,10 +96,10 @@ program generate_ensembles
   ! ================== END of INTERFACES ===============
 
   ! Parameters
-  real (dp), parameter :: slope_threshold = 3.6       ! switch between using slopes as predictors (def=3.6)
-                                                      ! 0.3 for NLDAS application (H. Liu)
-  real (dp), parameter :: transform = 4.0             ! power law transform exponent 
-  real (dp), parameter :: precip_err_cap = 0.2        ! fraction above obs max precip to use in cap of std error sampling
+  real (dp), parameter :: slope_threshold = 3.6       ! switch between using slopes as predictors (def=3.6 for slopes = y/x*1000)
+                                                      !    0.3 for NLDAS application (Liu et al, 2022)
+  real (dp), parameter :: transform_exp   = 4.0       ! power law transform exponent; must match setting in sp_regression code
+  real (dp), parameter :: precip_err_cap  = 0.2       ! fraction above obs max precip to use in cap of std error sampling
 
   ! Local variables
   integer (i4b) :: i, j, k, igrd, istep, iens                  ! counter variables
@@ -123,8 +123,9 @@ program generate_ensembles
  
   real (dp) :: cprob    ! cdf value from scrf
   real (dp) :: amult    ! multiplier value to get actual precip from normalized value                                 ::
-  real (dp) :: rn
-  real (dp) :: ra
+  real (dp) :: rn       ! stdnorm deviate for adding sampled error
+  real (dp) :: ra       ! temporary precip estimate
+  real (dp) :: ra_limit ! limit on precip estimate
   real (dp) :: ra_err
   real (dp) :: cs
   real (dp) :: cprob_ra
@@ -168,7 +169,7 @@ program generate_ensembles
   real (dp), allocatable :: times (:)             ! time vector from qpe code
   real (dp), allocatable :: auto_corr (:)         ! lag-1 autocorrelation vector from qpe code
   real (dp), allocatable :: tpc_corr (:)          ! temp-precip correlation vector from qpe code
-  real (dp), allocatable :: obs_max_pcp (:, :, :) ! max of normalized transf. non-0 pcp (each tstep)
+  real (dp), allocatable :: obs_max_pcp (:, :, :) ! max of transf. non-0 pcp (each tstep) near each grid cell
   real (sp), allocatable :: pcp_out (:, :, :)     !
   real (sp), allocatable :: tmean_out (:, :, :)   !
   real (sp), allocatable :: trange_out (:, :, :)  !
@@ -236,7 +237,7 @@ program generate_ensembles
   allocate (trange_2(nx, ny, ntimes))
   allocate (trange_error_2(nx, ny, ntimes))
  
-  allocate (obs_max_pcp(nx, ny, ntimes))       ! for box-cox transform
+  allocate (obs_max_pcp(nx, ny, ntimes))       ! for output precip cap
  
   allocate (times(ntimes))
   allocate (auto_corr(ntimes))
@@ -332,7 +333,7 @@ program generate_ensembles
   error = nf90_get_var (ncid, varid, trange_error_2, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
   if (error /= 0) stop "Cannot read netcdf variable "//var_name
  
-  var_name = 'obs_max_pcp'      ! needed for box-cox
+  var_name = 'obs_max_pcp'      ! needed to cap back-transformed precipitation
   error = nf90_inq_varid (ncid, var_name, varid); if (error /= 0) stop "Cannot read netcdf variable "//var_name 
   error = nf90_get_var (ncid, varid, obs_max_pcp, start= (/ 1, 1, start_time /), count= (/ nx, ny, ntimes /))
   
@@ -439,7 +440,8 @@ program generate_ensembles
   call field_rand (nspl1, nspl2, trange_random)
  
   print *, 'Done generating weights...'
-  print *, 'Generating ensembles...'
+  print *, '--------------------------'
+  print *, 'Generating ensembles...'; print*, ' '
  
   ! ============ loop through the ensemble members ============
   ! do iens = 1, nens
@@ -507,18 +509,27 @@ program generate_ensembles
             ra = real(pcp(isp1, isp2, istep), kind(dp)) + rn * real(pcp_error(isp1, isp2, istep), kind(dp))
  
             if (ra .gt. 0.0) then
-              ra = (ra*(1.0d0/transform)+1) ** transform  ! box-cox back-transformation              
+              ra = ( ra*(1.0d0/transform_exp) + 1 ) ** transform_exp  ! box-cox back-transformation              
             else
               ra = 0.01
             end if
  
-            ! limit max value to obs_max_pcp + pcp_error (max station value + some portion of error)
-            if (ra .gt. ((real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + &
-                 & real(pcp_error(isp1, isp2, istep), kind(dp))) * &
-                 & (1.0d0/transform)+1)**transform) then
+            ! limit max value if ra (estimate precip) is greater than (obs_max_pcp + pcp_error term) after back-transf.
+            ra_limit = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + &
+                 & real(pcp_error(isp1, isp2, istep), kind(dp))) * (1.0d0/transform_exp) + 1 ) ** transform_exp
+
+            if (ra .gt. ra_limit) then
+                 
               ra = ((real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + precip_err_cap * &
-                 & real(pcp_error(isp1, isp2, istep), kind(dp))) * &
-                 & (1.0d0/transform)+1) ** transform
+                 & real(pcp_error(isp1, isp2, istep), kind(dp))) * (1.0d0/transform_exp) + 1) ** transform_exp
+
+
+!            if (ra .gt. ( ( real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + &
+!                 & real(pcp_error(isp1, isp2, istep), kind(dp)) ) * (1.0d0/transform_exp) + 1 ) ** transform_exp) then
+!                 
+!              ra = ( ( real(obs_max_pcp(isp1, isp2, istep), kind(dp)) + precip_err_cap * &
+!                 & real(pcp_error(isp1, isp2, istep), kind(dp)) ) * (1.0d0/transform_exp) + 1 ) ** transform_exp
+                 
               pcp_cap_count = pcp_cap_count + 1
             end if
 
@@ -570,8 +581,7 @@ program generate_ensembles
       ! generate new random numbers for trange
       old_random = trange_random
       call field_rand (nspl1, nspl2, trange_random)
-      trange_random = old_random * auto_corr (1) + sqrt (1-auto_corr(1)*auto_corr(1)) * &
-     & trange_random
+      trange_random = old_random * auto_corr (1) + sqrt (1-auto_corr(1)*auto_corr(1)) * trange_random
  
       ! then use t-p correlation and trange_random to condition the precip random numbers
       ! generate new random numbers for precip
@@ -582,16 +592,16 @@ program generate_ensembles
     end do !end time step loop
 
     ! ============ now WRITE out the data file ============
-    print *, 'Done with ensemble member: ', iens
+    print *, 'Ensemble member:', iens
     write (suffix, '(I3.3)') iens
     ! print *, 'Done with ensemble member: ', iens + start_ens - 1
     ! write (suffix, '(I3.3)') iens + start_ens - 1
 
-    print*, '--- pcp_cap_count = ', pcp_cap_count, ' pcp_val_count = ', pcp_val_count
+    print*, '  -- pcp_cap_count = ', pcp_cap_count, ' pcp_val_count = ', pcp_val_count
  
     ! setup output name
     out_name = trim (out_name) // '.' // trim (suffix) // '.nc'
-    print *, trim (out_name)
+    print *, '  wrote: ', trim(out_name)
  
     ! save to netcdf file
     call save_vars (pcp_out, tmean_out, trange_out, nx, ny, lat_out, lon_out, hgt_out, &

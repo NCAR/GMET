@@ -34,7 +34,6 @@ subroutine normalize_x (x)
  
 end subroutine normalize_x
  
-!added AJN Sept 2013
 subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
   use type
   implicit none
@@ -103,7 +102,6 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
       sum_std = sum_std + (x(t)-mean) ** 2
     end if
   end do
-  !  stdev_all = sqrt(sum_stdev/(ntimes-1))
  
   if (sum(yp) .ge. 2) then
     stdev = sqrt (sum_std/real(sum(yp)-1.0))
@@ -128,62 +126,58 @@ subroutine normalize_xv (x, weight, mean, stdev, stdev_all, smin, smax, yp)
  
 end subroutine normalize_xv
  
+! aw rewrote following, but function no longer used ... replaced by a direct calculation max(maxval(x),0.0) 
 subroutine max_x (x, smax)
   use type
   implicit none
  
-  real (dp), intent (inout) :: x (:)
+  real (dp), intent (in) :: x (:)
   real (dp), intent (out) :: smax
  
-  integer (i4b) :: t
-  integer (i4b) :: ntimes
- 
-  ntimes = size (x) 
-  smax = -4
+!  integer (i4b) :: t
+!  integer (i4b) :: ntimes
+!  ntimes = size (x) 
+!  smax   = -4
 
-  do t = 1, ntimes, 1
-    ! when x=0, y=-4.
-    if (x(t) > -4) then
-      if (x(t) .ge. smax) then
-        smax = x (t)
-      end if 
-    end if
-  end do
+!  do t = 1, ntimes, 1
+!    ! when x=0, y=-4.
+!    if (x(t) > -4) then
+!      if (x(t) .ge. smax) then
+!        smax = x(t)
+!      end if 
+!    end if
+!  end do
+  smax = max(maxval(x), 0.0)    ! used for obs_max_pcp from a sample of stations
+  smax = max(smax, 0.0)
  
   return
- 
 end subroutine max_x
  
   
-!
-! Normalize a vector.
+! Normalize a vector using box-cox transform.
 ! Input :
 !  Y   = An n-element vector.
-!  exp = Integer exponent type (0 to 2).
-!          Exponent types available:
-!              0 = Exponent of 1, do not normalize.
-!              1 = Exponent of 1/2.
-!              2 = Exponent of 1/3rd.
+!  exp = exponent (1/lambda in box-cox 1 param formulation) 
 ! Output:
 !  Y   = Input vector is also output vector.
 subroutine normalize_y (texp, y)
   use type
   implicit none
  
-  real (dp), intent (in) :: texp !transform exponent
+  real (dp), intent (in) :: texp         ! transform exponent inverse (eg 1/lambda)
   real (dp), intent (inout) :: y (:)
   integer (i4b) :: t
-  integer (i4b) :: ntimes
+  integer (i4b) :: n_sample
  
-  ntimes = size (y)
+  n_sample = size (y)
  
-  do t = 1, ntimes, 1
+  do t = 1, n_sample, 1
 !     Y(t) = Y(t) ** (1.0d0/2.5d0)
 !    Y(t) = Y(t) ** (1.0d0/4d0)
 
     if(Y(t) > 0) then
 !      y (t) = y (t) ** (1.0d0/texp)
-      y (t) = ((y (t) ** (1.0d0/texp)) - 1)*texp !Hongli add box-cox
+      y (t) = ( (y(t) ** (1.0d0/texp) ) - 1)*texp ! box-cox
     else
       y (t) = 0
     end if 
@@ -297,8 +291,6 @@ subroutine calc_distance (lat1, lon1, lat2, lon2, dist)
  
 end subroutine calc_distance
  
-! added AJN Sept 2013
-! modified AWW Feb 2016, change stn_data name to prcp_data
 subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   use type
  
