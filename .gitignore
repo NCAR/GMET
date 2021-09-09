@@ -33,9 +33,9 @@ source/from_NR/*.f90
 # no text files (OK)
 # *.txt
 
-#no archives
+# no archives
 *.tar
-#*.tgz -- allowing the example to exist as an archive
+####*.tgz -- allow the compressed example(s) to exist as an archive
 *.gz
 *.zip
 *.Z

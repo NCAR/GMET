@@ -20,8 +20,8 @@ EXE_PATH = $(F_MASTER)/bin/
 EXE = generate_ensembles.exe
 
 # Define the Fortran Compiler
-FC  = gfortran
 #FC  = pgf90
+FC  = gfortran
 #FC = ifort
 
 #========================================================================
@@ -75,7 +75,7 @@ PROB_QPE= \
 QPE = $(patsubst %, $(F_SRC_DIR)/%, $(PROB_QPE))
 
 # Define routines for SCRF code
-# A. Wood, added the rand seed initialization here (last one)
+# A.Wood, added the rand seed initialization here (last one)
 #     called by  a modified version of a num_rec code, ran_state
 SCRF_GEN = \
 		trig_degrees.f90 \
@@ -83,13 +83,13 @@ SCRF_GEN = \
 		exit_scrf.f90 \
 		field_rand.f90 \
 		spcorr_grd.f90 \
-                init_rand_seed_I4B.f90
+        init_rand_seed_I4B.f90
 GEN = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_GEN))
 
 # Define the driver routine
-SCRF_DRIVER= \
-		scrf_driver.f90
-DRIVER = $(patsubst %, $(F_SRC_DIR)/%, $(SCRF_DRIVER))
+ENS_GEN_DRIVER = \
+		ens_gen_driver.f90
+DRIVER = $(patsubst %, $(F_SRC_DIR)/%, $(ENS_GEN_DRIVER))
 
 
 #========================================================================
@@ -175,8 +175,8 @@ link:
 
 # Remove object files
 clean:
-						rm -f *.o
-						rm -f *.mod
+	rm -f *.o
+	rm -f *.mod
 #
 # Copy the executable to the bin directory
 install:
