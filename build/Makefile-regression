@@ -1,4 +1,4 @@
-# ============= Makefile for sp_regression program ======================
+# ============= Makefile for spatial regression program ======================
 
 #========================================================================
 # PART 0: Define directory paths and select the compiler
@@ -16,7 +16,7 @@ NR_DIR = $(F_MASTER)/source/from_NR/
 # Define the directory for the executables
 EXE_PATH = $(F_MASTER)/bin/
 
-EXE = sp_regression.exe
+EXE = sp_regression.dyn.exe
 
 # Define the Fortran Compiler
 FC = gfortran
@@ -28,22 +28,19 @@ FC = gfortran
 #========================================================================
 
 ifeq ($(FC),gfortran)
-	#FCFLAGS = -g
-        #FCFLAGS = -O2
-
+	#FCFLAGS = -g -ffree-line-length-none -fmax-errors=0
         FCFLAGS = -O3 -ffree-line-length-none -fmax-errors=0
 
         # flags forall (e.g. look for system .mod files, required in gfortran)
 	#FCFLAGS += -I/usr/local.net/netcdf-4.3.0/gcc-4.7.2/include
-        # FCFLAGS += -I/opt/netcdf4-gnu/include
-
+        #FCFLAGS += -I/opt/netcdf4-gnu/include
         FCFLAGS +=-I$(NCAR_INC_NETCDF) -I$(NCAR_INC_OPENBLAS)
 
         # libraries needed for linking, unused in the examples
         LIBRARIES = -L$(NCAR_LDFLAGS_NETCDF) -lnetcdff -L$(NCAR_LDFLAGS_OPENBLAS) $(NCAR_LIBS_OPENBLAS)
 
         #LDLOCAL = -Wl,-rpath,/opt/netcdf-4.7.0/gcc-6.3.0/lib
-        # LDFLAGS = $(LDLOCAL) -L/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib -lnetcdf -lnetcdff
+        #LDFLAGS = $(LDLOCAL) -L/usr/local.net/netcdf-4.3.0/gcc-4.7.2/lib -lnetcdf -lnetcdff
 	#LDFLAGS = $(LDLOCAL) -L/opt/netcdf4-gnu/lib -lnetcdf -lnetcdff
         #LDFLAGS = -L/usr/local/netcdf/lib -lnetcdff
 endif

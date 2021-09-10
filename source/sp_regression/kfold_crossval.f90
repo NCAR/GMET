@@ -1,6 +1,6 @@
 ! performs least squares regression in an iterative process over k folds of the data, returns predictive error
 
-subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices, varUncert)
+subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, max_n_test, xval_indices, varUncert)
   use type
   implicit none
 
@@ -16,17 +16,18 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
   end interface
 
   ! inputs/outputs 
-  real(dp), intent(in)      :: X(:,:)                    ! full station attribute array
-  real(dp), intent(in)      :: Y(:)                    ! full station variable value vector
-  real(dp), intent(in)      :: W(:,:)                  ! full station diagonal weight matrix
-  integer(I4B), intent(in)  :: kfold_trials            ! number of kfold xval trials
-  integer(I4B), intent(in)  :: n_total                 ! size of station sample to draw from (sta_limit)
-  integer(I4B), intent(in)  :: n_train                 ! number in training sample
-  integer(I4B), intent(in)  :: xval_indices(:,:)      ! array of sampling combinations (integer array indices)
-  real(sp), intent(out)     :: varUncert               ! output: uncertainty estimate from kfold trials
+  real(dp), intent(in)      :: X(:,:)                ! full station attribute array
+  real(dp), intent(in)      :: Y(:)                  ! full station variable value vector
+  real(dp), intent(in)      :: W(:,:)                ! full station diagonal weight matrix
+  integer(I4B), intent(in)  :: kfold_trials          ! number of kfold xval trials
+  integer(I4B), intent(in)  :: n_total               ! size of station sample to draw from (sta_limit)
+  integer(I4B), intent(in)  :: n_train               ! number in training sample
+  integer(i4b), intent(in)  :: max_n_test            ! maximum test sample size over all trials
+  integer(I4B), intent(in)  :: xval_indices(:,:)     ! array of sampling combinations (integer array indices)
+  real(sp), intent(out)     :: varUncert             ! output: uncertainty estimate from kfold trials
   
   ! local variables
-  real(dp), allocatable     :: w_1d(:)               ! 1d vector of the weights from diagonal weight matrix W
+  real(dp), allocatable     :: w_1d(:)               ! 1d vector of the station weights from diagonal weight matrix W
   real(dp)                  :: weightSum             ! summation of all station weights in error estimate
   real(dp)                  :: errorSum              ! summation of errors from kfold trials
   real(dp)                  :: varTmp                ! temporary variable value
@@ -44,15 +45,16 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
   
   integer(I4B)              :: i, j                   ! counter variables
   integer(I4B)              :: nPredictors            ! number of predictors in attribute arrays
-  integer(i4b)              :: trial_n_test           ! n test sample in each trail (varies)
+  integer(i4b)              :: trial_n_test, trial_n_train ! test & train sample sizes in each trial (varies)
 
   ! initialize variables
   weightSum = 0.0; errorSum  = 0.0
 
+  ! assign some parameters
   nPredictors = size(X,2)                             ! number of predictors (static + dynamic)
   
   ! allocations
-  allocate(x_xval_train(n_train, nPredictors))
+  allocate(x_xval_train(n_train, nPredictors))        ! this is the max trial_n_train could be
   allocate(y_xval_train(n_train))
   allocate(w_xval_train(n_train, n_train))
   allocate(w_1d(n_total))
@@ -61,7 +63,7 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
   allocate(B(nPredictors))
   allocate(vv(nPredictors))
   allocate(train_indices(n_train))
-  allocate(test_indices(n_total - n_train))
+  allocate(test_indices(max_n_test))
 
   ! initalize weight vector variable
   do i = 1,n_total,1
@@ -70,11 +72,12 @@ subroutine kfold_crossval(X, Y, W, kfold_trials, n_total, n_train, xval_indices,
 
   ! loop through the kfold trials
   do i = 1, kfold_trials
-    trial_n_test = xval_indices(i, 1)        ! first col of array; may be cut short on final group
+    trial_n_test  = xval_indices(i, 1)       ! number of test records; the last sample may be larger than nominal
+    trial_n_train = n_total - trial_n_test   ! number of training records:  last sample may be smaller
     
     ! extract vectors of training and test indices for each trial (for code readability)
-    train_indices = xval_indices(i, 2:(n_train+1))
-    test_indices  = xval_indices(i, (n_train+2):(n_train+1+trial_n_test))
+    train_indices = xval_indices(i, 2:(trial_n_train+1))
+    test_indices  = xval_indices(i, (trial_n_train+2):(trial_n_train+1+trial_n_test))
     
     ! station predictor array, values and weights -- training sample
     x_xval_train = X(train_indices, :)

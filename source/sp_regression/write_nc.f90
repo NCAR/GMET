@@ -366,7 +366,7 @@ subroutine save_forcing_regression (pcp, pop, pcperror, obs_max_pcp, tmean, tmea
     error = 1
   end if
   if (error /= nf90_noerr .or. append_choice == 0) then
-    print*, ' -- creating new output file: ', file
+    print*, ' -- wrote: ', file
     error = 0
 
     ! Create the file.

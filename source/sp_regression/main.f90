@@ -254,7 +254,7 @@ program gmet
   gen_sta_weights            = config_values(19)
   sta_weight_name            = config_values(20)
   use_stn_weights            = config_values(21)
-  read(config_values(22), *)   nTotPredictors
+  read(config_values(22), *)   nDynPredictors
   dyn_predictor_names        = config_values(23)
   dynamic_prcp_var           = config_values(24)
   dyn_pred_infile_list       = config_values(25)
@@ -439,7 +439,6 @@ program gmet
       stop
     end if
 
-    ! --- read domain grid
     call read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
     if(error /= 0) then
       print *, "ERROR: Failed to read domain grid ... quitting", error
@@ -471,13 +470,12 @@ program gmet
     mask_1d   = reshape (mask, (/ nx*ny /))
     ngrid     = nx * ny
 
-    ! --- read dynamic/gridded predictors
-    if (nTotPredictors .lt. 6 .or. nTotPredictors .gt. 30) then
-      print *, 'ERROR: nTotPredictors ', nTotPredictors, ' is likely not specified correctly in the config file.'
+    ! --- check dynamic/gridded predictor settings
+    if (nDynPredictors .lt. 0 .or. nDynPredictors .gt. 20) then
+      print *, 'ERROR: N_DYN_PREDICTORS =', nDynPredictors, ' is likely not specified correctly in the config file.'
       stop
     end if
-    
-    nDynPredictors = nTotPredictors - 6
+    nTotPredictors = nDynPredictors + 6   ! include the 5 static predictor + intercept
     
     if(nDynPredictors > 0) then
       ! dynamic predictors will be read and used
