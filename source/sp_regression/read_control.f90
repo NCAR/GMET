@@ -145,106 +145,57 @@ subroutine read_refcst (startdate, enddate, file_var, perturbation, var_name, fo
   end do
  
 end subroutine read_refcst
+
  
- 
-subroutine read_station_list (file_name, id, name, lat, lon, elev, sslp_n, sslp_e, n_stations, &
-                              & error, vars)
+subroutine read_station_list (file_name, id, lat, lon, elev, sslp_n, sslp_e, n_stations)
   use string_mod
   use type
   implicit none
  
   character (len=500), intent (in) :: file_name
-  character (len=100), allocatable, intent (out) :: id (:), name (:)
-  character (len=2), allocatable, intent (out) :: vars (:) ! AWW-feb2016 holds P/T flags
+  character (len=100), allocatable, intent (out) :: id (:)
   real (dp), allocatable, intent (out) :: lat (:), lon (:), elev (:), sslp_n (:), sslp_e (:)
   integer (i4b), intent (out) :: n_stations
-  integer, intent (out) :: error
  
-  character (len=100) :: settings (8)
-  integer (i4b) i, nsettings, stat, err, ipos
+  ! local variables
+  integer (i4b) s, stat
   character (500) line
-  logical fexist
- 
-  error = 0
+
   print *, "Reading stations list: ", trim (file_name)
- 
-  inquire (file=file_name, exist=fexist)
-  if ( .not. fexist) then
-    print *, "Cannot find file: ", trim (file_name)
-    error = 1
-    return
-  end if
- 
-  open (11, file=file_name, status='old')
- 
-  n_stations = 0
-  i = 1
-  do
-    read (11, "(A)", iostat=stat) line
-    if (stat < 0) exit
-    line = adjustl (line)
- 
-    if (line(1:1) .ne. "#" .and. len(trim(line)) /= 0) then
-      ipos = index (line, "NSITES")
-      if (ipos > 0) then
-        ipos = ipos + 6
-        call value (line(ipos:), n_stations, err)
-        if (err /= 0) then
-          n_stations = 0
-        else
-          print *, "Stations: ", n_stations
-          allocate (id(n_stations))
-          allocate (name(n_stations))
-          allocate (lat(n_stations))
-          allocate (lon(n_stations))
-          allocate (elev(n_stations))
-          allocate (sslp_n(n_stations))
-          allocate (sslp_e(n_stations))
-          allocate (vars(n_stations))  !AWW-feb2016 holds P/T flags
-        end if
-      end if
-      ipos = index (line, ',')
-      if (ipos > 0 .and. n_stations > 0) then
-        call parse (line, ",", settings, nsettings)
-        if (nsettings == 7 .or. nsettings == 8) then  ! orig number of fields
-          id(i) = settings(1)
-          name(i) = settings(7)
-          call delall (name(i), '"')
-          call value (settings(2), lat(i), err)
-          if (err /= 0) lat (i) = - 999.99
-          call value (settings(3), lon(i), err)
-          if (err /= 0) lon (i) = - 999.99
-          call value (settings(4), elev(i), err)
-          if (err /= 0) elev (i) = - 999.99
-          call value (settings(5), sslp_n(i), err)
-          if (err /= 0) sslp_n (i) = - 999.99
-          call value (settings(6), sslp_e(i), err)
-          if (err /= 0) sslp_e (i) = - 999.99
 
-          if (nsettings == 8) then ! AWW-feb2016
-            vars(i) = settings(8)  ! need to upgrade station list
-          end if
-         
-          ! print *, trim(id(i)), "  ", trim(name(i)), lat(i), lon(i), elev(i), vars[i]
-          i = i + 1
-        end if
- 
-     end if
-    end if
- 
+  ! open file and find number of stations (rows-1), then rewind it
+  open (11, file=file_name, status='old', iostat=stat)
+  if (stat /= 0) then
+    print *, "Cannot find file: ", trim(file_name); stop    ! program cannot continue
+  end if
+  n_stations = -1   ! set to skip header in count
+  do 
+    read (11, *, end=10) 
+    n_stations = n_stations + 1 
   end do
-  if (n_stations == 0) then
-    print *, "Failed to find NSITES in station list: ", trim (file_name)
-    error = 1
-  else
-    if (i /= n_stations+1) then
-      print *, "Found only ", i, " out of ", n_stations, " stations from: ", trim (file_name)
-      error = 1
+10 rewind(11)    ! rewind file to starting position
+  print*, 'Found ', n_stations, ' station records'
+  
+  ! allocate variables to hold station records
+  allocate (id(n_stations))
+  allocate (lat(n_stations))
+  allocate (lon(n_stations))
+  allocate (elev(n_stations))
+  allocate (sslp_n(n_stations))
+  allocate (sslp_e(n_stations))  
+ 
+  ! now read the command separated records (skip header)
+  ! fields are ordered:  station ID, lat, lon, elev, slope_n, slope_e
+  read (11, *, iostat=stat) line    ! header
+  do s = 1, n_stations
+    read (11, *, iostat=stat) id(s), lat(s), lon(s), elev(s), sslp_n(s), sslp_e(s)
+    !print*, s,trim(id(s)),lat(s),lon(s)
+    if (stat /= 0) then
+      print*, 'STOP:  problem reading records from station file'; stop
     end if
-  end if
+  end do
   close (11)
-
-  print *, "Done with read_station_list"
+  print *, 'Done reading ', (s-1), ' station info records'; print *, ' '
 
 end subroutine read_station_list
  
@@ -265,7 +216,7 @@ end subroutine check
 !modified EAC Dec 2015 adapted from AJN version for ASCII, replacing it
 !modified AWW Dec 2015, Feb 2016 -- added directory, st_rec, end_rec
 
-subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_vals, &
+subroutine read_station (prcp_varname, stnid, directory, st_rec, end_rec, vals, tair_vals, &
                        & vals_miss, vals_miss_t, error)
   use string_mod
   use utim
@@ -273,7 +224,7 @@ subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_v
   use netcdf
   implicit none
  
-  character (len=100), intent (in) :: stnvar !! prcp variable name
+  character (len=100), intent (in) :: prcp_varname !! prcp variable name
   character (len=100), intent (in) :: stnid
   character (len=500), intent (in) :: directory ! AWW-feb2016 data dir separated from site list
  
@@ -314,39 +265,33 @@ subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_v
     print *, "ERROR: Cannot find file: ", trim (file_name)
     print *, "Setting station precipitation timeseries to missing"
     stop! quit and fix problem -- station should not be missing
-     !     vals(:) = -999.0
-     !     vals_miss = .FALSE.
-     !     error = 1
-     !     return
  
   else ! file exists -- read it
  
-    print *, "reading file"
     call check (nf90_open(file_name, nf90_nowrite, ncid))
-    print *, "opened file"
     call check (nf90_inquire(ncid, unlimiteddimid=recorddimid))
     call check (nf90_inquire_dimension(ncid, recorddimid, name=recorddimname, len=nctimes))
-    print *, "netcdf file has ", nctimes, " records"
+    print *, "netcdf file has ", nctimes, " records (nctimes)"
     ! check to make sure desired period is valid
     if (end_rec .gt. nctimes) then
       print *, 'ERROR:  trying to access station data from record greater than those in station'
       print *, 'rec wanted=', end_rec, 'rec available=', nctimes
       stop
     end if
-    print *, 'nctimes=', nctimes
+    print *, "storing ", (end_rec-st_rec+1), " output period records from [st_rec, end_rec]: ",st_rec, end_rec
  
-    !!! ----- Get precipitation values -----
-    allocate (valsp(nctimes))! nctimes = all the records in the netcdf file
+    !!! ----- Get precipitation values if they exist -----
+    allocate (valsp(nctimes))                        ! nctimes = all the records in the netcdf file
     allocate (vals(end_rec-st_rec+1))
     allocate (vals_miss(end_rec-st_rec+1))
 !    allocate(vals(nctimes))
 !    allocate(vals_miss(nctimes))
-    status = nf90_inq_varid (ncid, stnvar, varid)
+    status = nf90_inq_varid (ncid, prcp_varname, varid)   
     if (status /= nf90_noerr) then
       vals_miss = .false.
       vals = - 999.0
     else
-      call check (nf90_get_var(ncid, varid, valsp))! read the precip
+      call check (nf90_get_var(ncid, varid, valsp))  ! read the precip
       print *, "reading in prcp data"
  
       ! AWW here could make it so that if the station var not specified (PT), don't use
@@ -370,7 +315,7 @@ subroutine read_station (stnvar, stnid, directory, st_rec, end_rec, vals, tair_v
     stnvar_t1 = 'tmin'
     stnvar_t2 = 'tmax'
 !    allocate(tair_vals(2, nctimes))
-    allocate (tair_vals(2, end_rec-st_rec+1))
+    allocate (tair_vals(2, end_rec-st_rec+1))       ! AW - get all these allocation / deallocates out of loop; inefficient
     allocate (vals1(nctimes))
     allocate (vals2(nctimes))
 !    allocate(vals_miss_t(nctimes))
@@ -546,3 +491,106 @@ subroutine read_grid_list (file_name, lats, lons, elevs, slp_n, slp_e, nx, ny, e
   end if
  
 end subroutine read_grid_list
+
+
+
+! previous version of routine w/ mixed format station metadata read ... can be deleted if not used
+subroutine read_station_list_prev (file_name, id, name, lat, lon, elev, sslp_n, sslp_e, n_stations, &
+                              & error, vars)
+  use string_mod
+  use type
+  implicit none
+ 
+  character (len=500), intent (in) :: file_name
+  character (len=100), allocatable, intent (out) :: id (:), name (:)
+  character (len=2), allocatable, intent (out) :: vars (:) ! AWW-feb2016 holds P/T flags
+  real (dp), allocatable, intent (out) :: lat (:), lon (:), elev (:), sslp_n (:), sslp_e (:)
+  integer (i4b), intent (out) :: n_stations
+  integer, intent (out) :: error
+ 
+  character (len=100) :: settings (8)
+  integer (i4b) i, nsettings, stat, err, ipos
+  character (500) line
+  logical fexist
+ 
+  error = 0
+  print *, "Reading stations list: ", trim (file_name)
+ 
+  inquire (file=file_name, exist=fexist)
+  if ( .not. fexist) then
+    print *, "Cannot find file: ", trim (file_name)
+    stop
+  end if
+ 
+  open (11, file=file_name, status='old')
+ 
+  n_stations = 0
+  i = 1
+  do
+    read (11, "(A)", iostat=stat) line
+    if (stat < 0) exit
+    line = adjustl (line)
+ 
+    if (line(1:1) .ne. "#" .and. len(trim(line)) /= 0) then
+      ipos = index (line, "NSITES")
+      if (ipos > 0) then
+        ipos = ipos + 6
+        call value (line(ipos:), n_stations, err)
+        if (err /= 0) then
+          n_stations = 0
+        else
+          print *, "Stations: ", n_stations
+          allocate (id(n_stations))
+          allocate (name(n_stations))
+          allocate (lat(n_stations))
+          allocate (lon(n_stations))
+          allocate (elev(n_stations))
+          allocate (sslp_n(n_stations))
+          allocate (sslp_e(n_stations))
+          allocate (vars(n_stations))  !AWW-feb2016 holds P/T flags
+        end if
+      end if
+      ipos = index (line, ',')
+      if (ipos > 0 .and. n_stations > 0) then
+        call parse (line, ",", settings, nsettings)
+        if (nsettings == 7 .or. nsettings == 8) then  ! orig number of fields
+          id(i) = settings(1)
+          name(i) = settings(7)
+          call delall (name(i), '"')
+          call value (settings(2), lat(i), err)
+          if (err /= 0) lat (i) = - 999.99
+          call value (settings(3), lon(i), err)
+          if (err /= 0) lon (i) = - 999.99
+          call value (settings(4), elev(i), err)
+          if (err /= 0) elev (i) = - 999.99
+          call value (settings(5), sslp_n(i), err)
+          if (err /= 0) sslp_n (i) = - 999.99
+          call value (settings(6), sslp_e(i), err)
+          if (err /= 0) sslp_e (i) = - 999.99
+
+          if (nsettings == 8) then ! AWW-feb2016
+            vars(i) = settings(8)  ! need to upgrade station list
+          end if
+         
+          ! print *, trim(id(i)), "  ", trim(name(i)), lat(i), lon(i), elev(i), vars[i]
+          i = i + 1
+        end if
+ 
+     end if
+    end if
+ 
+  end do
+  if (n_stations == 0) then
+    print *, "Failed to find NSITES in station list: ", trim (file_name)
+    error = 1
+  else
+    if (i /= n_stations+1) then
+      print *, "Found only ", i, " out of ", n_stations, " stations from: ", trim (file_name)
+      error = 1
+    end if
+  end if
+  close (11)
+
+  print *, "Done with read_station_list"
+
+end subroutine read_station_list_prev

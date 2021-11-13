@@ -9,30 +9,33 @@ subroutine station_grid_correspondence(X,Z,close_weights,close_weights_t,close_l
   integer(I4B), intent(in)    :: close_loc(:,:) 
   integer(I4B), intent(in)    :: close_loc_t(:,:) 
   integer(I4B), intent(in)    :: nSta
-  
   integer(I4B), intent(out)   :: nearestGridpoint(:)  
 
-  !local variables 
+  ! local variables 
   integer(I4B)                :: g, s                  ! counter variables
   integer(I4B)                :: vshape(2)             ! array shape 
   integer(I4B)                :: nStaGrid
   integer(I4B)                :: nGrid
   real(dp),allocatable        :: closestWeight(:)      ! weights for closest gridpoint to a station
-
   integer(I4B)                :: tmp_grid_pt
   real(dp)                    :: tmp_weight
   real(dp)                    :: max_tmp_weight
 
-  !code starts below
+  ! ------- code starts below ----------
+  
+  ! Associate each grid point with the nearest station and station weight
+  !   AW: to-do:  this can be vectorized with advanced indexing
+  
   vshape = shape(close_weights)
-
 
   allocate(closestWeight(nSta))
 
-  closestWeight = 0.0
-  max_tmp_weight = 0.0
-
-  ngrid = vshape(1)
+  ! initialize
+  closestWeight    = 0.0
+  max_tmp_weight   = 0.0
+  nearestGridpoint = -1
+  
+  ngrid    = vshape(1)
   nStaGrid = vshape(2)
 
   do g = 1, ngrid, 1
@@ -46,13 +49,14 @@ subroutine station_grid_correspondence(X,Z,close_weights,close_weights_t,close_l
         nearestGridPoint(close_loc_t(g,s)) = g;
       end if
 
+      ! catch errors
       if(nearestGridPoint(close_loc(g,s)) .lt. 1) then
-        print *,'p',g,close_weights(g,:)
+        print *,'p cell',g,'closest weights not found', close_weights(g,:)
       end if
       if(nearestGridPoint(close_loc_t(g,s)) .lt. 1) then
-        print *,'t',g,close_weights_t(g,:)
+        print *,'t cell',g,'closest weights not found', close_weights_t(g,:)
       end if
-    
+      
     end do
   end do
 

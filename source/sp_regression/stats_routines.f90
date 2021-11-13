@@ -301,7 +301,6 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   real (dp), intent (in) :: tair_data (:, :)
   integer (i4b), intent (in) :: lag
   integer (i4b), intent (in) :: window
- 
   ! output
   real (dp), intent (out) :: auto_corr
   real (dp), intent (out) :: t_p_corr
@@ -309,16 +308,11 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   ! local variables
   real (dp), allocatable :: tmean (:), trange (:)
   real (dp), allocatable :: moving_avg (:, :)
-  real (dp) :: lag_0_mean
-  real (dp) :: lag_n_mean
-  real (dp) :: lag_0_var
-  real (dp) :: lag_n_var
-  real (dp) :: lag_0_sum
-  real (dp) :: lag_n_sum
+  real (dp) :: lag_0_mean, lag_0_var, lag_0_sum
+  real (dp) :: lag_n_mean, lag_n_var, lag_n_sum
   real (dp) :: cov
   real (dp) :: lag_0_pmean, lag_0_pvar, lag_0_psum
   real (dp) :: trange_mean, trange_sum, trange_var
- 
   real (dp) :: tmp_tmean, tmp_trange
  
   integer (i4b) :: i, j, tmp_cnt
@@ -328,7 +322,7 @@ subroutine generic_corr (prcp_data, tair_data, lag, window, auto_corr, t_p_corr)
   integer (i4b) :: cnt_sums
   integer (i4b) :: data_cnt
  
-  ! code
+  ! ---- code ------
   ntimes = size (prcp_data)
   allocate (tmean(ntimes))
   allocate (trange(ntimes))
