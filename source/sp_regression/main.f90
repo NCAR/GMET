@@ -26,7 +26,7 @@ program gmet
       integer, intent (out) :: error
     end subroutine read_refcst
  
-    subroutine read_station_list (file_name, id, name, lat, lon, elev, sslp_n, sslp_e, n_stations, &
+    subroutine read_station_list_prev (file_name, id, name, lat, lon, elev, sslp_n, sslp_e, n_stations, &
    & error, vars) !AWW
       use type
       character (len=500), intent (in) :: file_name
@@ -35,7 +35,15 @@ program gmet
       real (dp), allocatable, intent (out) :: lat (:), lon (:), elev (:), sslp_n (:), sslp_e (:)
       integer (i4b), intent (out) :: n_stations
       integer, intent (out) :: error
-    end subroutine read_station_list
+    end subroutine read_station_list_prev
+    
+    subroutine read_station_list (file_name, id, lat, lon, elev, sslp_n, sslp_e, n_stations)
+      use type
+      character (len=500), intent (in) :: file_name
+      character (len=100), allocatable, intent (out) :: id (:)
+      real (dp), allocatable, intent (out) :: lat (:), lon (:), elev (:), sslp_n (:), sslp_e (:)
+      integer (i4b), intent (out) :: n_stations
+    end subroutine read_station_list    
  
     subroutine read_grid_list (file_name, lats, lons, elevs, slp_n, slp_e, nx, ny, error)
       use type
@@ -261,16 +269,12 @@ program gmet
   read(config_values(26), *)   sta_limit
   read(config_values(27), *)   kfold_trials
   
-  !check to see if output file path is valid
-  !create the output file and see if an error occurs
+  ! check to see if output file path is valid before run
   output_file_tmp = trim(output_file) // ".txt"
   open(unit=34,file=trim(output_file_tmp),form='unformatted',iostat=error)
-    
-  ! check to see if it was created
   if(error /= 0) then
     print *, "Error: Output path is not valid." 
-    print *, trim(output_file_tmp), " cannot be created in output directory"
-    stop
+    print *, trim(output_file_tmp), " cannot be created in output directory"; stop
   else
     sys_str = "rm " // trim(output_file_tmp)
     call system(sys_str)
@@ -369,13 +373,13 @@ program gmet
     end do
  
     ! set station info from input metadata file
-    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
+    call read_station_list_prev (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
    & stn_slp_e, nstations, error, vars)  ! AWW-feb2016 handled reading station variables
     if (error /= 0) then
       print*, "ERROR in reading station list: ", error
       stop
     end if
- 
+    
     call estimate_coefficients (y, n_vars, lats, lons, times, st_rec, end_rec, stnid, stnlat, &
    & stnlon, station_var, directory, coefs, prob_coefs, error)
     if (error /= 0) then
@@ -420,36 +424,34 @@ program gmet
  
     print*, "Max Distance = ", maxdistance
     if (maxdistance .le. 0 .or. maxdistance .gt. 10000) then
-      print*, "Max Distance (km) = ', maxdistance,' ... may not be specified correctly ... quitting"
-      stop
+      print*, "Max Distance (km) = ', maxdistance,' ... may not be specified correctly ... quitting"; stop
     end if
     maxdistance = maxdistance * 0.539957   ! convert from km to nautical miles
  
     ! --- read station list
-    call read_station_list (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
-   & stn_slp_e, nstations, error, vars) ! AWW added vars
-    if (error /= 0) then
-      print *, "ERROR: Failed to read station list ... quitting", error
-      stop
-    end if
-
+!    call read_station_list_prev (site_list, stnid, stnname, stnlat, stnlon, stnelev, stn_slp_n, &
+!   & stn_slp_e, nstations, error, vars) ! AWW added vars
+!    if (error /= 0) then
+!      print *, "ERROR: Failed to read station list ... quitting", error; stop
+!    end if
+    
+    ! read station list (regular csv file)
+    call read_station_list (site_list, stnid, stnlat, stnlon, stnelev, stn_slp_n, stn_slp_e, nstations) 
+  
     ! --- read grid domain file 
     if (len(trim(grid_list)) == 0) then
-      print *, "ERROR: Failed to read GRID_LIST (domain grid) name"
-      stop
+      print *, "ERROR: Failed to read GRID_LIST (domain grid) name"; stop
     end if
 
     call read_domain_grid (grid_list, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
     if(error /= 0) then
-      print *, "ERROR: Failed to read domain grid ... quitting", error
-      stop
+      print *, "ERROR: Failed to read domain grid ... quitting", error; stop
     end if
 
     ! --- check kfold cross-validation settings
     ! limit number of trial as 10-50
     if((kfold_trials .gt. 50 .or. kfold_trials .lt. 2) .and. kfold_trials .ne. 0) then
-      print *,'Error:  K-fold trials limited to range of 2-50 trials, unless turned off with trials=0'
-      stop
+      print *,'Error:  K-fold trials limited to range of 2-50 trials, unless turned off with trials=0'; stop
     end if
 
     ! allocate static grid variables
@@ -576,6 +578,6 @@ subroutine get_time_list (startdate, enddate, times)
     utime     = utime + 86400
   end do
  
-  print *, 'time list: ', times  !seconds since 1970-1-1
+  !print *, 'time list: ', times  ! seconds since 1970-1-1
  
 end subroutine get_time_list

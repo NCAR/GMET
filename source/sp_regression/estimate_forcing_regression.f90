@@ -431,38 +431,31 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
     call read_station (stnvar, stnid(i), directory, st_rec, end_rec, stn_prcp, stn_tair, &
    & stn_miss, stn_miss_t, error)
 
-    print*, "first value check: "
-    print*, "   prcp(1): ",stn_prcp(1)
-    print*, "   tavg(1): ",stn_tair(1,1)
-    print*, "   trng(1): ",stn_tair(2,1)
-    print*
+    print*, "first value check (output period): "
+    print*, "   prcp(1): ", stn_prcp(1)
+    print*, "   tmin(1): ", stn_tair(1,1)
+    print*, "   tmax(1): ", stn_tair(2,1)
 
-    prcp_data (i, :) = stn_prcp
+    prcp_data (i, :)    = stn_prcp
     tair_data (1, i, :) = stn_tair (1, :)
     tair_data (2, i, :) = stn_tair (2, :)
-
-    ! check data if needed
-    ! print *, '-----------'
-    ! print *, 'precip',prcp_data(i,:),'MISS',stn_miss
-    ! print *, '-----------'
-    ! print *,'tmin',tair_data(1,i,:),'MISS',stn_miss_t
-    ! print *, '-----------'
 
     ! compute mean autocorrelation for all stations and all times
     lag = 1
     window = 31 ! AWW:  hardwired parameter; should bring out
     call generic_corr (prcp_data(i, :), tair_data(:, i, :), lag, window, auto_corr(i), t_p_corr(i))
-    ! print *,auto_corr(i)
 
-    ! check for values outside of -1 to 1
+    ! check for correlation value outside of -1 to 1
     ! stations with incomplete data are set to -999
-    print *, 'station id & auto_corr'
-    print *, stnid(i), auto_corr(i)
-    if (auto_corr(i) .ge.-1.0 .and. auto_corr(i) .le. 1.0) then
+    print *, 'station id: ', trim(stnid(i))
+    print *, 'auto_corr: ', auto_corr(i)
+    print *, 't-p_corr: ', t_p_corr(i)
+
+    if (auto_corr(i) .ge. -1.0 .and. auto_corr(i) .le. 1.0) then
       auto_corr_sum = auto_corr_sum + auto_corr (i)
       auto_cnt = auto_cnt + 1
     end if
-    if (t_p_corr(i) .ge.-1.0 .and. t_p_corr(i) .le. 1.0) then
+    if (t_p_corr(i) .ge. -1.0 .and. t_p_corr(i) .le. 1.0) then
       tp_corr_sum = tp_corr_sum + t_p_corr (i)
       tp_cnt = tp_cnt + 1
     end if
@@ -487,10 +480,12 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
   mean_tp_corr = tp_corr_sum / real (tp_cnt, kind(dp))
 
   print *, ' '
-  print *, '===================================================='
-  print *, 'Temp lag-1 autocorrelation: ', mean_autocorr (1)
-  print *, 'Temp-precip correlation: ', mean_tp_corr (1)
-  print *, '===================================================='
+  print *, '=========================================================='
+  print *, 'Mean correlation stats across all stations'
+  print *, '  Temp. lag 1 auto-correlation: ', mean_autocorr(1)
+  print *, '  Temp-precip correlation: ', mean_tp_corr(1)
+  print *, 'Note: Values may be uninformative for short output periods'
+  print *, '=========================================================='
   print *, ' '
 
   call system_clock (t1, count_rate)
