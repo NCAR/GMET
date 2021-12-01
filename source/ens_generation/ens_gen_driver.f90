@@ -23,7 +23,6 @@ program generate_ensembles
   use gridweight                           ! grid structure used by spcorr
   use nr, only: erf, erfcc                 ! Numerical Recipies error function
   use namelist_module, only: read_namelist ! namelist module
-  ! use namelist_module, only: nens, ntimes, start_time AW edited
   use namelist_module, only: start_ens, stop_ens, ntimes, start_time
   use namelist_module, only: out_forc_name_base, in_regr_name, grid_name, clen
  
@@ -81,7 +80,7 @@ program generate_ensembles
       real (sp) :: erfinv
     end function erfinv
  
-    subroutine read_nc_grid (file_name, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
+    subroutine read_domain_grid (file_name, lat, lon, elev, grad_n, grad_e, mask, nx, ny, error)
       use netcdf
       use nrtype
  
@@ -90,7 +89,7 @@ program generate_ensembles
      & grad_e (:, :), mask (:, :)
       integer (i4b), intent (out) :: nx, ny
       integer, intent (out) :: error
-    end subroutine read_nc_grid
+    end subroutine read_domain_grid
   
   end interface
   ! ================== END of INTERFACES ===============
@@ -213,9 +212,9 @@ program generate_ensembles
   print*, 'Generating ',nens,' ensemble(s) from ',start_ens,' to ',stop_ens
  
   ! read in netcdf gridded domain file 
-  call read_nc_grid (grid_name, lat, lon, hgt, slp_n, slp_e, mask, nx, ny, error)
+  call read_domain_grid (grid_name, lat, lon, hgt, slp_n, slp_e, mask, nx, ny, error)
  
-  if (error .ne. 0) call exit_scrf (1, 'problem in read_nc_grid ')
+  if (error .ne. 0) call exit_scrf (1, 'problem in read_domain_grid ')
  
   allocate (lat_out(nx*ny), lon_out(nx*ny), hgt_out(nx*ny), stat=ierr)
   if (ierr .ne. 0) call exit_scrf (1, 'problem allocating for 1-d output variables')
