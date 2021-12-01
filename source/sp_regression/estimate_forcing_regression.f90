@@ -972,8 +972,8 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           ! -------------- 2. NOW CALCULATING PCP -----------------
 
           if(pop(g,t) .gt. 0.0) then
-            deallocate(twx_red); allocate(twx_red(nTotPredictors, sta_limit))
-            deallocate(tx_red);  allocate(tx_red( nTotPredictors, sta_limit))
+            if(allocated(twx_red)) deallocate(twx_red); allocate(twx_red(nTotPredictors, sta_limit))
+            if(allocated(tx_red))  deallocate(tx_red);  allocate(tx_red( nTotPredictors, sta_limit))
 
             if(slope_flag_pcp .eq. 0) then
               pcp(g, t) = -999.
@@ -1007,8 +1007,8 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
 
             ! ---- now do regression without slope predictors
 
-            deallocate(tx_red_2);  allocate(tx_red_2( nTotPredictors-2, sta_limit))    
-            deallocate(twx_red_2); allocate(twx_red_2(nTotPredictors-2, sta_limit))
+            if(allocated(tx_red_2))  deallocate(tx_red_2);  allocate(tx_red_2( nTotPredictors-2, sta_limit))    
+            if(allocated(twx_red_2)) deallocate(twx_red_2); allocate(twx_red_2(nTotPredictors-2, sta_limit))
             
             ! AWW note that these use the 2nd set of T* variables (different dimension)
             tx_red_2  = transpose (x_red(:, noSlopePredicts))
@@ -1116,10 +1116,9 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           ! ===== NOW do TRANGE ============
 
           ! ---- regression with slope
-
-          deallocate(tx_red);  allocate( tx_red(nTotPredictors, sta_limit))
-          deallocate(twx_red); allocate(twx_red(nTotPredictors, sta_limit))
-
+          if(allocated(tx_red))  deallocate(tx_red);  allocate( tx_red(nTotPredictors, sta_limit))
+          if(allocated(twx_red)) deallocate(twx_red); allocate(twx_red(nTotPredictors, sta_limit))
+           
           ! note that these use the 1st set of T* predictor arrays
           tx_red  = transpose (x_red_t)
           twx_red = matmul (tx_red, w_temp_red)
@@ -1147,9 +1146,8 @@ subroutine estimate_forcing_regression (nTotPredictors, gen_sta_weights, sta_wei
           deallocate (b)
 
           ! ---- regression without slope ---
-
-          deallocate(tx_red_2);  allocate(tx_red_2( nTotPredictors-2, sta_limit))
-          deallocate(twx_red_2); allocate(twx_red_2(nTotPredictors-2, sta_limit))
+          if(allocated(tx_red_2))  deallocate(tx_red_2);  allocate(tx_red_2( nTotPredictors-2, sta_limit))
+          if(allocated(twx_red_2)) deallocate(twx_red_2); allocate(twx_red_2(nTotPredictors-2, sta_limit))
 
           ! note that these use the 2nd set of T* variables
           tx_red_2  = transpose (x_red_t(:, noSlopePredicts))
