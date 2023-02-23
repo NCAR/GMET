@@ -70,7 +70,7 @@ PROB_QPE= \
 		stringmod.f90 \
 		save_precip.f90 \
 		save_vars.f90 \
-		read_nc_grid.f90 \
+		read_domain_grid.f90 \
 		read_grid_list.f90
 QPE = $(patsubst %, $(F_SRC_DIR)/%, $(PROB_QPE))
 
